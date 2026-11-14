@@ -38,6 +38,20 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 - **Other closed environments.** The same O₂/CO₂ engine with a submarine and an underground refuge chamber profile,
   each with its own limits and sources.
 
+## Demo walkthrough
+
+This is the live presentation flow, about 3 minutes. The Space Apps "Project Demo" link is a separate video of 30 seconds or less, or a deck of 7 slides or fewer.
+
+Events are triggered from a hidden demo panel. Randomness uses a fixed seed, and the demo needs neither the internet nor voice. The simulation clock runs at ×600, and the screen says so. A measurement is taken every 5 mission minutes, which is 0.5 s in the demo.
+
+1. **Normal.** The Habitat panel shows four astronauts (Ayşe, Can, Ece, Mert), cabin O₂ and CO₂, and two countdowns.
+2. **O₂ generation fails.** Cabin PIO₂ slowly drops and the O₂ countdown starts. CO₂ removal still works, so the CO₂ countdown does not move. Ece is exercising: her heart rate reaches 130 and her breathing 26/min. Neither is counted as an alarm or as hypoxia evidence. When her SpO₂ is 3 points below her own baseline she turns **Watch**, and at 6 points she turns **Action**. The evidence shown is SpO₂ plus cabin PIO₂, and the advice is *"stop exercise, switch to backup O₂"*. This personal alert comes long before the cabin alert turns red.
+3. **Same heart rate, different decision.** Ayşe and Mert both have a heart rate of 80. Ayşe is +16 over her baseline and turns **Watch** (cardiac load). Mert is +13 over his and stays **Normal**.
+4. **Solar storm.** The real NASA DONKI event (10 May 2024) is replayed. The system projects the end-of-event dose, and when it will pass 200 mSv it says *"go to the storm shelter"* before the dose is received.
+5. **EVA view.** The screen shows suit PIO₂ and PICO₂, the remaining supply time and, if needed, *"return to the airlock"*.
+6. **Earth link.** A report goes to Earth with a visible one-way delay countdown, and the reply arrives later.
+7. **Other environments.** The environment selector switches to a submarine or an underground refuge chamber. The limits and their sources change, while the engine stays the same.
+
 ## How it works
 
 ```
