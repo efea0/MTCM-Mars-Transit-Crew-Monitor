@@ -661,8 +661,8 @@ def test_real_hypoxia_pio2_crossing_times() -> None:
         for threshold in (145, 127):
             if pio2 < threshold:
                 first_crossing.setdefault(threshold, frame.mission_elapsed_s / SECONDS_PER_MIN)
-    assert first_crossing[145] == pytest.approx(366, abs=INTERVAL_MIN)
-    assert first_crossing[127] == pytest.approx(1766, abs=INTERVAL_MIN)
+    assert first_crossing[145] == pytest.approx(365, abs=INTERVAL_MIN)
+    assert first_crossing[127] == pytest.approx(1755, abs=INTERVAL_MIN)
 
 
 @pytest.mark.skipif(

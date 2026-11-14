@@ -32,6 +32,7 @@ CABIN_METRICS = {  # yalnızca Reading alanları; status ve geri sayım alanlar�
     name for name, field in m.CabinAtmosphere.model_fields.items() if field.annotation is m.Reading
 }
 SEVERITIES = {s.value for s in m.Severity}
+CREW_ALERT_EXTRA_METRICS = {"event_dose"}  # kişi bazlı karar metriği (sözleşme 0.2.0 Metric.event_dose)
 STATUSES = {s.value for s in m.Status}
 
 GAS_CONSTANT = 8.314
@@ -215,9 +216,9 @@ def test_scenario_format(path: Path) -> None:
         assert a["t_earliest"] <= a["t_condition"] <= a["t_latest"] <= s["duration_min"], a["rule_id"]
         assert a["why"] and a["recommendation"] and a["evidence_metrics"]
         assert a["rule_id"] in s["proposed_rules"], a["rule_id"]
-        allowed = CABIN_METRICS if a["crew_id"] is None else CREW_METRICS
+        allowed = CABIN_METRICS if a["crew_id"] is None else CREW_METRICS | CREW_ALERT_EXTRA_METRICS
         assert a["metric"] in allowed, a
-        assert set(a["evidence_metrics"]) <= CREW_METRICS | CABIN_METRICS
+        assert set(a["evidence_metrics"]) <= CREW_METRICS | CABIN_METRICS | CREW_ALERT_EXTRA_METRICS
 
     assert set(s["expected_status_end"]) == {*crew_ids, "cabin"}
     assert set(s["expected_status_end"].values()) <= STATUSES
@@ -405,13 +406,14 @@ def test_hypoxia_exercise_heart_rate_is_not_evidence(hypoxia: Scenario) -> None:
 
 
 def test_hypoxia_personal_heart_rate_deviation(hypoxia: Scenario) -> None:
-    """Aynı nabız, farklı karar: crew-1 ve crew-4 ikisi de 80; crew-1 İzle, crew-4 normal."""
+    """Yakın nabız, farklı karar: crew-1 84, crew-4 78 bpm; crew-1 İzle (+20), crew-4 normal (+11)."""
     th = hypoxia["thresholds"]
     ramps = {e["crew_id"]: e for e in hypoxia["events"] if e.get("crew_id") in {"crew-1", "crew-4"}}
-    assert ramps["crew-1"]["targets"]["heart_rate"] == ramps["crew-4"]["targets"]["heart_rate"]
-    final = ramps["crew-1"]["targets"]["heart_rate"]
-    assert final - baseline(hypoxia, "crew-1", "heart_rate") >= th["hr_rise_caution"]
-    assert final - baseline(hypoxia, "crew-4", "heart_rate") < th["hr_rise_caution"]
+    final1 = ramps["crew-1"]["targets"]["heart_rate"]
+    final4 = ramps["crew-4"]["targets"]["heart_rate"]
+    assert abs(final1 - final4) <= 6, "iki nabız birbirine yakın olmalı; fark yalnızca bazdan gelir"
+    assert final1 - baseline(hypoxia, "crew-1", "heart_rate") >= th["hr_rise_caution"]
+    assert final4 - baseline(hypoxia, "crew-4", "heart_rate") < th["hr_rise_caution"]
 
     base1 = baseline(hypoxia, "crew-1", "heart_rate")
     t = first_time(
@@ -865,3 +867,128 @@ def test_sensor_dropout_cabin_stays_nominal_without_the_fault(dropout: Scenario)
     assert all(th["pio2_normoxia_min"] <= pio2 <= th["pio2_normoxia_max"] for _, pio2, _ in series)
     assert all(co2 < th["ppco2_yellow"] for _, _, co2 in series)
     assert dropout["expected_status_end"]["cabin"] == "nominal"
+
+
+NOISE_SD_FACTOR = 2.0
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_targets_keep_two_sd_margin_from_thresholds(path: Path) -> None:
+    """Simülatör gürültüsü (sd) hedefi eşiğin öbür yanına geçirmemeli (seed 42 sabit ama motor eşiği tek
+    ölçümde aşabilir): uyarı beklenen kişide hedef eşiğin en az 2 sd üstünde, uyarı beklenmeyen
+    dinlenen kişide nabız hedefi eşiğin en az 2 sd altında olmalı."""
+    s = json.loads(path.read_text(encoding="utf-8"))
+    th = s["thresholds"]
+    sd = {c["id"]: {k: v["sd"] for k, v in c["baseline"].items()} for c in s["crew"]}
+    expects = {(a["crew_id"], a["metric"]) for a in s["expected_alerts"]}
+    for e in s["events"]:
+        crew_id, targets = e.get("crew_id"), e.get("targets", {})
+        if not targets or e.get("activity") != "resting":
+            continue
+        for metric, key in (("heart_rate", "hr_rise_caution"), ("resp_rate", "rr_rise_caution")):
+            if metric not in targets:
+                continue
+            delta = targets[metric] - baseline(s, crew_id, metric)
+            margin = NOISE_SD_FACTOR * sd[crew_id][metric]
+            if (crew_id, metric) in expects:
+                assert delta >= th[key] + margin, (s["scenario"], crew_id, metric, delta)
+            elif metric == "heart_rate":
+                assert delta <= th[key] - margin, (s["scenario"], crew_id, metric, delta)
+
+
+# ------------------------------------------------------------ motor eşleşmesi (#35 simülatör, #43 kurallar)
+
+KNOWN_ENGINE_RULE_IDS = {
+    "karar-olasi_hipoksi",
+    "karar-olasi_co2_etkisi",
+    "karar-isi_sapmasi",
+    "karar-kalp_yuku",
+    "karar-radyasyon_etkisi",
+    "ppco2-caution",
+    "ppco2-limit",
+    "pio2-normoxia-low",
+    "pio2-hypoxia-low",
+    "pio2-normoxia-high",
+}
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_expected_alerts_name_their_engine_counterpart(path: Path) -> None:
+    """Her beklenen uyarı, motorun kullandığı metrik ve kural adını da taşır; kendi rule_id adları kalır."""
+    s = json.loads(path.read_text(encoding="utf-8"))
+    for a in s["expected_alerts"]:
+        assert a["engine_metric"] in m.Metric.__members__, a["rule_id"]
+        known = a["engine_rule_id"] in KNOWN_ENGINE_RULE_IDS or a["engine_rule_id"].startswith("missing-")
+        assert known, (a["rule_id"], a["engine_rule_id"])
+
+
+def test_solar_storm_radiation_is_a_per_crew_decision() -> None:
+    """Radyasyon kişi bazlı karar (ranges.json): crew-1..4 için event_dose, kabin radyasyon uyarısı yok."""
+    s = load("solar_storm")
+    alerts = s["expected_alerts"]
+    assert {a["crew_id"] for a in alerts} == {c["id"] for c in s["crew"]}
+    for a in alerts:
+        assert (a["metric"], a["severity"], a["engine_rule_id"]) == (
+            "event_dose",
+            "critical",
+            "karar-radyasyon_etkisi",
+        )
+        assert (a["t_earliest"], a["t_latest"]) == (30, 45)
+    assert not any(a["crew_id"] is None for a in alerts)
+    assert not any(a["metric"] == "radiation_dose_rate" for a in alerts)
+
+
+try:
+    from backend.rules import RulesEngine
+    from backend.simulator import SimulationFinished, Simulator
+except ImportError:  # #35 / #43 develop'a girene kadar
+    RulesEngine = None
+
+
+def engine_first_alerts(name: str) -> dict[tuple[Any, str, str, str], float]:
+    """Simülatör + kural motoru: (crew_id, metric, severity, rule_id) -> ilk görünme dakikası."""
+    simulator, engine = Simulator(m.Scenario(name)), RulesEngine()
+    first: dict[tuple[Any, str, str, str], float] = {}
+    while True:
+        try:
+            frame = simulator.tick()
+        except SimulationFinished:
+            return first
+        output = engine.evaluate(frame)
+        for alert in output.alerts:
+            key = (alert.crew_id, str(alert.metric), str(alert.severity), alert.rule_id)
+            first.setdefault(key, output.mission_elapsed_s / 60)
+
+
+@pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "hypoxia",
+        pytest.param(
+            "hypercapnia",
+            marks=pytest.mark.xfail(
+                strict=False,
+                reason="Motor (Aydın): Ece'nin CO2 kararı kabin 1 saatlik limitten sonra kırmızı olacak.",
+            ),
+        ),
+        pytest.param(
+            "solar_storm",
+            marks=pytest.mark.xfail(
+                strict=False,
+                reason="Motor (Aydın): kişi bazlı karar-radyasyon_etkisi henüz üretilmiyor.",
+            ),
+        ),
+    ],
+)
+def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
+    """Gerçek motorun ilk uyarı dakikası, beklenen pencerenin [t_earliest, t_latest] içinde kalır."""
+    s = load(name)
+    first = engine_first_alerts(name)
+    for a in s["expected_alerts"]:
+        key = (a["crew_id"], a["engine_metric"], a["severity"], a["engine_rule_id"])
+        assert key in first, f"{name}: motor {key} üretmedi"
+        assert a["t_earliest"] <= first[key] <= a["t_latest"], (name, a["rule_id"], first[key])
+    forbidden = {(f["crew_id"], f["metric"]) for f in s["forbidden_alerts"]}
+    produced = {(k[0], k[1]) for k in first}
+    assert not forbidden & produced, f"{name}: yasak uyarı üretildi: {forbidden & produced}"

@@ -321,7 +321,9 @@
         "heart_rate"
       ],
       "why": "Ece dinlenirken nabzı kendi bazının (58) 15'ten fazla üstünde (+22'ye çıkıyor; art arda 3 ölçüm). Aynı sırada başka bir astronotun sensörü kopuk olsa da bu uyarı kaybolmaz.",
-      "recommendation": "Eforu azalt, izle."
+      "recommendation": "Eforu azalt, izle.",
+      "engine_metric": "heart_rate",
+      "engine_rule_id": "karar-kalp_yuku"
     },
     {
       "crew_id": "crew-2",
@@ -335,7 +337,9 @@
         "heart_rate"
       ],
       "why": "Can'ın nabız sensöründen art arda 3 ölçümdür veri yok. Eksik veri Normal sayılmaz.",
-      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz."
+      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz.",
+      "engine_metric": "heart_rate",
+      "engine_rule_id": "missing-heart_rate"
     },
     {
       "crew_id": "crew-4",
@@ -349,7 +353,9 @@
         "spo2"
       ],
       "why": "Mert'in SpO2 sensörü eski değeri tekrarlıyor (stale): art arda 3 ölçümdür geçerli okuma yok. Eski değer hipoksi kanıtı sayılmaz.",
-      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz."
+      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz.",
+      "engine_metric": "spo2",
+      "engine_rule_id": "missing-spo2"
     },
     {
       "crew_id": null,
@@ -363,7 +369,9 @@
         "pp_co2"
       ],
       "why": "Kabin CO2 sensörü art arda 3 ölçümdür sensor_fault bildiriyor; bildirilen değer güvenilmez ve limit kontrolüne girmez.",
-      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz."
+      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz.",
+      "engine_metric": "pp_co2",
+      "engine_rule_id": "missing-pp_co2"
     }
   ],
   "expected_data_status": [
