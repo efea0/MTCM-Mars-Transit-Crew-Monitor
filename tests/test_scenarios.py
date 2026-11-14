@@ -406,12 +406,12 @@ def test_hypoxia_exercise_heart_rate_is_not_evidence(hypoxia: Scenario) -> None:
 
 
 def test_hypoxia_personal_heart_rate_deviation(hypoxia: Scenario) -> None:
-    """Yakın nabız, farklı karar: crew-1 84, crew-4 78 bpm; crew-1 İzle (+20), crew-4 normal (+11)."""
+    """Aynı nabız, farklı karar: crew-1 ve crew-4 ikisi de 80; crew-1 İzle (+16), crew-4 normal (+13)."""
     th = hypoxia["thresholds"]
     ramps = {e["crew_id"]: e for e in hypoxia["events"] if e.get("crew_id") in {"crew-1", "crew-4"}}
     final1 = ramps["crew-1"]["targets"]["heart_rate"]
     final4 = ramps["crew-4"]["targets"]["heart_rate"]
-    assert abs(final1 - final4) <= 6, "iki nabız birbirine yakın olmalı; fark yalnızca bazdan gelir"
+    assert final1 == final4, "hedefler eşit olmalı; fark yalnızca baz çizgisinden gelir"
     assert final1 - baseline(hypoxia, "crew-1", "heart_rate") >= th["hr_rise_caution"]
     assert final4 - baseline(hypoxia, "crew-4", "heart_rate") < th["hr_rise_caution"]
 
@@ -871,6 +871,11 @@ def test_sensor_dropout_cabin_stays_nominal_without_the_fault(dropout: Scenario)
 
 NOISE_SD_FACTOR = 2.0
 
+# Bilinçli demo istisnası: hypoxia'da Ayşe ve Mert ikisi de 80 bpm (aynı nabız, farklı baz çizgisi
+# → farklı karar). Marj kuralı burada kasıtlı kırılır; seed 42 sabit olduğu için gerçek motor
+# davranışı test_hypoxia_engine_no_forbidden_heart_alerts ile doğrulanır.
+MARGIN_DEMO_EXCEPTIONS = {("hypoxia", "crew-1", "heart_rate"), ("hypoxia", "crew-4", "heart_rate")}
+
 
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
 def test_targets_keep_two_sd_margin_from_thresholds(path: Path) -> None:
@@ -887,6 +892,8 @@ def test_targets_keep_two_sd_margin_from_thresholds(path: Path) -> None:
             continue
         for metric, key in (("heart_rate", "hr_rise_caution"), ("resp_rate", "rr_rise_caution")):
             if metric not in targets:
+                continue
+            if (s["scenario"], crew_id, metric) in MARGIN_DEMO_EXCEPTIONS:
                 continue
             delta = targets[metric] - baseline(s, crew_id, metric)
             margin = NOISE_SD_FACTOR * sd[crew_id][metric]
@@ -992,3 +999,15 @@ def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
     forbidden = {(f["crew_id"], f["metric"]) for f in s["forbidden_alerts"]}
     produced = {(k[0], k[1]) for k in first}
     assert not forbidden & produced, f"{name}: yasak uyarı üretildi: {forbidden & produced}"
+
+
+@pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
+def test_hypoxia_engine_no_forbidden_heart_alerts() -> None:
+    """Gerçek motor (seed 42): Mert (crew-4) ve Ece (crew-3) için kalp_yuku asla üretmez;
+    Ayşe'nin (crew-1) ilk kalp_yuku penceresi [172, 215] içinde kalır."""
+    first = engine_first_alerts("hypoxia")
+    assert ("crew-4", "heart_rate", "caution", "karar-kalp_yuku") not in first
+    assert not any(k[0] == "crew-3" and k[1] == "heart_rate" for k in first), "Ece'ye kalp yükü yasak"
+    ayse = next((t for k, t in first.items() if k[0] == "crew-1" and k[1] == "heart_rate"), None)
+    assert ayse is not None, "Ayşe'nin kalp_yuku üretmesi gerekir"
+    assert 172 <= ayse <= 215, f"motor Ayşe'yi {ayse} dk'da uyardı; pencere [172, 215]"

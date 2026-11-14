@@ -1,7 +1,7 @@
 {
   "scenario": "hypoxia",
   "title": "O2 ünitesi arızası: Astronot 3 egzersizde",
-  "purpose": "O2 üretimi durur, kabin PIO2 normoksiden (145) çıkar. Ece egzersizdeyken SpO2'si düşer ve kişi bazlı hipoksi kararı çıkar; egzersiz nabzı kanıt sayılmaz. Aynı senaryoda kişi bazlı nabız sapması: Ayşe ve Mert'in nabzı yakın (84 ve 78), Ayşe İzle (+20), Mert normal (+11). Kabin PIO2 127'nin altına inince kırmızı.",
+  "purpose": "O2 üretimi durur, kabin PIO2 normoksiden (145) çıkar. Ece egzersizdeyken SpO2'si düşer ve kişi bazlı hipoksi kararı çıkar; egzersiz nabzı kanıt sayılmaz. Aynı senaryoda kişi bazlı nabız sapması: Ayşe ve Mert'in nabzı ikisi de 80; Ayşe baz 64 → +16 İzle, Mert baz 67 → +13 normal. Aynı nabız, farklı baz çizgisi, farklı karar. Kabin PIO2 127'nin altına inince kırmızı.",
   "simulated": true,
   "seed": 42,
   "time_unit": "mission_min",
@@ -290,10 +290,10 @@
       "crew_id": "crew-1",
       "activity": "resting",
       "targets": {
-        "heart_rate": 84
+        "heart_rate": 80
       },
       "ramp_min": 120,
-      "note": "Ayşe dinlenirken nabzı kendi bazı 64'ten 84'e çıkar (+20): kalp yükü İzle. O2 ile ilgisi yok, SpO2 normal."
+      "note": "Ayşe dinlenirken nabzı kendi bazı 64'ten 80'e çıkar (+16): kalp yükü İzle. Mert'le aynı nabız (80); baz farkı kararı değiştirir. O2 ile ilgisi yok, SpO2 normal."
     },
     {
       "t_min": 60,
@@ -301,10 +301,10 @@
       "crew_id": "crew-4",
       "activity": "resting",
       "targets": {
-        "heart_rate": 78
+        "heart_rate": 80
       },
       "ramp_min": 120,
-      "note": "Mert'in nabzı 78'e çıkar, bazı 67: +11, eşiğin (+15) altında → normal. Ayşe'nin nabzına (84) yakın, ama baz farkı kararı değiştirir."
+      "note": "Mert'in nabzı da 80'e çıkar ama bazı 67: +13, eşiğin (+15) altında → normal. Ayşe ile aynı nabız, farklı karar."
     },
     {
       "t_min": 600,
@@ -349,9 +349,9 @@
       "metric": "heart_rate",
       "severity": "caution",
       "rule_id": "crew_hr_rest_rise_caution",
-      "t_condition": 150.0,
-      "t_earliest": 150,
-      "t_latest": 176,
+      "t_condition": 172.5,
+      "t_earliest": 172,
+      "t_latest": 215,
       "evidence_metrics": [
         "heart_rate"
       ],
@@ -365,9 +365,9 @@
       "metric": "pp_o2",
       "severity": "caution",
       "rule_id": "cabin_pio2_low_caution",
-      "t_condition": 362.75,
-      "t_earliest": 362,
-      "t_latest": 398,
+      "t_condition": 366.0,
+      "t_earliest": 366,
+      "t_latest": 401,
       "evidence_metrics": [
         "pp_o2"
       ],
@@ -415,9 +415,9 @@
       "metric": "pp_o2",
       "severity": "critical",
       "rule_id": "cabin_pio2_low_critical",
-      "t_condition": 1754.75,
-      "t_earliest": 1754,
-      "t_latest": 1789,
+      "t_condition": 1774.5,
+      "t_earliest": 1774,
+      "t_latest": 1800,
       "evidence_metrics": [
         "pp_o2"
       ],
@@ -431,7 +431,7 @@
     {
       "crew_id": "crew-3",
       "metric": "heart_rate",
-      "why": "Egzersiz nabzı (130) kalp yükü sayılmaz; toparlanmada +11 eşiğin altında."
+      "why": "Egzersiz nabzı (130) kalp yükü sayılmaz; 10 dk rampayla dinlenmeye geçilir, 3. dinlenme ölçümünde (670) baz +10,6: eşiğin altında."
     },
     {
       "crew_id": "crew-3",
@@ -441,7 +441,7 @@
     {
       "crew_id": "crew-4",
       "metric": "heart_rate",
-      "why": "Mert'in nabzı 78 = bazı 67 + 11; eşiğin (+15) altında. Ayşe'nin nabzına (84) yakın, farklı karar."
+      "why": "Mert'in nabzı 80 = bazı 67 + 13; eşiğin (+15) altında. Ayşe ile aynı nabız (80), farklı karar."
     },
     {
       "crew_id": "crew-1",
@@ -492,7 +492,7 @@
     }
   ],
   "demo_notes": [
-    "Ayşe (84) ve Mert'in (78) nabzı yakın: Ayşe sarı (+20), Mert yeşil (+11). Sabit eşik ikisini aynı boyardı.",
+    "Ayşe ve Mert'in nabzı ikisi de 80: Ayşe sarı (baz 64 → +16), Mert yeşil (baz 67 → +13). Aynı nabız, farklı baz çizgisi: kişisel baz çizgisi farkı veriyle gösterir. Seed 42 sabit, sonuç her çalıştırmada aynı.",
     "Ece'nin nabzı 130 iken sistem susar, SpO2 düşünce konuşur: egzersizi ayırt eder.",
     "Ece'nin kişi uyarısı kabin kırmızıya dönmeden çok önce gelir: erken uyarı."
   ]
