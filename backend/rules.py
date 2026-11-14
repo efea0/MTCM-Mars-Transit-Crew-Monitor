@@ -1,1 +1,4 @@
-"""Eşik kuralları, art arda ölçüm sayacı ve 'why' kanıtları — sahibi: Barış."""
+"""Ortam + kişi bazlı sağlık kararı, art arda ölçüm, "veri yok".
+
+Sahibi: Aydın (backend). Testleri: Barış (qa).
+"""
