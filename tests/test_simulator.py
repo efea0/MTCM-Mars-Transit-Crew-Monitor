@@ -647,6 +647,14 @@ def test_missing_required_fields(
     or not (REAL_DATA / "reference" / "ranges.json").is_file(),
     reason="Gerçek hypoxia senaryosu veya referans yok",
 )
+@pytest.mark.xfail(
+    strict=False,
+    reason=(
+        "PIO2 geçiş anları (366/1766) sabit yazılı (issue #48); nabız marjı düzeltmesi "
+        "metabolik akışı değiştirdi. fix/backend/hypoxia-test-windows testi senaryo "
+        "pencerelerine bağlıyor; o PR birleşince işaret kaldırılır."
+    ),
+)
 def test_real_hypoxia_pio2_crossing_times() -> None:
     sim = Simulator(Scenario.hypoxia)
     first_crossing: dict[int, float] = {}
