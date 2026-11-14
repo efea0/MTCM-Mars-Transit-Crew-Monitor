@@ -1,33 +1,17 @@
 name: ci
 
+# lint ve tests PR'ın kodunu çalıştırır. Bu dosyayı değiştiren PR yalnızca infra alanından gelebilir
+# (scope kontrolü, hedef branch'teki script'le bunu zorlar).
 on:
   pull_request:
     branches: [develop, main]
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
 
 concurrency:
   group: ci-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  scope:
-    name: scope
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Branch adı, PR başlığı ve alan kapsamı
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-          BASE: ${{ github.base_ref }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          FEATURE_FREEZE: ${{ vars.FEATURE_FREEZE }}
-        run: python tools/check_paths.py "$HEAD_REF" --base "$BASE" --title "$PR_TITLE"
-
   lint:
     name: lint
     runs-on: ubuntu-latest

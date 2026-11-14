@@ -1,0 +1,44 @@
+name: scope
+
+# pull_request_target: workflow ve kontrol script'i hedef branch'ten (güvenilir) çalışır.
+# PR'ın kodu ÇALIŞTIRILMAZ, yalnızca git diff için veri olarak çekilir.
+on:
+  pull_request_target:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scope-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  scope:
+    name: scope
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: PR commit'lerini veri olarak çek
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: git fetch --no-tags origin "pull/${PR}/head:pr-head"
+      - name: Branch adı, PR başlığı ve alan kapsamı
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE: ${{ github.base_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          FEATURE_FREEZE: ${{ vars.FEATURE_FREEZE }}
+        run: >-
+          python tools/check_paths.py "$HEAD_REF" --base "$BASE" --base-ref "origin/$BASE"
+          --head-ref pr-head --title "$PR_TITLE" --head-repo "$HEAD_REPO" --repo "$REPO"

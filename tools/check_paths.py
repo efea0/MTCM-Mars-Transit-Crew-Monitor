@@ -27,17 +27,26 @@ SLUG_MAX = 40
 AREAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "backend": (
         ("backend/", "tests/", "requirements.txt"),
-        ("backend/models.py", "backend/comms.py", "tests/test_models.py", "tests/test_comms.py"),
+        (
+            "backend/models.py",
+            "backend/comms.py",
+            "tests/test_models.py",
+            "tests/test_comms.py",
+            "tests/conftest.py",
+        ),
     ),
     "frontend": (("frontend/",), ()),
     "comms": (("backend/comms.py", "tests/test_comms.py"), ()),
-    "qa": (("tests/", "data/scenarios/", "data/donki/"), ("tests/test_models.py",)),
+    "qa": (("tests/", "data/scenarios/", "data/donki/"), ("tests/test_models.py", "tests/conftest.py")),
     "reference": (("data/reference/",), ()),
     "delivery": (
         ("docs/", "README.md", "reports/", "research_notes/"),
         ("docs/contract.json",),
     ),
-    "contract": (("backend/models.py", "docs/contract.json", "tests/test_models.py"), ()),
+    "contract": (
+        ("backend/models.py", "docs/contract.json", "tests/test_models.py", "tests/conftest.py"),
+        (),
+    ),
     "infra": (
         (
             ".github/",
@@ -82,9 +91,19 @@ def in_area(area: str, path: str) -> bool:
     return area in owners_of(path)
 
 
-def changed_files(base_ref: str) -> list[str]:
+def changed_files(base_ref: str, head_ref: str = "HEAD") -> list[str]:
+    """Değişen dosyalar. Yeniden adlandırmada hem eski hem yeni yol döner; Türkçe adlar tırnaklanmaz."""
     res = subprocess.run(
-        ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
+        [
+            "git",
+            "-c",
+            "core.quotePath=false",
+            "diff",
+            "--name-only",
+            "--no-renames",
+            "-z",
+            f"{base_ref}...{head_ref}",
+        ],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -92,12 +111,21 @@ def changed_files(base_ref: str) -> list[str]:
     )
     if res.returncode != 0:
         raise RuntimeError(res.stderr.strip() or f"git diff çıkış kodu {res.returncode}")
-    return [ln.strip() for ln in res.stdout.splitlines() if ln.strip()]
+    return [p for p in res.stdout.split("\0") if p]
 
 
-def check(branch: str, base: str, title: str | None, base_ref: str) -> list[str]:
+def check(
+    branch: str,
+    base: str,
+    title: str | None,
+    base_ref: str,
+    head_ref: str = "HEAD",
+    same_repo: bool = True,
+) -> list[str]:
     errors: list[str] = []
 
+    if not same_repo:
+        return ["Fork'tan gelen PR kabul edilmez; branch'i ana repoda aç."]
     if base == "main":
         if branch != "develop":
             errors.append(f"main'e yalnızca develop'tan release PR'ı açılır (gelen: '{branch}').")
@@ -128,7 +156,7 @@ def check(branch: str, base: str, title: str | None, base_ref: str) -> list[str]
             )
 
     try:
-        files = changed_files(base_ref)
+        files = changed_files(base_ref, head_ref)
     except RuntimeError as exc:
         return errors + [f"git diff başarısız: {exc}"]
     outside = [p for p in files if not in_area(area, p)]
@@ -142,12 +170,18 @@ def check(branch: str, base: str, title: str | None, base_ref: str) -> list[str]
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("branch")
-    p.add_argument("--base", default="develop", choices=("develop", "main"))
+    p.add_argument("--base", default="develop", help="PR hedefi: develop veya main")
     p.add_argument("--base-ref", default=None, help="Karşılaştırma ref'i (varsayılan origin/<base>)")
+    p.add_argument("--head-ref", default="HEAD", help="PR'ın son commit'i (varsayılan HEAD)")
     p.add_argument("--title", default=None)
+    p.add_argument("--head-repo", default=None, help="PR'ın geldiği repo (owner/name)")
+    p.add_argument("--repo", default=None, help="Ana repo (owner/name)")
     a = p.parse_args(argv)
 
-    errors = check(a.branch, a.base, a.title, a.base_ref or f"origin/{a.base}")
+    same_repo = a.head_repo is None or a.repo is None or a.head_repo == a.repo
+    errors = check(
+        a.branch, a.base, a.title, a.base_ref or f"origin/{a.base}", a.head_ref, same_repo=same_repo
+    )
     for e in errors:
         print(f"HATA: {e}", file=sys.stderr)
     return 1 if errors else 0
