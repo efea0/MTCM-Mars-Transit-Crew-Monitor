@@ -2,6 +2,7 @@
   "meta": {
     "surum": "1.1",
     "hazirlayan": "Enis",
+    "si_kullanimi": "Metin taslakları SI (Claude Code) ile yazıldı, ekip kontrol etti. Sayılar ranges.json ve belirtilen kaynaklardan gelir. Ayrıntı: docs/AI_USE_DECLARATION.md",
     "tarih": "2026-11-14",
     "si_beyani": "Metin taslakları Claude Code (Anthropic) ile yazıldı, ekip gözden geçirdi. Ayrıntı: docs/AI_USE_DECLARATION.md.",
     "amac": "Ekranda görünen tüm metinler: uyarı mesajı, 'Neden?' kanıt notu, öneri, EVA ve Dünya paneli. rules.py / comms.py / frontend metni buradan okur; uyarı metni koda sabit yazılmaz.",
@@ -12,7 +13,7 @@
       "Sözleşme 0.2.0 (PR #26): pp_o2 ve cabin_pressure mmHg; Metric listesinde pio2 ve event_dose var. Metinler mmHg kullanır.",
       "warning seviyesi için ayrı uyarı metni (message / recommendation) yok; rules.py warning üretirse critical metinleri kullanılır. global.status_names.warning yalnızca durum etiketidir."
     ],
-    "dayanak": "data/reference/ranges.json 1.1 (2026-11-14 19:30 donduruldu)"
+    "dayanak": "data/reference/ranges.json 1.2 (2026-11-14 19:30 donduruldu; NASA-STD-3001 Vol 2 Rev F kaynak denetimi aynı gün)"
   },
 
   "placeholders": {
@@ -43,7 +44,6 @@
     "message / recommendation": "alert_message_format içinde seçilen seviye metinleri",
     "pico2 / hours_allowed / hours_used / hours / minutes": "EVA giysi değerleri (P2); hours_allowed ranges.giysi.pico2_limitleri kademesinden",
     "pico2_red_min": "ranges.giysi.pico2_limitleri son kademe pico2_min (15)",
-    "suit_hours_max": "ranges.giysi.giyside_toplam_sure_max (14)",
     "delay_min / delay_max": "ranges.iletisim.mars_tek_yon_gecikme min / max (3 / 22 dk)",
     "demo_seconds / seconds_left": "ranges.iletisim.demo_gecikme (20 sn) ve varışa kalan saniye",
     "sim_time": "Simülasyon saati",
@@ -102,7 +102,7 @@
         "critical": "Stop exercise now, check the O₂ source and cabin PIO₂, switch to backup O₂"
       },
       "sources": [
-        { "ref": "NASA-STD-3001 Vol 2 Rev E, [V2 6003], Table 6.2-1 (normoxia range)", "status": "doğrulandı" },
+        { "ref": "NASA-STD-3001 Vol 2 Rev F, [V2 6003], Table 6.2-1 (normoxia range)", "status": "doğrulandı" },
         { "ref": "varsayım: vital deviation thresholds (ranges.json)", "status": "doğrulanmadı" }
       ]
     },
@@ -205,19 +205,19 @@
       "message": "Cabin O₂ below normoxia: PIO₂ {pio2} mmHg",
       "why_note": "PIO₂ is below the {pio2_target_min}–{pio2_target_max} mmHg normoxia target for {n_consecutive} consecutive readings. {pio2_formula}.",
       "recommendation": "Check O₂ generation and prepare backup O₂",
-      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev E, [V2 6003], Table 6.2-1", "status": "doğrulandı" } ]
+      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev F, [V2 6003], Table 6.2-1", "status": "doğrulandı" } ]
     },
     "pio2-hypoxia-low": {
       "message": "Cabin O₂ below mild-hypoxia limit: PIO₂ {pio2} mmHg",
       "why_note": "PIO₂ is below {pio2_mild_min} mmHg (mild hypoxia lower limit, 1-hour average). It must never go below {pio2_abs_min} mmHg.",
       "recommendation": "Switch to backup O₂ now and stop exercise for all crew",
-      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev E, Table 6.2-1 and footnote", "status": "doğrulandı" } ]
+      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev F, Table 6.2-1 and footnote", "status": "doğrulandı" } ]
     },
     "pio2-normoxia-high": {
       "message": "Cabin O₂ above normoxia: PIO₂ {pio2} mmHg",
       "why_note": "PIO₂ is above the {pio2_target_max} mmHg normoxia target for {n_consecutive} consecutive readings.",
       "recommendation": "Check O₂ generation settings",
-      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev E, [V2 6003], Table 6.2-1", "status": "doğrulandı" } ]
+      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev F, [V2 6003], Table 6.2-1", "status": "doğrulandı" } ]
     },
     "pressure-out-of-range": {
       "message": "Total pressure out of range: {pressure} mmHg",
@@ -238,11 +238,12 @@
     "pico2_ok": "Suit CO₂ {pico2} mmHg: no time limit.",
     "pico2_timed": "Suit CO₂ {pico2} mmHg: max {hours_allowed} h per day at this level ({hours_used} h used).",
     "pico2_red": "Suit CO₂ above {pico2_red_min} mmHg: return to airlock now.",
-    "suit_time_max": "Total time in suit: {hours} h of max {suit_hours_max} h.",
+    "suit_time_max": "Total time in suit: {hours} h.",
+    "_not_suit_time": "Rev E'deki 'giyside en çok 14 saat' cümlesi Rev F'te yok; ekranda NASA limiti olarak gösterilmez (ranges.json: kısmen).",
     "return_airlock": "Return to the airlock. {minutes} min of suit supply left (sim time).",
     "sources": [
-      { "ref": "NASA-STD-3001 Vol 2 Rev E, [V2 11039], Table 11.3-1", "status": "doğrulandı" },
-      { "ref": "NASA-STD-3001 Vol 2 Rev E, Section 11.3 (14 h)", "status": "doğrulandı" }
+      { "ref": "NASA-STD-3001 Vol 2 Rev F, [V2 11039], Table 11.3-1", "status": "doğrulandı" },
+      { "ref": "NASA-STD-3001 Vol 2 Rev F, Section 11.3 (suit CO₂ time limits)", "status": "doğrulandı" }
     ]
   },
 
