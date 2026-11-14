@@ -1,0 +1,559 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mars Transit Crew Health & Cabin Air Monitor - API contract",
+  "contract_version": "0.1.0",
+  "generated_from": "backend/models.py",
+  "crew_size": 4,
+  "roots": {
+    "TelemetryFrame": {
+      "$ref": "#/$defs/TelemetryFrame"
+    },
+    "Alert": {
+      "$ref": "#/$defs/Alert"
+    },
+    "ThresholdRule": {
+      "$ref": "#/$defs/ThresholdRule"
+    },
+    "CommsMessage": {
+      "$ref": "#/$defs/CommsMessage"
+    }
+  },
+  "$defs": {
+    "Alert": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "crew_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Kabin uyarısında null.",
+          "title": "Crew Id"
+        },
+        "metric": {
+          "$ref": "#/$defs/Metric"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "consecutive_count": {
+          "minimum": 1,
+          "title": "Consecutive Count",
+          "type": "integer"
+        },
+        "first_seen": {
+          "format": "date-time",
+          "title": "First Seen",
+          "type": "string"
+        },
+        "last_seen": {
+          "format": "date-time",
+          "title": "Last Seen",
+          "type": "string"
+        },
+        "why": {
+          "description": "En az bir kanıt zorunlu.",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "minItems": 1,
+          "title": "Why",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "crew_id",
+        "metric",
+        "severity",
+        "message",
+        "rule_id",
+        "consecutive_count",
+        "first_seen",
+        "last_seen",
+        "why"
+      ],
+      "title": "Alert",
+      "type": "object"
+    },
+    "CabinAtmosphere": {
+      "additionalProperties": false,
+      "properties": {
+        "pp_co2": {
+          "$ref": "#/$defs/Reading"
+        },
+        "pp_o2": {
+          "$ref": "#/$defs/Reading"
+        },
+        "cabin_pressure": {
+          "$ref": "#/$defs/Reading"
+        },
+        "cabin_temp": {
+          "$ref": "#/$defs/Reading"
+        },
+        "rel_humidity": {
+          "$ref": "#/$defs/Reading"
+        },
+        "radiation_dose_rate": {
+          "$ref": "#/$defs/Reading"
+        },
+        "status": {
+          "$ref": "#/$defs/Status",
+          "default": "unknown"
+        }
+      },
+      "required": [
+        "pp_co2",
+        "pp_o2",
+        "cabin_pressure",
+        "cabin_temp",
+        "rel_humidity",
+        "radiation_dose_rate"
+      ],
+      "title": "CabinAtmosphere",
+      "type": "object"
+    },
+    "CommsMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "sender": {
+          "$ref": "#/$defs/Sender"
+        },
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "sent_at": {
+          "format": "date-time",
+          "title": "Sent At",
+          "type": "string"
+        },
+        "deliver_at": {
+          "description": "sent_at + tek yön ışık gecikmesi.",
+          "format": "date-time",
+          "title": "Deliver At",
+          "type": "string"
+        },
+        "one_way_delay_s": {
+          "minimum": 0,
+          "title": "One Way Delay S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "sender",
+        "body",
+        "sent_at",
+        "deliver_at",
+        "one_way_delay_s"
+      ],
+      "title": "CommsMessage",
+      "type": "object"
+    },
+    "Comparator": {
+      "enum": [
+        "<",
+        "<=",
+        ">",
+        ">=",
+        "missing"
+      ],
+      "title": "Comparator",
+      "type": "string"
+    },
+    "CrewMember": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Örn. 'crew-1'.",
+          "pattern": "^crew-[1-9]$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "description": "Örn. 'Commander', 'Flight Surgeon'.",
+          "title": "Role",
+          "type": "string"
+        },
+        "vitals": {
+          "$ref": "#/$defs/CrewVitals"
+        },
+        "status": {
+          "$ref": "#/$defs/Status",
+          "default": "unknown"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "role",
+        "vitals"
+      ],
+      "title": "CrewMember",
+      "type": "object"
+    },
+    "CrewVitals": {
+      "additionalProperties": false,
+      "properties": {
+        "heart_rate": {
+          "$ref": "#/$defs/Reading"
+        },
+        "hrv_rmssd": {
+          "$ref": "#/$defs/Reading"
+        },
+        "spo2": {
+          "$ref": "#/$defs/Reading"
+        },
+        "resp_rate": {
+          "$ref": "#/$defs/Reading"
+        },
+        "core_temp": {
+          "$ref": "#/$defs/Reading"
+        },
+        "systolic_bp": {
+          "$ref": "#/$defs/Reading"
+        },
+        "diastolic_bp": {
+          "$ref": "#/$defs/Reading"
+        }
+      },
+      "required": [
+        "heart_rate",
+        "hrv_rmssd",
+        "spo2",
+        "resp_rate",
+        "core_temp",
+        "systolic_bp",
+        "diastolic_bp"
+      ],
+      "title": "CrewVitals",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "Bir uyarının 'neden?' listesindeki tek kanıt maddesi.",
+      "properties": {
+        "metric": {
+          "$ref": "#/$defs/Metric"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Aşılan sınır; eksik-veri kanıtında null.",
+          "title": "Threshold"
+        },
+        "comparator": {
+          "$ref": "#/$defs/Comparator"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "note": {
+          "description": "İnsan-okunur açıklama, örn. 'SpO2 3 ölçümdür eşiğin altında'.",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "value",
+        "threshold",
+        "comparator",
+        "ts",
+        "note"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "Metric": {
+      "enum": [
+        "heart_rate",
+        "hrv_rmssd",
+        "spo2",
+        "resp_rate",
+        "core_temp",
+        "systolic_bp",
+        "diastolic_bp",
+        "pp_co2",
+        "pp_o2",
+        "cabin_pressure",
+        "cabin_temp",
+        "rel_humidity",
+        "radiation_dose_rate"
+      ],
+      "title": "Metric",
+      "type": "string"
+    },
+    "Quality": {
+      "enum": [
+        "ok",
+        "stale",
+        "missing",
+        "sensor_fault"
+      ],
+      "title": "Quality",
+      "type": "string"
+    },
+    "Reading": {
+      "additionalProperties": false,
+      "description": "Tek bir sensör okuması. value=None ise quality 'ok' olamaz.",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ölçülen değer; veri yoksa null.",
+          "title": "Value"
+        },
+        "unit": {
+          "description": "Örn. 'bpm', '%', 'mmHg', 'kPa'.",
+          "title": "Unit",
+          "type": "string"
+        },
+        "ts": {
+          "description": "Ölçüm zamanı (UTC, ISO-8601).",
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "quality": {
+          "$ref": "#/$defs/Quality",
+          "default": "ok"
+        },
+        "status": {
+          "$ref": "#/$defs/Status",
+          "default": "unknown",
+          "description": "rules.py doldurur; değerlendirilmemişse unknown."
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "ts"
+      ],
+      "title": "Reading",
+      "type": "object"
+    },
+    "Scenario": {
+      "enum": [
+        "nominal",
+        "hypoxia",
+        "hypercapnia",
+        "sleep_deprivation",
+        "solar_storm",
+        "sensor_dropout"
+      ],
+      "title": "Scenario",
+      "type": "string"
+    },
+    "Sender": {
+      "enum": [
+        "crew",
+        "mission_control",
+        "system"
+      ],
+      "title": "Sender",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "caution",
+        "warning",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "Status": {
+      "description": "Bir ölçümün, kişinin veya kabinin genel durumu.",
+      "enum": [
+        "nominal",
+        "caution",
+        "warning",
+        "critical",
+        "unknown"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "TelemetryFrame": {
+      "additionalProperties": false,
+      "description": "SSE ile her tick'te gönderilen tam paket (event: telemetry).",
+      "properties": {
+        "contract_version": {
+          "default": "0.1.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "tick": {
+          "minimum": 0,
+          "title": "Tick",
+          "type": "integer"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "mission_elapsed_s": {
+          "minimum": 0,
+          "title": "Mission Elapsed S",
+          "type": "number"
+        },
+        "scenario": {
+          "$ref": "#/$defs/Scenario"
+        },
+        "simulated": {
+          "default": true,
+          "description": "Ekranda 'SİMÜLE' etiketi için.",
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "crew": {
+          "items": {
+            "$ref": "#/$defs/CrewMember"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Crew",
+          "type": "array"
+        },
+        "cabin": {
+          "$ref": "#/$defs/CabinAtmosphere"
+        },
+        "alerts": {
+          "items": {
+            "$ref": "#/$defs/Alert"
+          },
+          "title": "Alerts",
+          "type": "array"
+        },
+        "comms_one_way_delay_s": {
+          "minimum": 0,
+          "title": "Comms One Way Delay S",
+          "type": "number"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/CommsMessage"
+          },
+          "title": "Messages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "tick",
+        "ts",
+        "mission_elapsed_s",
+        "scenario",
+        "crew",
+        "cabin",
+        "comms_one_way_delay_s"
+      ],
+      "title": "TelemetryFrame",
+      "type": "object"
+    },
+    "ThresholdRule": {
+      "additionalProperties": false,
+      "description": "Kural yapısı. Sayısal değerler ve kaynakları rules.py içinde tanımlanır.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "metric": {
+          "$ref": "#/$defs/Metric"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "comparator": {
+          "$ref": "#/$defs/Comparator"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "comparator=missing ise null.",
+          "title": "Threshold"
+        },
+        "consecutive_required": {
+          "description": "Uyarı için art arda kaç ölçüm.",
+          "minimum": 1,
+          "title": "Consecutive Required",
+          "type": "integer"
+        },
+        "source": {
+          "description": "Eşiğin kaynağı (NASA-STD-3001 vb.) veya 'HİPOTEZ'.",
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "metric",
+        "severity",
+        "comparator",
+        "threshold",
+        "consecutive_required",
+        "source"
+      ],
+      "title": "ThresholdRule",
+      "type": "object"
+    }
+  }
+}
