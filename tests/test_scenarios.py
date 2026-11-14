@@ -395,17 +395,26 @@ def test_hypoxia_exercise_heart_rate_is_not_evidence(hypoxia: Scenario) -> None:
 
 
 def test_hypoxia_personal_heart_rate_deviation(hypoxia: Scenario) -> None:
-    """Aynı nabız, farklı karar: crew-1 ve crew-4 ikisi de 80; crew-1 İzle, crew-4 normal."""
+    """Kişi bazlı marj: crew-1 hedef baz+20 (İzle), crew-4 baz+11 (normal).
+
+    Her iki marj da gürültünün (2×sd) altına inmez: İzle hedefi eşiğin en az 2×sd üstünde,
+    normal kalan kişinin hedefi eşiğin en az 2×sd altında.
+    """
     th = hypoxia["thresholds"]
     ramps = {e["crew_id"]: e for e in hypoxia["events"] if e.get("crew_id") in {"crew-1", "crew-4"}}
-    assert ramps["crew-1"]["targets"]["heart_rate"] == ramps["crew-4"]["targets"]["heart_rate"]
-    final = ramps["crew-1"]["targets"]["heart_rate"]
-    assert final - baseline(hypoxia, "crew-1", "heart_rate") >= th["hr_rise_caution"]
-    assert final - baseline(hypoxia, "crew-4", "heart_rate") < th["hr_rise_caution"]
+    final1 = ramps["crew-1"]["targets"]["heart_rate"]
+    final4 = ramps["crew-4"]["targets"]["heart_rate"]
+    sd1 = hypoxia["crew"][0]["baseline"]["heart_rate"]["sd"]
+    sd4 = hypoxia["crew"][3]["baseline"]["heart_rate"]["sd"]
+    margin1 = final1 - baseline(hypoxia, "crew-1", "heart_rate") - th["hr_rise_caution"]
+    margin4 = th["hr_rise_caution"] - (final4 - baseline(hypoxia, "crew-4", "heart_rate"))
+    assert margin1 >= 2 * sd1, "İzle hedefi eşiğin en az 2×sd üstünde olmalı"
+    assert margin4 >= 2 * sd4, "normal kalan kişinin hedefi eşiğin en az 2×sd altında olmalı"
 
     base1 = baseline(hypoxia, "crew-1", "heart_rate")
     t = first_time(
-        hypoxia, lambda t: vital(hypoxia, "crew-1", "heart_rate", t) - base1 >= th["hr_rise_caution"]
+        hypoxia,
+        lambda t: vital(hypoxia, "crew-1", "heart_rate", t) - base1 >= th["hr_rise_caution"] - 1e-9,
     )
     assert_condition_time(by_rule(hypoxia, "crew_hr_rest_rise_caution"), t)
     assert ("crew-4", "heart_rate") in {(f["crew_id"], f["metric"]) for f in hypoxia["forbidden_alerts"]}
