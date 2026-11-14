@@ -4,15 +4,22 @@
 Ekranda görünen tüm metinler (uyarı mesajı, "Neden?" notu, öneri, EVA, Dünya paneli) burada.
 Kodda uyarı metni sabit yazılmasın, buradan okunsun. **Sözleşmeye dokunulmadı.**
 
-## Sözleşme ile ilgili 3 açık nokta (karar senin, `contract` alanı)
+> **PR #29'u "Squash and merge" ile birleştir.** Branch geçmişinde test kalıntısı bir `base` commit'i var
+> (yazar `t@example.com`, 42 dosyayı siliyor, sonraki commit geri alıyor). Toplam fark temiz, ama merge commit ile
+> birleşirse bu commit develop geçmişine girer.
 
-1. **Öneri alanı yok.** `Alert` modelinde `recommendation` yok. Şimdilik öneri,
+## Sözleşme ile ilgili noktalar (karar senin, `contract` alanı)
+
+1. **Öneri alanı yok (açık).** `Alert` modelinde `recommendation` yok. Şimdilik öneri,
    `global.alert_message_format` (`"{message}. {recommendation}"`) ile `Alert.message`'ın sonuna ekleniyor.
-   Ayrı alan istersen contract PR'ı gerekir.
-2. **O₂ birimi.** Sözleşmede `pp_o2` birimi kPa; ranges.json ve metinler PIO₂ mmHg kullanıyor.
-   Ayrıca ranges.json notu: `pio2` metriği `Metric` listesinde yok.
-3. **warning seviyesi.** Metinler yalnızca `caution` (İzle) ve `critical` (Eylem) için yazıldı.
+   Ayrı alan istersen contract PR'ı gerekir. PR #26 bu alanı eklemiyor.
+2. **O₂ birimi ve `pio2` metriği (PR #26 ile kapanıyor).** PR #26 `pp_o2` ve `cabin_pressure` birimini mmHg yapıyor
+   ve `Metric` listesine `pio2` ekliyor. #26 birleşince bu nokta kapanır, senden iş beklemez.
+3. **warning seviyesi (açık).** Metinler yalnızca `caution` (İzle) ve `critical` (Eylem) için yazıldı.
    rules.py `warning` üretirse `critical` metni kullanılsın ya da haber ver, ayrı metin yazarım.
+4. **Etkinlik `unknown` iken hipoksi notu (açık, metin bende).** Sözleşmeye göre etkinlik bilinmiyorsa
+   "dinleniyor" varsayılmaz. Bu durum için ayrı bir "Neden?" metni yazacağım; gelene kadar nabız ve solunumu
+   kanıt olarak yazma.
 
 ## Oturumuna yapıştırabileceğin prompt
 
@@ -24,8 +31,10 @@ data/reference/messages.json eklendi (reference alanı). Kurallar:
 2. Eşleme:
    - Alert.message = global.alert_message_format; message ve recommendation, Alert.severity
      anahtarıyla seçilir (caution | critical; warning gelirse critical).
-   - Alert.why[].note = ilgili why_note. olasi_hipoksi'de activity == rest ise why_note_rest,
-     exercise ise why_note_exercise (#21: egzersizde nabız/solunum kanıt olarak yazılmaz).
+   - Alert.why[].note = ilgili why_note. olasi_hipoksi'de CrewMember.activity (sözleşme 0.2.0, PR #26)
+     "resting" veya "sleep" ise why_note_rest, "exercise" ise why_note_exercise
+     (#21: egzersizde nabız/solunum kanıt olarak yazılmaz). "unknown" ise nabız/solunum kanıt
+     yazılmaz; metni Enis ekleyecek (açık nokta 4).
      radyasyon_etkisi: olay kaynaklıysa why_note_event, kariyer kaynaklıysa why_note_career.
    - Kabin uyarıları: cabin_alerts anahtarları ranges.json "kurallar" rule id'leriyle aynı
      (ppco2-caution, ppco2-limit, pio2-normoxia-low, pio2-hypoxia-low, pio2-normoxia-high).
