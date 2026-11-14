@@ -80,7 +80,7 @@ git switch -c <tür>/<alan>/<kısa-açıklama>
 - Simüle veri ekranda "SİMÜLE" etiketiyle gösterilir.
 
 **Veri**
-- Senaryo dosyası adı `Scenario` enum değeridir: `data/scenarios/<değer>.json` ve içindeki `scenario` alanı aynı değeri taşır. Eşleşmeler: normal → `nominal`, O₂ arızası → `hypoxia`, CO₂ yükselişi → `hypercapnia`, güneş fırtınası → `solar_storm`, uyku eksiği → `sleep_deprivation`, veri kopması → `sensor_dropout`. Her dosya beklenen karar tablosunu içerir.
+- Senaryo dosyası adı `Scenario` enum değeridir: `data/scenarios/<değer>.json` ve içindeki `scenario` alanı aynı değeri taşır. Eşleşmeler: normal → `nominal`, O₂ arızası → `hypoxia`, CO₂ yükselişi → `hypercapnia`, güneş fırtınası → `solar_storm`, uyku eksiği → `sleep_deprivation`, veri kopması → `sensor_dropout`, kişi bazlı nabız sapması → `heart_rate_deviation` (sözleşme 0.2.0 ile). Her dosya beklenen karar tablosunu içerir.
 - `data/reference/ranges.json`: her satır `ThresholdRule` alanlarını taşır (`id`, `metric`, `severity`, `comparator`, `threshold`, `consecutive_required`, `source`), ek olarak `status: doğrulandı | kısmen | doğrulanmadı` alanı olur. Doğrulanamayan satırda `source: "varsayım"` yazar. Dosya Cmt 19:30'da dondurulur.
 - DONKI ham cevabı çekiliş zamanıyla birlikte `data/donki/sep_event.json` dosyasına kaydedilir.
 
