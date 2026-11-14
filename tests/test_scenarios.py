@@ -183,15 +183,19 @@ def test_resting_targets_of_forbidden_metrics_stay_below_rest_rules(path: Path) 
     """Dinlenen kişinin yasak listesindeki vitali dinlenme eşiğini (ranges.json izle farkı) geçmemeli.
 
     Örnek: egzersiz sonrası crew-3'ün nabzı bazın +15 üstüne çıkarsa kalp yükü uyarısı üretilir; oysa
-    crew-3 heart_rate yasak. Dosya kendi içinde çelişmiş olur.
+    crew-3 heart_rate yasak. Dosya kendi içinde çelişmiş olur. Senaryoda o metrikle uyarı üreten kural
+    yoksa (ör. hypoxia'da solunum yalnızca hipoksi kanıtı) sapma tek başına uyarı üretmez.
     """
     s = json.loads(path.read_text(encoding="utf-8"))
     forbidden = {(f["crew_id"], f["metric"]) for f in s.get("forbidden_alerts", [])}
+    rule_metrics = {r["metric"] for r in s["proposed_rules"].values() if isinstance(r, dict)}
     for e in s["events"]:
         if e.get("activity") == "exercise" or not e.get("crew_id"):
             continue
         for metric, target in e.get("targets", {}).items():
             if (e["crew_id"], metric) not in forbidden or metric not in REST_DELTA_KEYS:
+                continue
+            if metric not in rule_metrics:
                 continue
             delta = abs(target - baseline(s, e["crew_id"], metric))
             limit = s["thresholds"][REST_DELTA_KEYS[metric]]
@@ -343,6 +347,48 @@ def test_hypoxia_personal_heart_rate_deviation(hypoxia: Scenario) -> None:
     assert ("crew-4", "heart_rate") in {(f["crew_id"], f["metric"]) for f in hypoxia["forbidden_alerts"]}
     assert hypoxia["expected_status_end"]["crew-1"] == "caution"
     assert hypoxia["expected_status_end"]["crew-4"] == "nominal"
+
+
+def final_activity(s: Scenario, crew_id: str) -> str:
+    acts = [
+        e["activity"] for e in sorted(s["events"], key=lambda e: e["t_min"]) if e.get("crew_id") == crew_id
+    ]
+    return acts[-1] if acts else "resting"
+
+
+def test_hypoxia_end_status_follows_rules(hypoxia: Scenario) -> None:
+    """Bitiş durumu, son vitallerden kurallarla yeniden hesaplanır.
+
+    Hipoksi: SpO2 düşüşü ≥ izle VE kabin PIO2 < 145; dinlenen kişide ek olarak nabız veya solunum
+    artışı ≥ izle. Eylem: SpO2 düşüşü ≥ eylem. Kalp yükü: dinlenirken nabız artışı ≥ izle / eylem.
+    """
+    th = hypoxia["thresholds"]
+    end = hypoxia["duration_min"]
+    pio2_end = cabin_series(hypoxia)[-1][1]
+    assert pio2_end < th["pio2_normoxia_min"]
+    order = ["nominal", "caution", "warning"]
+    for c in hypoxia["crew"]:
+        cid = c["id"]
+
+        def delta(metric: str, crew: str = cid) -> float:
+            return vital(hypoxia, crew, metric, end) - baseline(hypoxia, crew, metric)
+
+        resting = final_activity(hypoxia, cid) != "exercise"
+        drop, hr, rr = -delta("spo2"), delta("heart_rate"), delta("resp_rate")
+        rest_sign = hr >= th["hr_rise_caution"] or rr >= th["rr_rise_caution"]
+        levels = ["nominal"]
+        if drop >= th["spo2_drop_warning"]:
+            levels.append("warning")
+        elif drop >= th["spo2_drop_caution"] and (rest_sign or not resting):
+            levels.append("caution")
+        if resting and hr >= th["hr_rise_warning"]:
+            levels.append("warning")
+        elif resting and hr >= th["hr_rise_caution"]:
+            levels.append("caution")
+        computed = max(levels, key=order.index)
+        assert (
+            hypoxia["expected_status_end"][cid] == computed
+        ), f"{cid}: düşüş {drop}, nabız {hr}, solunum {rr}"
 
 
 # ---------------------------------------------------------------- hypercapnia

@@ -336,11 +336,11 @@
       "activity": "resting",
       "targets": {
         "heart_rate": 70,
-        "resp_rate": 16,
+        "resp_rate": 17,
         "spo2": 95.0
       },
       "ramp_min": 20,
-      "note": "Egzersiz biter. Nabız +12 ve solunum +3 dinlenme eşiklerinin altında; SpO2 −3'te kalır (kabin PIO2 düşük)."
+      "note": "Egzersiz biter. Nabız +12 kalp yükü eşiğinin altında. Solunum dinlenmede +4 kalır: düşük kabin PIO2'sinde hipoksi belirtisi; SpO2 −3 ile birlikte İzle sürer (dinlenme koşulu: SpO2 VE solunum/nabız artışı). Solunum kuralı bu senaryoda yok, ayrı solunum uyarısı çıkmaz."
     }
   ],
   "expected_alerts": [
@@ -426,7 +426,7 @@
     {
       "crew_id": "crew-3",
       "metric": "resp_rate",
-      "why": "Egzersiz solunumu alarm sayılmaz."
+      "why": "Egzersiz solunumu alarm sayılmaz. Dinlenmedeki +4 yalnızca hipoksi kanıtıdır; bu senaryoda solunum için ayrı kural yok."
     },
     {
       "crew_id": "crew-4",
