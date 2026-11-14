@@ -30,6 +30,9 @@ SECONDS_PER_MINUTE = 60.0
 MINUTES_PER_HOUR = 60.0
 CIRCADIAN_PERIOD_MIN = 1440.0
 NOISE_SCALE = 1.0
+SPO2_MAX_PERCENT = 100.0
+HEART_RATE_MIN_BPM = 0.0
+RESP_RATE_MIN_PER_MINUTE = 0.0
 # HIPOTEZ: küçük sirkadiyen salınım; klinik model değildir.
 HEART_RATE_CIRCADIAN_AMPLITUDE = 0.5
 CORE_TEMP_CIRCADIAN_AMPLITUDE = 0.05
@@ -97,13 +100,25 @@ class _Timing(_Input):
 class _Event(_Input):
     t_min: float = Field(ge=0)
     type: Literal[
-        "vital_ramp", "activity", "o2_generation_rate", "co2_removal_rate", "sep_onset", "shelter", "sep_end"
+        "vital_ramp",
+        "activity",
+        "o2_generation_rate",
+        "co2_removal_rate",
+        "sep_onset",
+        "shelter",
+        "sep_end",
+        "sensor_quality",
     ]
     crew_id: str | None = None
     activity: Activity | None = None
     targets: dict[str, float] | None = None
     ramp_min: float | None = Field(default=None, ge=0)
     value: float | None = Field(default=None, ge=0)
+    metric: str | None = None
+    quality: Literal["missing", "stale", "sensor_fault"] | None = None
+    until_min: float | None = None
+    stale_value: float | None = None
+    reported_value: float | None = None
 
     @model_validator(mode="after")
     def _required_fields(self) -> _Event:
@@ -116,7 +131,24 @@ class _Event(_Input):
                 raise ValueError("activity.activity: gerekli alan")
         if self.type in ("o2_generation_rate", "co2_removal_rate") and self.value is None:
             raise ValueError(f"{self.type}.value: gerekli alan")
+        if self.type == "sensor_quality":
+            self._validate_sensor_quality()
         return self
+
+    def _validate_sensor_quality(self) -> None:
+        metrics = CABIN_UNITS if self.crew_id is None else VITAL_UNITS
+        if self.metric not in metrics:
+            raise ValueError(f"sensor_quality.metric: bilinmeyen veya yanlış kapsamlı metrik {self.metric}")
+        if self.quality is None:
+            raise ValueError("sensor_quality.quality: gerekli alan")
+        if self.until_min is None or self.until_min <= self.t_min:
+            raise ValueError("sensor_quality.until_min: t_min'den büyük olmalı")
+        if self.quality == "missing" and self.model_fields_set & {"value", "stale_value", "reported_value"}:
+            raise ValueError("sensor_quality.missing: değer alanı bulunamaz")
+        if self.quality == "stale" and self.stale_value is None:
+            raise ValueError("sensor_quality.stale_value: gerekli alan")
+        if self.quality == "sensor_fault" and self.reported_value is None:
+            raise ValueError("sensor_quality.reported_value: gerekli alan")
 
 
 class _Scenario(_Input):
@@ -139,7 +171,11 @@ class _Scenario(_Input):
             if self.cabin_initial[metric].unit != unit:
                 raise ValueError(f"cabin_initial.{metric}.unit: {unit} olmalı")
         for event in self.events:
-            if event.type in ("vital_ramp", "activity") and event.crew_id not in ids:
+            if (
+                event.type in ("vital_ramp", "activity", "sensor_quality")
+                and event.crew_id is not None
+                and event.crew_id not in ids
+            ):
                 raise ValueError(f"events.crew_id: bilinmeyen kişi {event.crew_id}")
         return self
 
@@ -160,8 +196,8 @@ class Simulator:
     """Bir tick bir ölçüm anıdır; duration_min sonundaki kare dahildir.
 
     Olaylar ilk uygun ölçüm anında etkinleşir. Gaz ve doz integrasyonu önceki
-    karenin akışlarıyla [önceki an, şimdiki an) aralığında yapılır. Gürültü
-    rampanın durumuna veya metabolizmaya beslenmez; yalnızca üretilen okumaya eklenir.
+    karenin akışlarıyla [önceki an, şimdiki an) aralığında yapılır. Sirkadiyen
+    dalga ve gürültü yalnızca okumaya eklenir; sensör kalitesi fiziği etkilemez.
     """
 
     def __init__(
@@ -200,6 +236,7 @@ class Simulator:
         self._event_index = 0
         self._random = {person.id: Random(f"{self._seed}:{person.id}") for person in self._spec.crew}
         self._ramps: dict[str, dict[str, _Ramp]] = {person.id: {} for person in self._spec.crew}
+        self._sensor_overrides: dict[tuple[str | None, str], _Event] = {}
         self._activities = {person.id: Activity.resting for person in self._spec.crew}
         self._o2_factor: float | None = None
         self._co2_factor: float | None = None
@@ -233,6 +270,8 @@ class Simulator:
             self._o2_factor = event.value
         elif event.type == "co2_removal_rate":
             self._co2_factor = event.value
+        elif event.type == "sensor_quality":
+            self._sensor_overrides[event.crew_id, event.metric] = event
         elif event.type == "sep_onset":
             self._sep_active = True
             self._sheltered = False
@@ -259,6 +298,17 @@ class Simulator:
         }
         return self._vital_mean(person, metric, minute) + amplitudes.get(metric, 0.0) * wave
 
+    def _reported_reading(
+        self, reading: Reading, metric: str, minute: float, crew_id: str | None = None
+    ) -> Reading:
+        event = self._sensor_overrides.get((crew_id, metric))
+        if event is None or not event.t_min <= minute < event.until_min:
+            return reading
+        value = {"missing": None, "stale": event.stale_value, "sensor_fault": event.reported_value}[
+            event.quality
+        ]
+        return Reading(value=value, unit=reading.unit, ts=reading.ts, quality=event.quality)
+
     def _crew(self, minute: float, ts: datetime) -> list[CrewMember]:
         crew = []
         for person in self._spec.crew:
@@ -268,8 +318,17 @@ class Simulator:
                 value = self._physiological_vital(person, metric, minute) + self._random[person.id].gauss(
                     0.0, baseline.sd * NOISE_SCALE
                 )
-                readings[metric] = Reading(
-                    value=value, unit=unit, ts=ts, baseline_delta=value - baseline.mean
+                if metric == "spo2":
+                    value = min(SPO2_MAX_PERCENT, value)
+                elif metric == "heart_rate":
+                    value = max(HEART_RATE_MIN_BPM, value)
+                elif metric == "resp_rate":
+                    value = max(RESP_RATE_MIN_PER_MINUTE, value)
+                readings[metric] = self._reported_reading(
+                    Reading(value=value, unit=unit, ts=ts, baseline_delta=value - baseline.mean),
+                    metric,
+                    minute,
+                    person.id,
                 )
             crew.append(
                 CrewMember(
@@ -318,7 +377,7 @@ class Simulator:
             for person_id in self._event_doses:
                 self._event_doses[person_id] += dose
 
-    def _cabin(self, result: atmosphere.Result, ts: datetime) -> CabinAtmosphere:
+    def _cabin(self, result: atmosphere.Result, minute: float, ts: datetime) -> CabinAtmosphere:
         values = {metric: reading.value for metric, reading in self._spec.cabin_initial.items()}
         values.update(pp_o2=result.state.pp_o2_mmhg, pp_co2=result.state.pp_co2_mmhg)
         if self._sep_active:
@@ -327,7 +386,9 @@ class Simulator:
             )
         return CabinAtmosphere(
             **{
-                metric: Reading(value=value, unit=CABIN_UNITS[metric], ts=ts)
+                metric: self._reported_reading(
+                    Reading(value=value, unit=CABIN_UNITS[metric], ts=ts), metric, minute
+                )
                 for metric, value in values.items()
             },
             hours_until_o2_limit=result.hours_until_o2_limit,
@@ -348,7 +409,7 @@ class Simulator:
         ts = SIMULATION_EPOCH + timedelta(seconds=elapsed)
         crew = self._crew(minute, ts)
         rates = [
-            (self._physiological_vital(person, "heart_rate", minute), person.baseline["heart_rate"].mean)
+            (self._vital_mean(person, "heart_rate", minute), person.baseline["heart_rate"].mean)
             for person in self._spec.crew
         ]
         result = atmosphere.step(self._state, self._regulated_profile(rates), rates, 0.0)
@@ -359,7 +420,7 @@ class Simulator:
             scenario=self.scenario,
             simulated=True,
             crew=crew,
-            cabin=self._cabin(result, ts),
+            cabin=self._cabin(result, minute, ts),
             comms_one_way_delay_s=0.0,  # Gecikmeyi comms.py ekler.
         )
         self._state = result.state

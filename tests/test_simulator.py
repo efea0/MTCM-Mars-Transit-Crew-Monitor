@@ -248,11 +248,17 @@ def test_nonzero_failure_multiplier_uses_original_capacity(
     assert second.cabin.pp_co2.value == pytest.approx(expected_co2)
 
 
-def test_sensor_noise_does_not_change_o2_consumption(
-    tmp_path: Path, ranges_path: Path, scenario: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("disturbance", ["NOISE_SCALE", "HEART_RATE_CIRCADIAN_AMPLITUDE"])
+def test_reported_variation_does_not_change_atmosphere(
+    tmp_path: Path,
+    ranges_path: Path,
+    scenario: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    disturbance: str,
 ) -> None:
     scenario["events"] = [
         {"t_min": 0, "type": "o2_generation_rate", "value": 0.0},
+        {"t_min": 0, "type": "co2_removal_rate", "value": 0.4},
         {
             "t_min": 10,
             "type": "vital_ramp",
@@ -261,15 +267,176 @@ def test_sensor_noise_does_not_change_o2_consumption(
             "ramp_min": 20,
         },
     ]
-    monkeypatch.setattr(simulator, "NOISE_SCALE", 0.0)
+    monkeypatch.setattr(simulator, disturbance, 0.0)
     quiet = collect(make_simulator(tmp_path, ranges_path, scenario, seed=42))
-    monkeypatch.setattr(simulator, "NOISE_SCALE", 1.0)
+    monkeypatch.setattr(simulator, disturbance, 1.0)
     noisy = collect(make_simulator(tmp_path, ranges_path, scenario, seed=42))
-    assert [frame.cabin.pp_o2.value for frame in noisy] == [frame.cabin.pp_o2.value for frame in quiet]
+    assert [frame.cabin for frame in noisy] == [frame.cabin for frame in quiet]
     assert noisy[-1].cabin.pp_o2.value < noisy[0].cabin.pp_o2.value
+    assert noisy[-1].cabin.pp_co2.value > noisy[0].cabin.pp_co2.value
     assert [frame.crew[0].vitals.heart_rate.value for frame in noisy] != [
         frame.crew[0].vitals.heart_rate.value for frame in quiet
     ]
+
+
+@pytest.mark.parametrize("noise", [-1000.0, 1000.0])
+def test_reported_vital_bounds_leave_metabolism_unchanged(
+    tmp_path: Path,
+    ranges_path: Path,
+    scenario: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    noise: float,
+) -> None:
+    scenario["events"] = [
+        {"t_min": 0, "type": "o2_generation_rate", "value": 0.0},
+        {"t_min": 0, "type": "co2_removal_rate", "value": 0.4},
+        {
+            "t_min": 0,
+            "type": "activity",
+            "crew_id": "crew-1",
+            "activity": "exercise",
+            "targets": {"heart_rate": 104},
+            "ramp_min": 0,
+        },
+    ]
+    control = collect(make_simulator(tmp_path, ranges_path, scenario))
+    monkeypatch.setattr(random.Random, "gauss", lambda self, mu, sigma: noise)
+    frames = collect(make_simulator(tmp_path, ranges_path, scenario))
+    assert [frame.cabin for frame in frames] == [frame.cabin for frame in control]
+    for frame in frames:
+        assert TelemetryFrame.model_validate(frame.model_dump()) == frame
+        for member in frame.crew:
+            assert member.vitals.spo2.value <= 100.0
+            assert member.vitals.heart_rate.value >= 0.0
+            assert member.vitals.resp_rate.value >= 0.0
+            for metric in ("spo2", "heart_rate", "resp_rate"):
+                reading = getattr(member.vitals, metric)
+                assert reading.baseline_delta == reading.value - BASELINES[metric][0]
+            if noise > 0:
+                assert member.vitals.spo2.value == 100.0
+            else:
+                assert member.vitals.heart_rate.value == member.vitals.resp_rate.value == 0.0
+
+
+@pytest.mark.parametrize(
+    "crew_id,metric",
+    [(None, metric) for metric in simulator.CABIN_UNITS]
+    + [("crew-1", metric) for metric in simulator.VITAL_UNITS],
+)
+@pytest.mark.parametrize(
+    "quality,values,expected_value",
+    [
+        ("missing", {}, None),
+        ("stale", {"stale_value": 97.0}, 97.0),
+        ("sensor_fault", {"reported_value": 12.0}, 12.0),
+    ],
+)
+def test_sensor_quality_only_changes_target_reading(
+    tmp_path: Path,
+    ranges_path: Path,
+    scenario: dict[str, Any],
+    crew_id: str | None,
+    metric: str,
+    quality: str,
+    values: dict[str, float],
+    expected_value: float | None,
+) -> None:
+    scenario["duration_min"] = 30
+    scenario["events"] = [
+        {"t_min": 0, "type": "o2_generation_rate", "value": 0.0},
+        {"t_min": 0, "type": "co2_removal_rate", "value": 0.4},
+        {
+            "t_min": 0,
+            "type": "vital_ramp",
+            "crew_id": "crew-1",
+            "targets": {"heart_rate": 104},
+            "ramp_min": 20,
+        },
+    ]
+    control = collect(make_simulator(tmp_path, ranges_path, scenario))
+    scenario["events"].append(
+        {
+            "t_min": 7,
+            "type": "sensor_quality",
+            "crew_id": crew_id,
+            "metric": metric,
+            "quality": quality,
+            "until_min": 20,
+            **values,
+        }
+    )
+    sim = make_simulator(tmp_path, ranges_path, scenario)
+    first_run = []
+    for original in control:
+        actual = sim.tick()
+        first_run.append(actual.model_dump())
+        assert TelemetryFrame.model_validate_json(actual.model_dump_json()) == actual
+        # Fiziksel durum, her iki gaz ve geri sayımlar sensör verisinden bağımsızdır.
+        assert sim._state.pp_o2_mmhg == original.cabin.pp_o2.value
+        assert sim._state.pp_co2_mmhg == original.cabin.pp_co2.value
+        assert actual.cabin.hours_until_o2_limit == original.cabin.hours_until_o2_limit
+        assert actual.cabin.hours_until_co2_limit == original.cabin.hours_until_co2_limit
+        assert actual.cabin.hours_until_o2_limit is not None
+        assert actual.cabin.hours_until_co2_limit is not None
+        if 7 <= actual.mission_elapsed_s / SECONDS_PER_MIN < 20:
+            owner = actual.cabin if crew_id is None else actual.crew[0].vitals
+            original_owner = original.cabin if crew_id is None else original.crew[0].vitals
+            reading = getattr(owner, metric)
+            assert reading.value == expected_value
+            assert reading.quality == quality
+            assert reading.status == "unknown"
+            assert reading.baseline_delta is None
+            # Tek okuma dışındaki tüm kare (RNG akışı dahil) birebir aynı kalır.
+            setattr(owner, metric, getattr(original_owner, metric))
+        assert actual == original
+    sim.reset()
+    assert [frame.model_dump() for frame in collect(sim)] == first_run
+
+
+@pytest.mark.parametrize(
+    "changes,expected_error",
+    [
+        ({"quality": "invalid"}, "quality"),
+        ({"quality": None}, "quality"),
+        ({"metric": "invalid"}, "metric"),
+        ({"metric": "pp_co2"}, "metric"),
+        ({"crew_id": None}, "metric"),
+        ({"crew_id": "crew-9"}, "bilinmeyen kişi crew-9"),
+        ({"until_min": 10}, "until_min"),
+        ({"until_min": 9}, "until_min"),
+        ({"until_min": None}, "until_min"),
+        ({"value": None}, "değer alanı"),
+        ({"value": 1.0}, "değer alanı"),
+        ({"stale_value": 97.0}, "değer alanı"),
+        ({"reported_value": 12.0}, "değer alanı"),
+        ({"quality": "stale"}, "stale_value"),
+        ({"quality": "stale", "stale_value": None}, "stale_value"),
+        ({"quality": "sensor_fault"}, "reported_value"),
+        ({"quality": "sensor_fault", "reported_value": None}, "reported_value"),
+        ({"quality": "stale", "stale_value": math.nan}, "stale_value"),
+        ({"quality": "sensor_fault", "reported_value": math.inf}, "reported_value"),
+    ],
+)
+def test_invalid_sensor_quality_events_fail_explicitly(
+    tmp_path: Path,
+    ranges_path: Path,
+    scenario: dict[str, Any],
+    changes: dict[str, Any],
+    expected_error: str,
+) -> None:
+    scenario["events"] = [
+        {
+            "t_min": 10,
+            "type": "sensor_quality",
+            "crew_id": "crew-1",
+            "metric": "heart_rate",
+            "quality": "missing",
+            "until_min": 20,
+            **changes,
+        }
+    ]
+    with pytest.raises(ValueError, match=expected_error):
+        make_simulator(tmp_path, ranges_path, scenario)
 
 
 def test_activity_ramps_and_per_person_random_streams(
@@ -496,6 +663,90 @@ def test_real_hypoxia_pio2_crossing_times() -> None:
                 first_crossing.setdefault(threshold, frame.mission_elapsed_s / SECONDS_PER_MIN)
     assert first_crossing[145] == pytest.approx(366, abs=INTERVAL_MIN)
     assert first_crossing[127] == pytest.approx(1766, abs=INTERVAL_MIN)
+
+
+@pytest.mark.skipif(
+    not (REAL_DATA / "scenarios" / "hypercapnia.json").is_file()
+    or not (REAL_DATA / "reference" / "ranges.json").is_file(),
+    reason="Gerçek hypercapnia senaryosu veya referans yok",
+)
+@pytest.mark.xfail(
+    reason=(
+        "senaryo pencereleri arıza öncesi giderme=4.0 kg/gün (CO2 1,926'ya düşer) varsayar; "
+        "simülatör regüle (net 0, 2,0'da sabit) ve Barış'ın kararına uyar: "
+        "pencere güncellemesi henüz yok (qa: hypercapnia expected_alerts)"
+    ),
+    strict=False,
+)
+def test_real_hypercapnia_co2_condition_windows() -> None:
+    with (REAL_DATA / "scenarios" / "hypercapnia.json").open(encoding="utf-8") as stream:
+        spec = json.load(stream)
+    frames = collect(Simulator(Scenario.hypercapnia))
+    interval = spec["model"]["measurement_interval_min"]
+    window_samples = int(60 / interval)
+    first_conditions: dict[str, float] = {}
+    for index, frame in enumerate(frames):
+        minute = frame.mission_elapsed_s / SECONDS_PER_MIN
+        if frame.cabin.pp_co2.value > spec["thresholds"]["ppco2_yellow"]:
+            first_conditions.setdefault("cabin_pp_co2_caution", minute)
+        # Tam bir saatlik pencere: uç örnekler yarım ağırlıklı (trapez integrasyonu).
+        if index >= window_samples:
+            values = [item.cabin.pp_co2.value for item in frames[index - window_samples : index + 1]]
+            average = (sum(values) - (values[0] + values[-1]) / 2) / window_samples
+            if average > spec["thresholds"]["ppco2_red_1h"]:
+                first_conditions.setdefault("cabin_pp_co2_critical", minute)
+    for expected in spec["expected_alerts"]:
+        if expected["crew_id"] is None:
+            minute = first_conditions[expected["rule_id"]]
+            assert expected["t_earliest"] <= minute <= expected["t_latest"], (
+                f"{expected['rule_id']}: koşul {minute:g} dk, "
+                f"beklenen pencere {expected['t_earliest']}..{expected['t_latest']} dk; "
+                "arızadan önceki CO2 regülasyonu senaryonun sabit giderme hesabından farklı"
+            )
+
+
+@pytest.mark.skipif(
+    not (REAL_DATA / "scenarios" / "sensor_dropout.json").is_file()
+    or not (REAL_DATA / "reference" / "ranges.json").is_file(),
+    reason="Barış'ın PR #36 sensor_dropout senaryosu veya referans yok",
+)
+def test_real_sensor_dropout_readings_and_physics(tmp_path: Path) -> None:
+    with (REAL_DATA / "scenarios" / "sensor_dropout.json").open(encoding="utf-8") as stream:
+        spec = json.load(stream)
+    control_spec = deepcopy(spec)
+    control_spec["events"] = [event for event in spec["events"] if event["type"] != "sensor_quality"]
+    control = collect(make_simulator(tmp_path, REAL_DATA / "reference" / "ranges.json", control_spec))
+    sim = Simulator(Scenario.sensor_dropout)
+    frames: dict[float, TelemetryFrame] = {}
+    for original in control:
+        frame = sim.tick()
+        minute = frame.mission_elapsed_s / SECONDS_PER_MIN
+        frames[minute] = frame
+        assert TelemetryFrame.model_validate_json(frame.model_dump_json()) == frame
+        assert sim._state.pp_co2_mmhg == pytest.approx(2.0)
+        assert sim._state.pp_o2_mmhg == original.cabin.pp_o2.value
+        assert frame.cabin.pp_o2 == original.cabin.pp_o2
+        assert frame.cabin.hours_until_o2_limit == original.cabin.hours_until_o2_limit
+        assert frame.cabin.hours_until_co2_limit == original.cabin.hours_until_co2_limit
+        assert frame.crew[2] == original.crew[2]
+        affected = [
+            (frame.crew[1].vitals.heart_rate, original.crew[1].vitals.heart_rate, 30, 60, "missing", None),
+            (frame.crew[3].vitals.spo2, original.crew[3].vitals.spo2, 70, 90, "stale", 97.0),
+            (frame.cabin.pp_co2, original.cabin.pp_co2, 100, 115, "sensor_fault", 12.0),
+        ]
+        for reading, normal, start, until, quality, value in affected:
+            if start <= minute < until:
+                assert reading.value == value
+                assert reading.quality == quality
+                assert reading.status == "unknown"
+                assert reading.baseline_delta is None
+            else:
+                assert reading == normal
+    assert frames[60].crew[1].vitals.heart_rate.quality == "ok"
+    assert frames[90].crew[3].vitals.spo2.quality == "ok"
+    assert frames[115].cabin.pp_co2.quality == "ok"
+    assert frames[115].cabin.pp_co2.value == pytest.approx(2.0)
+    assert sim.finished
 
 
 @pytest.mark.parametrize(
