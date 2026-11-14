@@ -400,7 +400,7 @@
           "title": "Value"
         },
         "unit": {
-          "description": "Örn. 'bpm', '%', 'mmHg', 'kPa'.",
+          "description": "Örn. 'bpm', '%', 'mmHg'.",
           "title": "Unit",
           "type": "string"
         },
