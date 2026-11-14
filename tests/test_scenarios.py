@@ -491,6 +491,18 @@ def test_hypercapnia_alert_times() -> None:
 # ---------------------------------------------------------------- solar_storm
 
 
+def test_solar_storm_events_carry_numeric_dose_fields() -> None:
+    """Simülatör not metnini ayrıştırmaz: doz hızı ve sığınak çarpanı sayısal alanlardan okunur."""
+    s = load("solar_storm")
+    v = s["dose_assumptions"]
+    onset = next(e for e in s["events"] if e["type"] == "sep_onset")
+    shelter = next(e for e in s["events"] if e["type"] == "shelter")
+    assert isinstance(onset["dose_rate_uGy_h"], int | float)
+    assert onset["dose_rate_uGy_h"] == v["event_absorbed_dose_rate_uGy_per_h"]
+    assert isinstance(shelter["dose_rate_multiplier"], int | float)
+    assert shelter["dose_rate_multiplier"] == v["shelter_factor"]
+
+
 def test_solar_storm_warns_before_dose_and_totals() -> None:
     s = load("solar_storm")
     v = s["dose_assumptions"]

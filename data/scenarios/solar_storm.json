@@ -250,11 +250,13 @@
       "t_min": 30,
       "type": "sep_onset",
       "ref": "2024-05-10T13:35:00-SEP-001",
+      "dose_rate_uGy_h": 16667,
       "note": "DONKI kaydı tetiklenir; doz hızı ≈16 667 µGy/saat (25 mSv/saat efektif, varsayım). Tahmini olay süresi 12 saat."
     },
     {
       "t_min": 45,
       "type": "shelter",
+      "dose_rate_multiplier": 0.25,
       "note": "Uyarı üzerine mürettebat sığınağa geçer; olay doz hızı × 0,25."
     },
     {
