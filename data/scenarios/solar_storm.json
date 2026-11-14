@@ -237,7 +237,7 @@
       "source": "varsayım (ekip tanımı)",
       "metric": "radiation_dose_rate"
     },
-    "event_dose_projection_warning": {
+    "event_dose_projection_critical": {
       "condition": "SEP sürüyor VE (olay dozu + doz hızı × kalan süre) ≥ 0.8 × 250 mSv",
       "consecutive_required": 3,
       "source": "ranges.json radyasyon_etkisi; [V1 4031] (doğrulandı), %80 kademe (varsayım)",
@@ -281,8 +281,8 @@
     {
       "crew_id": null,
       "metric": "radiation_dose_rate",
-      "severity": "warning",
-      "rule_id": "event_dose_projection_warning",
+      "severity": "critical",
+      "rule_id": "event_dose_projection_critical",
       "t_condition": 30,
       "t_earliest": 30,
       "t_latest": 45,

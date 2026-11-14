@@ -240,7 +240,7 @@
         "exercise"
       ]
     },
-    "crew_hr_rest_rise_warning": {
+    "crew_hr_rest_rise_critical": {
       "condition": "aktivite = dinlenme VE nabız − baz ≥ 30",
       "consecutive_required": 3,
       "source": "ranges.json kalp_yuku (varsayım)",
@@ -255,7 +255,7 @@
       "source": "ranges.json kabin.ppco2_sari_esik (OCHMO-TB-004, kısmen)",
       "metric": "pp_co2"
     },
-    "cabin_pp_co2_warning": {
+    "cabin_pp_co2_critical": {
       "condition": "kabin ppCO2 1 saatlik ortalama > 3.0",
       "consecutive_required": 3,
       "source": "ranges.json kabin.ppco2_limit_1saat_ort ([V2 6004], doğrulandı)",
@@ -269,7 +269,7 @@
       "metric": "resp_rate",
       "also_requires": "kabin ppCO2 > 2.5"
     },
-    "crew_co2_effect_warning": {
+    "crew_co2_effect_critical": {
       "condition": "kabin 1 saatlik ort. > 3.0 VE solunum − baz ≥ 4",
       "consecutive_required": 3,
       "source": "ranges.json olasi_co2_etkisi + [V2 6004]",
@@ -330,8 +330,8 @@
     {
       "crew_id": null,
       "metric": "pp_co2",
-      "severity": "warning",
-      "rule_id": "cabin_pp_co2_warning",
+      "severity": "critical",
+      "rule_id": "cabin_pp_co2_critical",
       "t_condition": 553.0,
       "t_earliest": 553,
       "t_latest": 588,
@@ -344,8 +344,8 @@
     {
       "crew_id": "crew-3",
       "metric": "resp_rate",
-      "severity": "warning",
-      "rule_id": "crew_co2_effect_warning",
+      "severity": "critical",
+      "rule_id": "crew_co2_effect_critical",
       "t_condition": 553.0,
       "t_earliest": 553,
       "t_latest": 588,
@@ -392,8 +392,8 @@
   "expected_status_end": {
     "crew-1": "nominal",
     "crew-2": "nominal",
-    "crew-3": "warning",
+    "crew-3": "critical",
     "crew-4": "nominal",
-    "cabin": "warning"
+    "cabin": "critical"
   }
 }

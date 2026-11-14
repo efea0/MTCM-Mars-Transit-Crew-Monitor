@@ -178,6 +178,18 @@ def test_expected_and_forbidden_do_not_overlap(path: Path) -> None:
     assert not expected & forbidden
 
 
+ENGINE_TIERS = {"nominal", "caution", "critical", "unknown"}
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_tiers_match_engine(path: Path) -> None:
+    """#14 motoru warning üretmez: limit aşımı critical, eksik veri unknown."""
+    s = json.loads(path.read_text(encoding="utf-8"))
+    assert {a["severity"] for a in s["expected_alerts"]} <= ENGINE_TIERS - {"nominal", "unknown"}
+    assert set(s["expected_status_end"].values()) <= ENGINE_TIERS
+    assert not [k for k in s["proposed_rules"] if k.endswith("_warning")]
+
+
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
 def test_resting_targets_of_forbidden_metrics_stay_below_rest_rules(path: Path) -> None:
     """Dinlenen kişinin yasak listesindeki vitali dinlenme eşiğini (ranges.json izle farkı) geçmemeli.
@@ -287,7 +299,7 @@ def test_hypoxia_cabin_alert_times(
     t145 = next(t for t, pio2, _ in hypoxia_cabin if pio2 < th["pio2_normoxia_min"])
     t127 = next(t for t, pio2, _ in hypoxia_cabin if pio2 < th["pio2_red"])
     assert_condition_time(by_rule(hypoxia, "cabin_pio2_low_caution"), t145)
-    assert_condition_time(by_rule(hypoxia, "cabin_pio2_low_warning"), t127)
+    assert_condition_time(by_rule(hypoxia, "cabin_pio2_low_critical"), t127)
 
 
 def test_hypoxia_crew3_exercising_when_spo2_drops(
@@ -296,7 +308,7 @@ def test_hypoxia_crew3_exercising_when_spo2_drops(
     th = hypoxia["thresholds"]
     base = baseline(hypoxia, "crew-3", "spo2")
     caution = by_rule(hypoxia, "crew_hypoxia_caution")
-    warning = by_rule(hypoxia, "crew_hypoxia_warning")
+    warning = by_rule(hypoxia, "crew_hypoxia_critical")
     for alert, key in ((caution, "spo2_drop_caution"), (warning, "spo2_drop_warning")):
         t = first_time(hypoxia, lambda t, k=key: base - vital(hypoxia, "crew-3", "spo2", t) >= th[k] - 1e-9)
         assert_condition_time(alert, t)
@@ -316,7 +328,7 @@ def test_hypoxia_crew3_exercising_when_spo2_drops(
     )
     for alert in (caution, warning):
         assert exercise_start <= alert["t_condition"] < exercise_end, "karar anında crew-3 egzersizde olmalı"
-    assert warning["t_latest"] < by_rule(hypoxia, "cabin_pio2_low_warning")["t_earliest"], "erken uyarı"
+    assert warning["t_latest"] < by_rule(hypoxia, "cabin_pio2_low_critical")["t_earliest"], "erken uyarı"
 
 
 def test_hypoxia_exercise_heart_rate_is_not_evidence(hypoxia: Scenario) -> None:
@@ -327,7 +339,7 @@ def test_hypoxia_exercise_heart_rate_is_not_evidence(hypoxia: Scenario) -> None:
             assert not {"heart_rate", "resp_rate"} & set(a["evidence_metrics"])
             assert "pp_o2" in a["evidence_metrics"]
     guarded = {f["rule_id"] for f in hypoxia["forbidden_evidence"] if f["crew_id"] == "crew-3"}
-    assert guarded == {"crew_hypoxia_caution", "crew_hypoxia_warning"}
+    assert guarded == {"crew_hypoxia_caution", "crew_hypoxia_critical"}
 
 
 def test_hypoxia_personal_heart_rate_deviation(hypoxia: Scenario) -> None:
@@ -366,7 +378,7 @@ def test_hypoxia_end_status_follows_rules(hypoxia: Scenario) -> None:
     end = hypoxia["duration_min"]
     pio2_end = cabin_series(hypoxia)[-1][1]
     assert pio2_end < th["pio2_normoxia_min"]
-    order = ["nominal", "caution", "warning"]
+    order = ["nominal", "caution", "critical"]
     for c in hypoxia["crew"]:
         cid = c["id"]
 
@@ -378,11 +390,11 @@ def test_hypoxia_end_status_follows_rules(hypoxia: Scenario) -> None:
         rest_sign = hr >= th["hr_rise_caution"] or rr >= th["rr_rise_caution"]
         levels = ["nominal"]
         if drop >= th["spo2_drop_warning"]:
-            levels.append("warning")
+            levels.append("critical")
         elif drop >= th["spo2_drop_caution"] and (rest_sign or not resting):
             levels.append("caution")
         if resting and hr >= th["hr_rise_warning"]:
-            levels.append("warning")
+            levels.append("critical")
         elif resting and hr >= th["hr_rise_caution"]:
             levels.append("caution")
         computed = max(levels, key=order.index)
@@ -401,14 +413,14 @@ def test_hypercapnia_alert_times() -> None:
     t_yellow = next(t for t, _, co2 in series if co2 > th["ppco2_yellow"])
     assert_condition_time(by_rule(s, "cabin_pp_co2_caution"), t_yellow)
 
-    window = s["proposed_rules"]["cabin_pp_co2_warning"]["average_window_min"]
+    window = s["proposed_rules"]["cabin_pp_co2_critical"]["average_window_min"]
     per_window = int(window / STEP_MIN)
     t_avg = next(
         series[i][0]
         for i in range(per_window, len(series))
         if sum(c for _, _, c in series[i - per_window : i + 1]) / (per_window + 1) > th["ppco2_red_1h"]
     )
-    assert_condition_time(by_rule(s, "cabin_pp_co2_warning"), t_avg)
+    assert_condition_time(by_rule(s, "cabin_pp_co2_critical"), t_avg)
 
     symptom = next(e for e in s["events"] if e.get("crew_id") == "crew-3")
     assert symptom["activity"] == "resting"
@@ -438,7 +450,7 @@ def test_solar_storm_warns_before_dose_and_totals() -> None:
     assert (
         projected >= th["yellow_fraction"] * th["spe_design_mSv"]
     ), "projeksiyon onset'te uyarıyı tetiklemeli"
-    warning = by_rule(s, "event_dose_projection_warning")
+    warning = by_rule(s, "event_dose_projection_critical")
     assert warning["t_condition"] == ev["sep_onset"]
     assert ev["shelter"] >= warning["t_condition"] and ev["shelter"] <= warning["t_latest"]
     dose_at_warning = rate * (warning["t_condition"] - ev["sep_onset"])

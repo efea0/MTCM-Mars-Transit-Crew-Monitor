@@ -240,7 +240,7 @@
         "exercise"
       ]
     },
-    "crew_hr_rest_rise_warning": {
+    "crew_hr_rest_rise_critical": {
       "condition": "aktivite = dinlenme VE nabız − baz ≥ 30",
       "consecutive_required": 3,
       "source": "ranges.json kalp_yuku (varsayım)",
@@ -255,7 +255,7 @@
       "source": "ranges.json kabin.pio2_normoksi_hedef (Tablo 6.2-1, doğrulandı)",
       "metric": "pp_o2"
     },
-    "cabin_pio2_low_warning": {
+    "cabin_pio2_low_critical": {
       "condition": "kabin PIO2 < 127 (hafif hipoksi alt sınırı)",
       "consecutive_required": 3,
       "source": "ranges.json kabin.pio2_hafif_hipoksi_alt (Tablo 6.2-1, doğrulandı)",
@@ -268,7 +268,7 @@
       "metric": "spo2",
       "also_requires": "cabin PIO2 < 145"
     },
-    "crew_hypoxia_warning": {
+    "crew_hypoxia_critical": {
       "condition": "SpO2 düşüşü ≥ 6 VE kabin PIO2 < 145",
       "consecutive_required": 3,
       "source": "ranges.json spo2_dusus.eylem (varsayım)",
@@ -390,8 +390,8 @@
     {
       "crew_id": "crew-3",
       "metric": "spo2",
-      "severity": "warning",
-      "rule_id": "crew_hypoxia_warning",
+      "severity": "critical",
+      "rule_id": "crew_hypoxia_critical",
       "t_condition": 632.75,
       "t_earliest": 632,
       "t_latest": 658,
@@ -405,8 +405,8 @@
     {
       "crew_id": null,
       "metric": "pp_o2",
-      "severity": "warning",
-      "rule_id": "cabin_pio2_low_warning",
+      "severity": "critical",
+      "rule_id": "cabin_pio2_low_critical",
       "t_condition": 1766.0,
       "t_earliest": 1766,
       "t_latest": 1801,
@@ -459,7 +459,7 @@
     "crew-2": "nominal",
     "crew-3": "caution",
     "crew-4": "nominal",
-    "cabin": "warning"
+    "cabin": "critical"
   },
   "forbidden_evidence": [
     {
@@ -473,7 +473,7 @@
     },
     {
       "crew_id": "crew-3",
-      "rule_id": "crew_hypoxia_warning",
+      "rule_id": "crew_hypoxia_critical",
       "metrics": [
         "heart_rate",
         "resp_rate"

@@ -240,7 +240,7 @@
         "exercise"
       ]
     },
-    "crew_hr_rest_rise_warning": {
+    "crew_hr_rest_rise_critical": {
       "condition": "aktivite = dinlenme VE nabız − baz ≥ 30",
       "consecutive_required": 3,
       "source": "ranges.json kalp_yuku (varsayım)",
