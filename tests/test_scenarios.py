@@ -544,3 +544,176 @@ def test_solar_storm_matches_saved_donki_event() -> None:
     names = [i["displayName"] for i in selected["instruments"]]
     assert s["donki"]["instrument"] in names
     assert not s["donki"]["instrument"].startswith("MODEL:"), "senaryo ölçülmüş olaya dayanmalı"
+
+
+# ---------------------------------------------------------------- davranış testleri
+# AI kullanım beyanına girecek davranışlar: art arda ölçüm, egzersiz, bilinmeyen etkinlik, eksik veri.
+
+REQUIRED_CONSECUTIVE = 3
+
+
+def first_fire_index(flags: list[bool], n: int) -> int | None:
+    """Referans kural: koşul n ölçüm art arda doğruysa uyarı n. ölçümde çıkar."""
+    run = 0
+    for i, flag in enumerate(flags):
+        run = run + 1 if flag else 0
+        if run == n:
+            return i
+    return None
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_alerts_need_three_consecutive_measurements(path: Path) -> None:
+    """Her beklenen uyarının kuralı 3 art arda ölçüm ister ve uyarı penceresi bunu kapsar."""
+    s = json.loads(path.read_text(encoding="utf-8"))
+    interval = s["model"]["measurement_interval_min"]
+    for a in s["expected_alerts"]:
+        rule = s["proposed_rules"][a["rule_id"]]
+        assert rule["consecutive_required"] == REQUIRED_CONSECUTIVE, a["rule_id"]
+        fires = a["t_condition"] + (REQUIRED_CONSECUTIVE - 1) * interval
+        assert fires <= a["t_latest"], f"{a['rule_id']}: 3. ölçüm pencere dışında"
+
+
+def test_single_blip_does_not_fire_but_sustained_condition_does() -> None:
+    """Hypoxia kabin PIO2'si ölçüm aralığıyla örneklenir: kısa sıçrama uyarı çıkarmaz."""
+    s = load("hypoxia")
+    interval = s["model"]["measurement_interval_min"]
+    low = s["thresholds"]["pio2_normoxia_min"]
+    sampled = [p for t, p, _ in cabin_series(s) if t % interval == 0]
+    flags = [p < low for p in sampled]
+    fired = first_fire_index(flags, REQUIRED_CONSECUTIVE)
+    assert fired is not None
+    assert fired - flags.index(True) == REQUIRED_CONSECUTIVE - 1
+    blip = [False, True, True, False, False, True, False]
+    assert first_fire_index(blip, REQUIRED_CONSECUTIVE) is None
+    assert first_fire_index([False, True, True, True], REQUIRED_CONSECUTIVE) == 3
+
+
+def exercise_intervals(s: Scenario, crew_id: str) -> list[tuple[float, float]]:
+    """Kişinin egzersizde olduğu [başlangıç, bitiş) aralıkları (olay sırasına göre)."""
+    events = sorted(
+        (e for e in s["events"] if e.get("crew_id") == crew_id and "activity" in e),
+        key=lambda e: e["t_min"],
+    )
+    spans: list[tuple[float, float]] = []
+    start: float | None = None
+    for e in events:
+        if e["activity"] == "exercise" and start is None:
+            start = e["t_min"]
+        elif e["activity"] != "exercise" and start is not None:
+            spans.append((start, e["t_min"]))
+            start = None
+    if start is not None:
+        spans.append((start, float(s["duration_min"])))
+    return spans
+
+
+def resting_rise_flags(s: Scenario, crew_id: str, activity_of: Callable[[float], str]) -> list[bool]:
+    """Referans kural: yalnızca etkinlik 'resting' ise nabız - baz >= eşik koşul sayılır."""
+    th = s["thresholds"]["hr_rise_caution"]
+    base = baseline(s, crew_id, "heart_rate")
+    return [
+        activity_of(t) == "resting" and vital(s, crew_id, "heart_rate", t) - base >= th - 1e-9
+        for t in range(0, int(s["duration_min"]) + 1)
+    ]
+
+
+def test_exercise_heart_rate_never_raises_heart_load_alert() -> None:
+    """crew-3 egzersizdeyken nabız yükselir ama kalp yükü koşulu hiç sağlanmaz; alarm ve kanıt dışı."""
+    s = load("hypoxia")
+    spans = exercise_intervals(s, "crew-3")
+    assert spans, "senaryoda crew-3 egzersiz yapmalı"
+    base = baseline(s, "crew-3", "heart_rate")
+    th = s["thresholds"]["hr_rise_caution"]
+
+    def activity_of(t: float) -> str:
+        return "exercise" if any(a <= t < b for a, b in spans) else "resting"
+
+    start, end = (int(x) for x in spans[0])
+    peak = max(vital(s, "crew-3", "heart_rate", t) for t in range(start, end))
+    assert peak - base >= th, "egzersiz nabzı eşiği aşmalı ki istisna anlamlı olsun"
+    flags = resting_rise_flags(s, "crew-3", activity_of)
+    assert not any(any(flags[int(a) : int(b)]) for a, b in spans)
+    assert not any(a["crew_id"] == "crew-3" and a["metric"] == "heart_rate" for a in s["expected_alerts"])
+
+
+def test_unknown_activity_never_counts_heart_rate_as_evidence() -> None:
+    """Etkinlik unknown iken 'dinleniyor' varsayılmaz: crew-1'in gerçek +16'lık artışı bile kanıt sayılmaz."""
+    s = load("hypoxia")
+    known = resting_rise_flags(s, "crew-1", lambda t: "resting")
+    unknown = resting_rise_flags(s, "crew-1", lambda t: "unknown")
+    assert first_fire_index(known, REQUIRED_CONSECUTIVE) is not None, "dinlenirken uyarı çıkmalı"
+    assert not any(unknown)
+    assert first_fire_index(unknown, REQUIRED_CONSECUTIVE) is None
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_resting_heart_rate_rules_require_resting_and_skip_exercise(path: Path) -> None:
+    s = json.loads(path.read_text(encoding="utf-8"))
+    for rule_id, rule in s["proposed_rules"].items():
+        if not isinstance(rule, dict) or not rule_id.startswith("crew_hr_rest_"):
+            continue
+        assert rule["condition"].startswith("aktivite = dinlenme"), rule_id
+        assert "exercise" in rule["skip_when"], rule_id
+
+
+def test_missing_data_is_unknown_never_nominal() -> None:
+    """Gerçek motor (backend.atmosphere): eksik ölçüm unknown olur; bilinen tehlike ise gizlenmez."""
+    from backend.atmosphere import CabinState, load_profile, step
+
+    s = load("hypoxia")
+    profile = load_profile(RANGES_PATH, "mars_transit")
+    total = profile.total_pressure_mmhg
+    pp_o2 = s["cabin_initial_pio2_mmHg"] * total / (total - profile.ranges.water_vapour_mmhg)
+    rates = tuple((c["baseline"]["heart_rate"]["mean"],) * 2 for c in s["crew"])
+    pp_co2 = s["cabin_initial"]["pp_co2"]["value"]
+
+    assert step(CabinState(pp_o2, pp_co2), profile, rates, 300).status == "nominal"
+    assert step(CabinState(None, pp_co2), profile, rates, 300).status == "unknown"
+    assert step(CabinState(pp_o2, None), profile, rates, 300).status == "unknown"
+    missing_vitals = ((None, None), *rates[1:])
+    assert step(CabinState(pp_o2, pp_co2), profile, missing_vitals, 300).status == "unknown"
+    hypoxic = profile.pp_o2_from_pio2(s["thresholds"]["pio2_red"] - 1)
+    assert step(CabinState(hypoxic, None), profile, rates, 300).status == "critical"
+
+
+def vitals_all_missing() -> m.CrewVitals:
+    from datetime import UTC, datetime
+
+    ts = datetime(2026, 11, 14, 12, 0, tzinfo=UTC)
+    missing = m.Reading(value=None, unit="x", ts=ts, quality=m.Quality.missing)
+    return m.CrewVitals(**{f: missing for f in m.CrewVitals.model_fields})
+
+
+@pytest.mark.skipif(not hasattr(m, "CrewDecision"), reason="CrewDecision sözleşmeye #26 ile gelir")
+@pytest.mark.xfail(
+    strict=True,
+    reason="Bilinen açık (contract, Aydın): 4 vitali de eksik astronot decision='normal' olabiliyor.",
+)
+def test_contract_rejects_normal_decision_when_all_vitals_missing() -> None:
+    with pytest.raises(ValueError):
+        m.CrewMember(
+            id="crew-1",
+            name="A",
+            role="Pilot",
+            vitals=vitals_all_missing(),
+            decision=m.CrewDecision.normal,
+        )
+
+
+@pytest.mark.skipif(
+    "baseline_delta" not in m.Reading.model_fields, reason="baseline_delta sözleşmeye #26 ile gelir"
+)
+@pytest.mark.xfail(
+    strict=True,
+    reason="Bilinen açık (contract, Aydın): kabin okumasında baseline_delta kabul ediliyor.",
+)
+def test_contract_rejects_baseline_delta_on_cabin_readings() -> None:
+    from datetime import UTC, datetime
+
+    ts = datetime(2026, 11, 14, 12, 0, tzinfo=UTC)
+    required = [f for f, field in m.CabinAtmosphere.model_fields.items() if field.is_required()]
+    fields = {f: m.Reading(value=1.0, unit="x", ts=ts) for f in required}
+    fields["pp_co2"] = m.Reading(value=1.0, unit="x", ts=ts, baseline_delta=0.5)
+    with pytest.raises(ValueError):
+        m.CabinAtmosphere(**fields)
