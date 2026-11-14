@@ -24,7 +24,8 @@ data/reference/messages.json eklendi (reference alanı). Kurallar:
 2. Eşleme:
    - Alert.message = global.alert_message_format; message ve recommendation, Alert.severity
      anahtarıyla seçilir (caution | critical; warning gelirse critical).
-   - Alert.why[].note = ilgili why_note. olasi_hipoksi'de kişi egzersizdeyse why_exercise_addon eklenir.
+   - Alert.why[].note = ilgili why_note. olasi_hipoksi'de activity == rest ise why_note_rest,
+     exercise ise why_note_exercise (#21: egzersizde nabız/solunum kanıt olarak yazılmaz).
      radyasyon_etkisi: olay kaynaklıysa why_note_event, kariyer kaynaklıysa why_note_career.
    - Kabin uyarıları: cabin_alerts anahtarları ranges.json "kurallar" rule id'leriyle aynı
      (ppco2-caution, ppco2-limit, pio2-normoxia-low, pio2-hypoxia-low, pio2-normoxia-high).
