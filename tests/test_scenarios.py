@@ -816,3 +816,12 @@ def test_sensor_dropout_end_status_after_recovery(dropout: Scenario) -> None:
     recovered = {d["crew_id"] or "cabin" for d in dropout["expected_data_status"]}
     assert all(end[who] == "nominal" for who in recovered), "veri gelince Normal'e dönmeli"
     assert set(end.values()) <= {"nominal", "caution"} and "unknown" not in end.values()
+
+
+def test_sensor_dropout_cabin_stays_nominal_without_the_fault(dropout: Scenario) -> None:
+    """Kabin gerçekte sağlıklı: yalnızca sensör bozuk. Bu yüzden critical ya da caution beklenmez."""
+    th = dropout["thresholds"]
+    series = cabin_series(dropout)
+    assert all(th["pio2_normoxia_min"] <= pio2 <= th["pio2_normoxia_max"] for _, pio2, _ in series)
+    assert all(co2 < th["ppco2_yellow"] for _, _, co2 in series)
+    assert dropout["expected_status_end"]["cabin"] == "nominal"
