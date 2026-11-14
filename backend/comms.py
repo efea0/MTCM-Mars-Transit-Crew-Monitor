@@ -6,7 +6,8 @@ saniyesi (`now_s`, TelemetryFrame.mission_elapsed_s ile aynı saat) olarak veril
 duraklatma / ileri sarma panel ile birlikte çalışır ve testler beklemeden sonuç verir.
 
 Kurallar:
-- K1  Tek yön gecikme 180-1320 s (3-22 dk), varsayılan 600 s. Aralık dışı değer ValueError.
+- K1  Tek yön gecikme sınırları data/reference/ranges.json iletisim.mars_tek_yon_gecikme alanından okunur
+      (kodda sabit yazılmaz); varsayılan 600 s. Aralık dışı değer ValueError.
 - K2  Gecikme gönderim anında mesaja sabitlenir; sonradan değişirse yoldaki mesaj etkilenmez.
 - K3  Varış = gönderim + gecikme. Cevap = varış + yer işleme süresi + gecikme (varsayılan işleme 120 s).
       Bu yüzden cevap en erken gönderim + 2 x gecikme sonra gelir.
@@ -15,20 +16,21 @@ Kurallar:
       önce gelmez.
 - K6  Aynı uyarı ikinci kez kuyruğa girmez. Anahtar (crew_id veya "cabin", metric/karar, severity).
       Uyarı bitince `release(key)` çağrılır; ancak o zaman aynı anahtar yeniden gönderilir.
-- K7  Saat yok, disk yok, veritabanı yok: her şey bellekte.
+- K7  Saat yok, veritabanı yok: mesajlar bellekte. Dosya yalnızca gecikme sınırlarını okumak için açılır.
 - K8  Cevap metni karara göre `replies` sözlüğünden seçilir, yoksa varsayılan metin. Cevaplar simüledir.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from pathlib import Path
 
 from backend.models import CommsMessage, Sender
 
-MIN_ONE_WAY_DELAY_S = 180.0  # 3 dk, NASA: tek yön 3-22 dk
-MAX_ONE_WAY_DELAY_S = 1320.0  # 22 dk
+RANGES_PATH = Path(__file__).resolve().parent.parent / "data" / "reference" / "ranges.json"
 DEFAULT_ONE_WAY_DELAY_S = 600.0  # 10 dk, demo varsayılanı
 DEFAULT_GROUND_PROCESSING_S = 120.0  # HİPOTEZ: yer kontrolünün cevap hazırlama süresi
 DEFAULT_REPLY = "Rapor alındı, değerlendiriliyor."
@@ -36,6 +38,21 @@ PENDING_REPLY = "(cevap yolda)"
 REPLY_ID_SUFFIX = "-reply"
 
 AlertKey = tuple[str, ...]
+
+_SECONDS_PER_UNIT = {"saniye": 1.0, "dakika": 60.0}
+
+
+def load_delay_bounds_s(path: Path | str = RANGES_PATH) -> tuple[float, float]:
+    """Tek yön gecikme sınırlarını (min, max; saniye) ranges.json iletisim.mars_tek_yon_gecikme'den okur."""
+    try:
+        record = json.loads(Path(path).read_text(encoding="utf-8"))["iletisim"]["mars_tek_yon_gecikme"]
+        scale = _SECONDS_PER_UNIT[record["birim"]]
+        low, high = float(record["min"]) * scale, float(record["max"]) * scale
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        raise ValueError(f"{path}: iletisim.mars_tek_yon_gecikme okunamadı ({error!r})") from error
+    if not 0 < low <= high:
+        raise ValueError(f"{path}: iletisim.mars_tek_yon_gecikme aralığı geçersiz: {low}-{high}")
+    return low, high
 
 
 class MessageState(str, Enum):
@@ -113,9 +130,11 @@ class DelayedLink:
         one_way_delay_s: float = DEFAULT_ONE_WAY_DELAY_S,
         ground_processing_s: float = DEFAULT_GROUND_PROCESSING_S,
         replies: dict[str, str] | None = None,
+        delay_bounds_s: tuple[float, float] | None = None,
     ) -> None:
         if ground_processing_s < 0:
             raise ValueError("ground_processing_s negatif olamaz")
+        self.min_delay_s, self.max_delay_s = delay_bounds_s or load_delay_bounds_s()
         self.set_delay(one_way_delay_s)
         self.ground_processing_s = ground_processing_s
         self.replies = dict(replies or {})
@@ -128,9 +147,9 @@ class DelayedLink:
 
     def set_delay(self, seconds: float) -> None:
         """K1, K2: yalnızca bundan sonra gönderilen mesajları etkiler."""
-        if not MIN_ONE_WAY_DELAY_S <= seconds <= MAX_ONE_WAY_DELAY_S:
+        if not self.min_delay_s <= seconds <= self.max_delay_s:
             raise ValueError(
-                f"tek yön gecikme {MIN_ONE_WAY_DELAY_S:.0f}-{MAX_ONE_WAY_DELAY_S:.0f} s olmalı: {seconds}"
+                f"tek yön gecikme {self.min_delay_s:.0f}-{self.max_delay_s:.0f} s olmalı: {seconds}"
             )
         self._delay_s = float(seconds)
 

@@ -38,6 +38,31 @@ def test_default_delay_and_bounds() -> None:
         DelayedLink(ground_processing_s=-1)
 
 
+# K1: sınırlar ranges.json'dan gelir, kodda sabit yok
+def test_delay_bounds_come_from_ranges_json(tmp_path) -> None:
+    assert comms.load_delay_bounds_s() == (3 * MIN, 22 * MIN)
+    assert not hasattr(comms, "MIN_ONE_WAY_DELAY_S") and not hasattr(comms, "MAX_ONE_WAY_DELAY_S")
+    custom = tmp_path / "ranges.json"
+    custom.write_text(
+        '{"iletisim": {"mars_tek_yon_gecikme": {"min": 5, "max": 9, "birim": "dakika"}}}', encoding="utf-8"
+    )
+    q = DelayedLink(one_way_delay_s=6 * MIN, delay_bounds_s=comms.load_delay_bounds_s(custom))
+    q.set_delay(9 * MIN)
+    with pytest.raises(ValueError):
+        q.set_delay(10 * MIN)
+    with pytest.raises(ValueError):
+        q.set_delay(4 * MIN)
+
+
+def test_delay_bounds_reject_bad_reference(tmp_path) -> None:
+    bad = tmp_path / "ranges.json"
+    bad.write_text('{"iletisim": {}}', encoding="utf-8")
+    with pytest.raises(ValueError):
+        comms.load_delay_bounds_s(bad)
+    with pytest.raises(ValueError):
+        comms.load_delay_bounds_s(tmp_path / "yok.json")
+
+
 # K3, K4
 def test_state_sequence_and_times() -> None:
     q = link(one_way_delay_s=10 * MIN, ground_processing_s=2 * MIN)
