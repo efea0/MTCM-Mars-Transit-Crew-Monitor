@@ -67,7 +67,7 @@ AREAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 # Kişi -> çalışabileceği alanlar. Yerelde .agent-role dosyasından okunur (CI'de yok).
 ROLE_AREAS: dict[str, tuple[str, ...]] = {
     "aydin": ("backend", "frontend", "contract", "infra"),
-    "baris": ("qa", "comms"),
+    "baris": ("qa", "comms", "frontend"),
     "enis": ("reference", "delivery"),
 }
 ROLE_FILE = ".agent-role"
