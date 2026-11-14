@@ -241,12 +241,12 @@
       "isi_sapmasi": {
         "kosul": "isi_artis ≥ izle, art arda ölçümde kalıcı",
         "oneri": "İzle, dinlen, Dünya'ya raporla; ek ölçüm iste. Tanı değil.",
-        "dayanak": "varsayim"
+        "dayanak": "doğrulanmadı"
       },
       "kalp_yuku": {
         "kosul": "aktivite == 'dinlenme' VE nabiz_artis ≥ izle, art arda ölçümde kalıcı. Egzersizdeki kişide nabız artışı kalp yükü sayılmaz (yanlış alarm olmasın).",
         "oneri": "Eforu azalt, izle, Dünya'ya raporla.",
-        "dayanak": "varsayim"
+        "dayanak": "doğrulanmadı"
       },
       "radyasyon_etkisi": {
         "kosul": "SEP olayı başladı VE (olay sonu tahmini doz ≥ 0.8 × spe_tasarim_esigi VEYA olay dozu ≥ 0.8 × spe_tasarim_esigi) VEYA kümülatif ≥ 0.8 × kariyer_limiti. Tahmini doz = şimdiki olay dozu + doz hızı × kalan olay süresi. Sığınak uyarısı dozu almadan ÖNCE verilir; 200 mSv alındıktan sonra değil.",
