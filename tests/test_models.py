@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
 
 from backend import models as m
 
-T0 = datetime(2026, 11, 14, 12, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 11, 14, 12, 0, tzinfo=UTC)
 
 
 def reading(value=1.0, **kw):
@@ -27,8 +27,16 @@ def evidence():
 
 def alert(**kw):
     base = dict(
-        id="a1", crew_id="crew-1", metric="spo2", severity="warning", message="SpO2 düşük",
-        rule_id="spo2-low", consecutive_count=3, first_seen=T0, last_seen=T0, why=[evidence()],
+        id="a1",
+        crew_id="crew-1",
+        metric="spo2",
+        severity="warning",
+        message="SpO2 düşük",
+        rule_id="spo2-low",
+        consecutive_count=3,
+        first_seen=T0,
+        last_seen=T0,
+        why=[evidence()],
     )
     base.update(kw)
     return m.Alert(**base)
@@ -58,7 +66,9 @@ def test_alert_requires_evidence_and_time_order():
 
 
 def test_frame_needs_exactly_four_crew():
-    kw = dict(tick=0, ts=T0, mission_elapsed_s=0, scenario="nominal", cabin=cabin(), comms_one_way_delay_s=600)
+    kw = dict(
+        tick=0, ts=T0, mission_elapsed_s=0, scenario="nominal", cabin=cabin(), comms_one_way_delay_s=600
+    )
     assert len(m.TelemetryFrame(crew=[crew_member(i) for i in range(1, 5)], **kw).crew) == 4
     with pytest.raises(ValidationError):
         m.TelemetryFrame(crew=[crew_member(i) for i in range(1, 4)], **kw)

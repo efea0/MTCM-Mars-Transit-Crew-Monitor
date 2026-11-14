@@ -1,12 +1,17 @@
-name: path-guard
+name: ci
 
 on:
   pull_request:
-    branches: [main]
+    branches: [develop, main]
     types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   scope:
+    name: scope
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,13 +20,28 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Branch kapsam kontrolü
+      - name: Branch adı, PR başlığı ve alan kapsamı
         env:
           HEAD_REF: ${{ github.head_ref }}
-          BASE_REF: origin/${{ github.base_ref }}
-        run: python tools/check_paths.py "$HEAD_REF" "$BASE_REF"
+          BASE: ${{ github.base_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          FEATURE_FREEZE: ${{ vars.FEATURE_FREEZE }}
+        run: python tools/check_paths.py "$HEAD_REF" --base "$BASE" --title "$PR_TITLE"
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "ruff==0.8.6"
+      - run: ruff check .
+      - run: ruff format --check .
 
   tests:
+    name: tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
