@@ -180,9 +180,9 @@
 <p>Olaylar gizli bir demo panelinden elle tetikleniyor. Rastgelelik sabit tohumla (seed) kontrol ediliyor, demo internete ve sese bağlı değil. Simülasyon saati 600 kat hızlı akıyor ve ekranda bu yazıyor.</p>
 <ol>
   <li>Her şey normal. Habitat paneli tanıtılıyor: dört astronot (Ayşe, Can, Ece, Mert), kabin O2 ve CO2, iki ayrı geri sayım.</li>
-  <li>O2 üretim ünitesi arızalanıyor. Yalnızca O2 sayacı hızlanıyor; CO2 giderme çalıştığı için CO2 sayacı değişmiyor. Kabin PIO2 145 mmHg'nin altına inince kabin sarıya dönüyor.</li>
-  <li>Aynı sırada Ayşe ve Mert'in nabzı 80'e çıkıyor. Ayşe'nin baz nabzı 64 olduğu için +16 ile "İzle" oluyor; Mert'in bazı 67, +13 eşiğin altında kaldığı için normal. Aynı nabız, iki farklı karar.</li>
-  <li>Ece egzersize başlıyor. Nabzı 130'a çıkarken sistem alarm vermiyor, çünkü egzersiz nabzı kanıt sayılmıyor. SpO2'si bazından 3 puan düşünce "olası hipoksi belirtisi" (İzle), 6 puan düşünce "Eylem" kararı geliyor. Öneri: egzersizi durdur, yedek O2'ye geç. Can normal kalıyor. Kabin PIO2 127 mmHg'nin altına inince kabin kırmızıya dönüyor.</li>
+  <li>O2 üretimi duruyor ve kabin PIO2 yavaşça düşüyor. Yalnızca O2 sayacı hızlanıyor; CO2 giderme çalıştığı için CO2 sayacı değişmiyor.</li>
+  <li>Astronot 3 (Ece) egzersizde. Nabzı 130'a, solunumu 26'ya çıkıyor; sistem bunları alarm ya da hipoksi kanıtı saymıyor. Ece'nin SpO2'si kendi bazından 3 puan düşünce "İzle", 6 puan düşünce "Eylem" oluyor. Kanıt olarak SpO2 ve kabin PIO2 gösteriliyor, öneri "egzersizi durdur, yedek O2'ye geç". Bu kişisel uyarı, kabin uyarısı kırmızıya dönmeden çok önce geliyor. Can ve Mert normal kalıyor.</li>
+  <li>Ayrı bir örnek: Ayşe ile Mert'in nabzı ikisinde de 80. Ayşe kendi bazının +16 üstünde olduğu için "İzle" oluyor (kalp yükü, hipoksi değil); Mert +13'te kaldığı için normal. Aynı nabız, iki farklı karar.</li>
   <li>Güneş fırtınası: DONKI kaydı tetikleniyor. Sistem olay sonu dozunu tahmin ediyor ve 200 mSv'yi aşacağını görünce doz alınmadan önce "fırtına sığınağına geç" uyarısı veriyor.</li>
   <li>EVA görünümü: giysi PIO2 ve PICO2, kalan tüp süresi ve gerekirse "hava kilidine dön" önerisi.</li>
   <li>Dünya'ya rapor gidiyor; tek yön gecikme sayacı çalışıyor ve cevap gecikmeyle geliyor.</li>
