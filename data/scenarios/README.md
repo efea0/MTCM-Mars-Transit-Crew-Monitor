@@ -8,8 +8,8 @@ Tüm değerler simüle. Eşikler `data/reference/ranges.json`, kabin dengesi `ba
 | `hypoxia` | Hazır | 1800 |
 | `hypercapnia` | Hazır | 670 |
 | `solar_storm` | Hazır | 780 |
+| `sensor_dropout` | Hazır | 120 |
 | `sleep_deprivation` | Hazır (eşikler HİPOTEZ) | 1800 |
-| `sensor_dropout` | **Yok**, bu PR'ın kapsamı dışında | - |
 
 Ortak kurallar: her senaryo en fazla 1800 görev dakikasına sığar (testle denetlenir), hacim 75 m³,
 ölçüm aralığı 5 görev dakikası, motorun limit aşımı kademesi `critical`.
@@ -23,11 +23,11 @@ uykusu uyarı çıkarmaz (art arda şartı). Kural ranges.json'da `warning` adı
 yazılır (#14 motoru ve kural motoru `warning` üretmez). `sleep_hours` henüz sözleşmede `Metric` değil
 (testlerde xfail, Aydın).
 
-## Yazılmayan senaryo
+## sensor_dropout
 
-`models.Scenario` `sensor_dropout` adını tanımlıyor; dosyası bu PR'da yok. Eksikliği gizlemek yerine burada yazıyoruz.
-
-- **`sensor_dropout`:** Ölçüm aralığı (5 görev dakikası) kararlaştığı için yazılabilir; ayrı bir PR'da gelecek.
-  Beklenen davranış: eksik veri `unknown` olur, asla `nominal` sayılmaz (`Reading` doğrulayıcısı).
+Üç sensör durumu (`missing`, `stale`, `sensor_fault`) ve veri geri gelişi. Beklenen davranış `expected_data_status`
+bölümünde: kalitesi `ok` olmayan okuma ilk ölçümden itibaren `unknown` olur, asla `nominal` sayılmaz (`Reading`
+doğrulayıcısı), art arda 3 geçersiz okumada `caution` seviyesinde "veri yok" uyarısı (`missing-<metric>`) çıkar ve `sensor_fault` değeri kural motoruna girmez.
+Davranış kural motoruyla (#43) ve sözleşmeyle (`Comparator.missing`) uyumlu; kurallar `data_quality_rules` bölümünde.
 
 Bir senaryo eklenirken `tests/test_scenarios.py` içindeki `REQUIRED_SCENARIOS` kümesine de eklenmelidir.

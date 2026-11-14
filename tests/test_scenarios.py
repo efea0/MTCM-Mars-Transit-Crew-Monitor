@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from backend import models as m
 
@@ -23,7 +25,14 @@ ROOT = Path(__file__).resolve().parent.parent
 SCENARIO_DIR = ROOT / "data" / "scenarios"
 RANGES_PATH = ROOT / "data" / "reference" / "ranges.json"
 SCENARIO_FILES = sorted(SCENARIO_DIR.glob("*.json"))
-REQUIRED_SCENARIOS = {"nominal", "hypoxia", "hypercapnia", "solar_storm", "sleep_deprivation"}
+REQUIRED_SCENARIOS = {
+    "nominal",
+    "hypoxia",
+    "hypercapnia",
+    "solar_storm",
+    "sleep_deprivation",
+    "sensor_dropout",
+}
 
 CREW_METRICS = set(m.CrewVitals.model_fields)
 CABIN_METRICS = {  # yalnızca Reading alanları; status ve geri sayım alanları ölçüm değildir
@@ -97,8 +106,9 @@ def metabolic_kg_day(s: Scenario, t: float) -> tuple[float, float]:
 
 
 def cabin_series(s: Scenario) -> list[tuple[float, float, float]]:
-    """(t, PIO2 mmHg, ppCO2 mmHg). #14 atmosphere motoruyla aynı denge: üretim ve giderme arızadan
-    önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün); tükenen gaz sıfırda tutulur."""
+    """(t, PIO2 mmHg, ppCO2 mmHg). Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme
+    üretimi karşılar, kabin değerleri sabit kalır. Arızalı gaz arıza anından itibaren akar (O2 üretimi durur
+    ya da CO2 giderme kapasitesi düşer); diğer gaz regüle kalır. Tükenen gaz sıfırda tutulur."""
     md = s["model"]
     total = md["total_pressure_mmHg"]
 
@@ -114,14 +124,14 @@ def cabin_series(s: Scenario) -> list[tuple[float, float, float]]:
         t = i * STEP_MIN
         out.append((t, pp_o2 * (total - WATER_VAPOR_MMHG) / total, pp_co2))
         o2_use, co2_make = metabolic_kg_day(s, t)
-        o2_supply = 0.0 if o2_fail is not None and t >= o2_fail else md["o2_generation_kg_day"]
-        removal = md["co2_removal_kg_day"] * (
-            co2_fail["value"] if co2_fail and t >= co2_fail["t_min"] else 1.0
+        o2_net = -o2_use if o2_fail is not None and t >= o2_fail else 0.0
+        co2_net = (
+            co2_make - co2_fail["value"] * md["co2_removal_kg_day"]
+            if co2_fail and t >= co2_fail["t_min"]
+            else 0.0
         )
-        pp_o2 = max(0.0, pp_o2 + (o2_supply - o2_use) * mmhg_per_kg(O2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY)
-        pp_co2 = max(
-            0.0, pp_co2 + (co2_make - removal) * mmhg_per_kg(CO2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY
-        )
+        pp_o2 = max(0.0, pp_o2 + o2_net * mmhg_per_kg(O2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY)
+        pp_co2 = max(0.0, pp_co2 + co2_net * mmhg_per_kg(CO2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY)
     return out
 
 
@@ -143,10 +153,10 @@ def test_scenarios_fit_in_max_duration() -> None:
 
 @pytest.mark.parametrize("name", ["hypoxia", "hypercapnia"])
 def test_cabin_series_matches_atmosphere_engine(name: str) -> None:
-    """Bağımsız kütle dengesi, birleşen backend/atmosphere.py motoruyla aynı kabin serisini verir."""
+    """Bağımsız kütle dengesi, regüle yaşam destekle çalışan backend/atmosphere.py ile aynı seriyi verir."""
     from dataclasses import replace
 
-    from backend.atmosphere import CabinState, load_profile, step
+    from backend.atmosphere import CabinState, load_profile, metabolic_rates, step
 
     s = load(name)
     profile = load_profile(ROOT / "data" / "reference" / "ranges.json", "mars_transit")
@@ -162,13 +172,20 @@ def test_cabin_series_matches_atmosphere_engine(name: str) -> None:
         engine_pio2 = state.pp_o2_mmhg * (total - profile.ranges.water_vapour_mmhg) / total
         assert engine_pio2 == pytest.approx(pio2, abs=1e-6), (name, t)
         assert state.pp_co2_mmhg == pytest.approx(pp_co2, abs=1e-6), (name, t)
-        active = profile
-        if co2_fail and t >= co2_fail["t_min"]:
-            active = replace(
-                profile, co2_removal_kg_per_day=co2_fail["value"] * profile.co2_removal_kg_per_day
-            )
         rates = tuple(
             (vital(s, c["id"], "heart_rate", t), c["baseline"]["heart_rate"]["mean"]) for c in s["crew"]
+        )
+        used = [metabolic_rates(h, b, profile.ranges.metabolism) for h, b in rates]
+        o2_failed = o2_fail is not None and t >= o2_fail
+        # Regüle gaz: üretim tüketimi, giderme üretimi karşılar (net 0); arızalı gaz profilden akar.
+        active = replace(
+            profile,
+            o2_supply_kg_per_day=profile.o2_supply_kg_per_day if o2_failed else sum(u[0] for u in used),
+            co2_removal_kg_per_day=(
+                co2_fail["value"] * profile.co2_removal_kg_per_day
+                if co2_fail and t >= co2_fail["t_min"]
+                else sum(u[1] for u in used)
+            ),
         )
         state = step(
             state, active, rates, STEP_MIN * 60, o2_supply_failed=o2_fail is not None and t >= o2_fail
@@ -847,3 +864,139 @@ def test_sleep_thresholds_match_ranges(ranges: dict[str, Any]) -> None:
 )
 def test_contract_has_sleep_hours_metric() -> None:
     assert "sleep_hours" in m.Metric.__members__
+
+
+# ---------------------------------------------------------------- sensor_dropout
+
+
+@pytest.fixture(scope="module")
+def dropout() -> Scenario:
+    return load("sensor_dropout")
+
+
+def quality_events(s: Scenario) -> list[dict[str, Any]]:
+    return [e for e in s["events"] if e["type"] == "sensor_quality"]
+
+
+def test_sensor_dropout_events_are_well_formed(dropout: Scenario) -> None:
+    qualities = {q.value for q in m.Quality} - {m.Quality.ok.value}
+    events = quality_events(dropout)
+    assert {e["quality"] for e in events} == qualities, "missing, stale ve sensor_fault üçü de denenmeli"
+    for e in events:
+        assert 0 <= e["t_min"] < e["until_min"] <= dropout["duration_min"], e
+        allowed = CABIN_METRICS if e["crew_id"] is None else CREW_METRICS
+        assert e["metric"] in allowed, e
+        assert ("stale_value" in e) == (e["quality"] == "stale"), e
+        assert ("reported_value" in e) == (e["quality"] == "sensor_fault"), e
+
+
+def test_sensor_dropout_status_table_matches_events(dropout: Scenario) -> None:
+    events = {(e["crew_id"], e["metric"]): e for e in quality_events(dropout)}
+    table = {(d["crew_id"], d["metric"]): d for d in dropout["expected_data_status"]}
+    assert table.keys() == events.keys()
+    for key, d in table.items():
+        e = events[key]
+        assert (d["t_from"], d["t_until"], d["quality"]) == (e["t_min"], e["until_min"], e["quality"]), key
+        assert d["status"] == "unknown" and "nominal" in d["forbidden_status"], key
+        assert d["recovery"]["status"] == "nominal", key
+        assert d["t_until"] <= d["recovery"]["t_earliest"] <= d["recovery"]["t_latest"], key
+        assert d["recovery"]["t_latest"] <= dropout["duration_min"], key
+
+
+def test_sensor_dropout_expectations_are_valid_contract_readings(dropout: Scenario) -> None:
+    """Beklenen durumlar sözleşme modeliyle kurulabilmeli; 'nominal' ise sözleşmece de reddedilmeli."""
+    ts = datetime(2026, 1, 1, tzinfo=UTC)
+    for d in dropout["expected_data_status"]:
+        fields = {"value": d["value"], "unit": "x", "ts": ts, "quality": d["quality"]}
+        assert m.Reading(**fields, status=d["status"]).status == "unknown"
+        with pytest.raises(ValidationError):
+            m.Reading(**fields, status="nominal")
+
+
+def missing_alerts(s: Scenario) -> list[dict[str, Any]]:
+    return [a for a in s["expected_alerts"] if a["rule_id"].startswith("missing-")]
+
+
+def test_sensor_dropout_no_data_alert_times(dropout: Scenario) -> None:
+    """3. art arda geçersiz ölçümde 'veri yok' uyarısı: t_from + (consecutive − 1) × ölçüm aralığı."""
+    n = dropout["thresholds"]["consecutive"]
+    step = dropout["model"]["measurement_interval_min"]
+    alerts = {(a["crew_id"], a["metric"]): a for a in missing_alerts(dropout)}
+    statuses = {(d["crew_id"], d["metric"]): d for d in dropout["expected_data_status"]}
+    assert alerts.keys() == statuses.keys(), "her bozuk sensör için tam bir 'veri yok' uyarısı"
+    for key, alert in alerts.items():
+        d = statuses[key]
+        computed = d["t_from"] + (n - 1) * step
+        assert computed == pytest.approx(alert["t_condition"], abs=TOLERANCE_MIN), key
+        assert alert["t_earliest"] <= computed <= alert["t_latest"] <= dropout["duration_min"], key
+        assert computed < d["t_until"], "uyarı kopma bitmeden çıkmalı"
+        assert alert["severity"] == "caution", "eksik veri limit aşımı değildir"
+        assert alert["rule_id"] == f"missing-{d['metric']}"
+        assert alert["evidence_metrics"] == [d["metric"]]
+
+
+def test_sensor_dropout_fault_value_would_trip_the_limit_if_evaluated(dropout: Scenario) -> None:
+    fault = next(e for e in quality_events(dropout) if e["quality"] == "sensor_fault")
+    assert fault["reported_value"] > dropout["thresholds"]["ppco2_red_1h"], "test anlamını yitirir"
+    assert fault["reported_value"] > 4 * dropout["cabin_initial"]["pp_co2"]["value"], "imkânsız sıçrama"
+    d = next(d for d in dropout["expected_data_status"] if d["crew_id"] is None)
+    assert d["value"] is None, "sensor_fault değeri kural motoruna girmez"
+    assert {"nominal", "critical"} <= set(d["forbidden_status"])
+    cabin = next(f for f in dropout["forbidden_rules"] if f["crew_id"] is None and f["metric"] == "pp_co2")
+    assert {"cabin_pp_co2_critical"} <= set(cabin["rule_ids"])
+    assert [a["rule_id"] for a in dropout["expected_alerts"] if a["crew_id"] is None] == ["missing-pp_co2"]
+
+
+def test_sensor_dropout_forbidden_rules_do_not_overlap_expected(dropout: Scenario) -> None:
+    expected = {(a["crew_id"], a["metric"], a["rule_id"]) for a in dropout["expected_alerts"]}
+    for f in dropout["forbidden_rules"]:
+        assert f["rule_ids"], f
+        for rule_id in f["rule_ids"]:
+            assert (f["crew_id"], f["metric"], rule_id) not in expected, (f["crew_id"], rule_id)
+    forbidden_keys = {(f["crew_id"], f["metric"]) for f in dropout["forbidden_rules"]}
+    assert forbidden_keys == {(d["crew_id"], d["metric"]) for d in dropout["expected_data_status"]}
+
+
+def test_sensor_dropout_crew3_target_has_margin_over_sensor_noise(dropout: Scenario) -> None:
+    """Gürültü (sd) eşiği aşan hedefi kırpmasın: hedef sapma eşik + 2 sd'den büyük olmalı."""
+    th = dropout["thresholds"]
+    crew3 = next(c for c in dropout["crew"] if c["id"] == "crew-3")["baseline"]["heart_rate"]
+    target = next(
+        e["targets"]["heart_rate"]
+        for e in dropout["events"]
+        if e.get("crew_id") == "crew-3" and "heart_rate" in e.get("targets", {})
+    )
+    assert target - crew3["mean"] >= th["hr_rise_caution"] + 2 * crew3["sd"]
+
+
+def test_sensor_dropout_does_not_hide_another_persons_alert(dropout: Scenario) -> None:
+    """crew-3'ün gerçek nabız sapması, crew-2'nin sensörü kopukken oluşur ve uyarıya dönüşür."""
+    th = dropout["thresholds"]
+    base = baseline(dropout, "crew-3", "heart_rate")
+    t = first_time(
+        dropout, lambda t: vital(dropout, "crew-3", "heart_rate", t) - base >= th["hr_rise_caution"]
+    )
+    alert = by_rule(dropout, "crew_hr_rest_rise_caution")
+    assert_condition_time(alert, t)
+    assert final_activity(dropout, "crew-3") == "resting"
+    gap = next(e for e in quality_events(dropout) if e["crew_id"] == "crew-2")
+    assert gap["t_min"] <= alert["t_condition"] < gap["until_min"], "uyarı kopma sırasında doğmalı"
+    assert alert["t_latest"] > gap["t_min"]
+    assert dropout["expected_status_end"]["crew-3"] == "caution"
+    assert ("crew-3", "heart_rate") not in {(f["crew_id"], f["metric"]) for f in dropout["forbidden_alerts"]}
+
+
+def test_sensor_dropout_end_status_after_recovery(dropout: Scenario) -> None:
+    end = dropout["expected_status_end"]
+    recovered = {d["crew_id"] or "cabin" for d in dropout["expected_data_status"]}
+    assert all(end[who] == "nominal" for who in recovered), "veri gelince Normal'e dönmeli"
+    assert set(end.values()) <= {"nominal", "caution"} and "unknown" not in end.values()
+
+
+def test_sensor_dropout_cabin_stays_nominal_without_the_fault(dropout: Scenario) -> None:
+    """Kabin gerçekte sağlıklı: yalnızca sensör bozuk. Bu yüzden critical ya da caution beklenmez."""
+    th = dropout["thresholds"]
+    series = cabin_series(dropout)
+    assert all(th["pio2_normoxia_min"] <= pio2 <= th["pio2_normoxia_max"] for _, pio2, _ in series)
+    assert all(co2 < th["ppco2_yellow"] for _, _, co2 in series)
+    assert dropout["expected_status_end"]["cabin"] == "nominal"
