@@ -768,19 +768,26 @@ def test_sensor_dropout_expectations_are_valid_contract_readings(dropout: Scenar
             m.Reading(**fields, status="nominal")
 
 
-def test_sensor_dropout_no_data_notice_times(dropout: Scenario) -> None:
-    """3. art arda geçersiz ölçümde bildirim: t_from + (consecutive − 1) × ölçüm aralığı."""
+def missing_alerts(s: Scenario) -> list[dict[str, Any]]:
+    return [a for a in s["expected_alerts"] if a["rule_id"].startswith("missing-")]
+
+
+def test_sensor_dropout_no_data_alert_times(dropout: Scenario) -> None:
+    """3. art arda geçersiz ölçümde 'veri yok' uyarısı: t_from + (consecutive − 1) × ölçüm aralığı."""
     n = dropout["thresholds"]["consecutive"]
     step = dropout["model"]["measurement_interval_min"]
-    for d in dropout["expected_data_status"]:
-        notice = d["no_data_notice"]
-        if d["crew_id"] is None:
-            assert notice is None, "kabin sensörü için kişi bildirimi yok"
-            continue
+    alerts = {(a["crew_id"], a["metric"]): a for a in missing_alerts(dropout)}
+    statuses = {(d["crew_id"], d["metric"]): d for d in dropout["expected_data_status"]}
+    assert alerts.keys() == statuses.keys(), "her bozuk sensör için tam bir 'veri yok' uyarısı"
+    for key, alert in alerts.items():
+        d = statuses[key]
         computed = d["t_from"] + (n - 1) * step
-        assert computed == pytest.approx(notice["t_condition"], abs=TOLERANCE_MIN), d["metric"]
-        assert notice["t_earliest"] <= computed <= notice["t_latest"] <= dropout["duration_min"]
-        assert computed < d["t_until"], "bildirim kopma bitmeden çıkmalı"
+        assert computed == pytest.approx(alert["t_condition"], abs=TOLERANCE_MIN), key
+        assert alert["t_earliest"] <= computed <= alert["t_latest"] <= dropout["duration_min"], key
+        assert computed < d["t_until"], "uyarı kopma bitmeden çıkmalı"
+        assert alert["severity"] == "caution", "eksik veri limit aşımı değildir"
+        assert alert["rule_id"] == f"missing-{d['metric']}"
+        assert alert["evidence_metrics"] == [d["metric"]]
 
 
 def test_sensor_dropout_fault_value_would_trip_the_limit_if_evaluated(dropout: Scenario) -> None:
@@ -790,8 +797,31 @@ def test_sensor_dropout_fault_value_would_trip_the_limit_if_evaluated(dropout: S
     d = next(d for d in dropout["expected_data_status"] if d["crew_id"] is None)
     assert d["value"] is None, "sensor_fault değeri kural motoruna girmez"
     assert {"nominal", "critical"} <= set(d["forbidden_status"])
-    assert (None, "pp_co2") in {(f["crew_id"], f["metric"]) for f in dropout["forbidden_alerts"]}
-    assert not [a for a in dropout["expected_alerts"] if a["crew_id"] is None]
+    cabin = next(f for f in dropout["forbidden_rules"] if f["crew_id"] is None and f["metric"] == "pp_co2")
+    assert {"cabin_pp_co2_critical"} <= set(cabin["rule_ids"])
+    assert [a["rule_id"] for a in dropout["expected_alerts"] if a["crew_id"] is None] == ["missing-pp_co2"]
+
+
+def test_sensor_dropout_forbidden_rules_do_not_overlap_expected(dropout: Scenario) -> None:
+    expected = {(a["crew_id"], a["metric"], a["rule_id"]) for a in dropout["expected_alerts"]}
+    for f in dropout["forbidden_rules"]:
+        assert f["rule_ids"], f
+        for rule_id in f["rule_ids"]:
+            assert (f["crew_id"], f["metric"], rule_id) not in expected, (f["crew_id"], rule_id)
+    forbidden_keys = {(f["crew_id"], f["metric"]) for f in dropout["forbidden_rules"]}
+    assert forbidden_keys == {(d["crew_id"], d["metric"]) for d in dropout["expected_data_status"]}
+
+
+def test_sensor_dropout_crew3_target_has_margin_over_sensor_noise(dropout: Scenario) -> None:
+    """Gürültü (sd) eşiği aşan hedefi kırpmasın: hedef sapma eşik + 2 sd'den büyük olmalı."""
+    th = dropout["thresholds"]
+    crew3 = next(c for c in dropout["crew"] if c["id"] == "crew-3")["baseline"]["heart_rate"]
+    target = next(
+        e["targets"]["heart_rate"]
+        for e in dropout["events"]
+        if e.get("crew_id") == "crew-3" and "heart_rate" in e.get("targets", {})
+    )
+    assert target - crew3["mean"] >= th["hr_rise_caution"] + 2 * crew3["sd"]
 
 
 def test_sensor_dropout_does_not_hide_another_persons_alert(dropout: Scenario) -> None:
