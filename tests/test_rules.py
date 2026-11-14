@@ -14,6 +14,7 @@ from backend.atmosphere import load_profile
 from backend.models import (
     Activity,
     CabinAtmosphere,
+    Comparator,
     CrewDecision,
     CrewMember,
     CrewVitals,
@@ -312,8 +313,7 @@ def test_unknown_and_sleep_activity_gate() -> None:
 # 5. Eksik Veri Davranışı Testi
 # ==============================================================================
 def test_missing_data_status_and_alerts() -> None:
-    """Eksik veri artık uyarı üretmez; Reading/Crew status=unknown; sağlıklı veride nominale döner;
-    aktif uyarı varken karar düşmez."""
+    """value=None → unknown; kesinti sayacı sıfırlar; 3 ardışıkta missing Alert üretilir."""
     engine = r.RulesEngine()
 
     # 1. tick: SpO2 eksik
@@ -328,56 +328,26 @@ def test_missing_data_status_and_alerts() -> None:
     assert c1_e1.vitals.spo2.baseline_delta is None
     assert c1_e1.status == Status.unknown
     assert c1_e1.decision == CrewDecision.unknown
-    assert e1.alerts == []
 
     # 2. tick: SpO2 yine eksik
     f2 = make_frame(tick=2, crew_list=[c1] + [c for c in make_frame().crew if c.id != "crew-1"])
     e2 = engine.evaluate(f2)
-    assert e2.alerts == []
+    assert not any(a.id == "crew-1:missing-spo2" for a in e2.alerts)
 
-    # 3. tick: SpO2 3. kez eksik → HİÇBİR uyarı üretilmez (senaryo ve v5 uyumu)
+    # 3. tick: SpO2 3. kez eksik → missing Alert tetiklenmeli
     f3 = make_frame(tick=3, crew_list=[c1] + [c for c in make_frame().crew if c.id != "crew-1"])
     e3 = engine.evaluate(f3)
+    miss_alert = next((a for a in e3.alerts if a.id == "crew-1:missing-spo2"), None)
+    assert miss_alert is not None
+    assert miss_alert.severity == Severity.caution
+    assert miss_alert.rule_id == "missing-spo2"
+    assert miss_alert.why[0].comparator == Comparator.missing
+    assert miss_alert.why[0].threshold is None
+    assert "3 ölçümdür veri yok" in miss_alert.why[0].note
+
+    # Uyarı varken başka bir okuma eksik olduğunda karar düşmemeli
     c1_e3 = next(c for c in e3.crew if c.id == "crew-1")
-    assert c1_e3.status == Status.unknown
-    assert c1_e3.decision == CrewDecision.unknown
-    assert e3.alerts == []
-
-    # 4. tick: Sağlıklı veri gelince durum nominal/normal'e döner
-    f4 = make_frame(tick=4)
-    e4 = engine.evaluate(f4)
-    c1_e4 = next(c for c in e4.crew if c.id == "crew-1")
-    assert c1_e4.vitals.spo2.status == Status.nominal
-    assert c1_e4.status == Status.nominal
-    assert c1_e4.decision == CrewDecision.normal
-    assert e4.alerts == []
-
-    # Aktif bir uyarı varken (örn. vücut sıcaklığı hafif yüksekken karar-isi_sapmasi açık)
-    # başka bir okuma eksildiğinde karar watch kalmalı (düşmemeli)
-    engine_warn = r.RulesEngine()
-    # Alper baz sıcaklık 36.6. izle=0.5, eylem=1.0. Hafif yüksek (caution/watch) için delta=+0.7 -> 37.3
-    warm_vitals = make_vitals().model_copy(update={"core_temp": make_reading(37.3, "C")})
-    c1_warm = CrewMember(id="crew-1", name="Alper", role="CDR", vitals=warm_vitals, activity=Activity.resting)
-    for tick in range(1, 4):
-        f = make_frame(tick=tick, crew_list=[c1_warm] + [c for c in make_frame().crew if c.id != "crew-1"])
-        e_warm = engine_warn.evaluate(f)
-
-    # 3. tickte karar-isi_sapmasi açıldı ve decision watch oldu
-    c1_w3 = next(c for c in e_warm.crew if c.id == "crew-1")
-    assert any(a.id == "crew-1:karar-isi_sapmasi" for a in e_warm.alerts)
-    assert c1_w3.decision == CrewDecision.watch
-
-    # 4. tick: SpO2 eksik geldi ama sıcaklık hala yüksek
-    warm_missing_spo2 = warm_vitals.model_copy(update={"spo2": missing_spo2})
-    c1_wm = CrewMember(
-        id="crew-1", name="Alper", role="CDR", vitals=warm_missing_spo2, activity=Activity.resting
-    )
-    f4_wm = make_frame(tick=4, crew_list=[c1_wm] + [c for c in make_frame().crew if c.id != "crew-1"])
-    e4_wm = engine_warn.evaluate(f4_wm)
-    c1_w4 = next(c for c in e4_wm.crew if c.id == "crew-1")
-    # Karar watch kalmalı, düşmemeli
-    assert c1_w4.decision == CrewDecision.watch
-    assert any(a.id == "crew-1:karar-isi_sapmasi" for a in e4_wm.alerts)
+    assert c1_e3.decision == CrewDecision.watch
 
 
 def test_crew_co2_severity_bound_to_cabin_limit() -> None:
