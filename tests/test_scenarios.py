@@ -26,7 +26,9 @@ SCENARIO_FILES = sorted(SCENARIO_DIR.glob("*.json"))
 REQUIRED_SCENARIOS = {"nominal", "hypoxia", "hypercapnia", "solar_storm"}
 
 CREW_METRICS = set(m.CrewVitals.model_fields)
-CABIN_METRICS = set(m.CabinAtmosphere.model_fields) - {"status"}
+CABIN_METRICS = {  # yalnızca Reading alanları; status ve geri sayım alanları ölçüm değildir
+    name for name, field in m.CabinAtmosphere.model_fields.items() if field.annotation is m.Reading
+}
 SEVERITIES = {s.value for s in m.Severity}
 STATUSES = {s.value for s in m.Status}
 
