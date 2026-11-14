@@ -1,0 +1,489 @@
+{
+  "scenario": "hypoxia",
+  "title": "O2 ünitesi arızası: Astronot 3 egzersizde",
+  "purpose": "O2 üretimi durur, kabin PIO2 normoksiden (145) çıkar. Ece egzersizdeyken SpO2'si düşer ve kişi bazlı hipoksi kararı çıkar; egzersiz nabzı kanıt sayılmaz. Aynı senaryoda kişi bazlı nabız sapması: Ayşe ve Mert'in nabzı ikisi de 80, Ayşe İzle (+16), Mert normal (+13). Kabin PIO2 127'nin altına inince kırmızı.",
+  "simulated": true,
+  "seed": 42,
+  "time_unit": "mission_min",
+  "duration_min": 1800,
+  "thresholds_from": "data/reference/ranges.json",
+  "ranges_refs": {
+    "pio2_normoxia_min": "kabin.pio2_normoksi_hedef.min",
+    "pio2_normoxia_max": "kabin.pio2_normoksi_hedef.max",
+    "pio2_red": "kabin.pio2_hafif_hipoksi_alt.deger",
+    "ppco2_red_1h": "kabin.ppco2_limit_1saat_ort.deger",
+    "ppco2_yellow": "kabin.ppco2_sari_esik.deger",
+    "spo2_drop_caution": "vital_karar_parametreleri.spo2_dusus.izle",
+    "spo2_drop_warning": "vital_karar_parametreleri.spo2_dusus.eylem",
+    "hr_rise_caution": "vital_karar_parametreleri.nabiz_artis_dinlenme.izle",
+    "hr_rise_warning": "vital_karar_parametreleri.nabiz_artis_dinlenme.eylem",
+    "rr_rise_caution": "vital_karar_parametreleri.solunum_artis.izle",
+    "rr_rise_warning": "vital_karar_parametreleri.solunum_artis.eylem",
+    "consecutive": "vital_karar_parametreleri.art_arda_olcum.deger",
+    "spe_design_mSv": "radyasyon.spe_tasarim_esigi.deger",
+    "career_limit_mSv": "radyasyon.kariyer_limiti.deger",
+    "yellow_fraction": "vital_karar_parametreleri.sari_kademe_genel.oran"
+  },
+  "thresholds": {
+    "pio2_normoxia_min": 145,
+    "pio2_normoxia_max": 155,
+    "pio2_red": 127,
+    "ppco2_red_1h": 3.0,
+    "ppco2_yellow": 2.5,
+    "spo2_drop_caution": 3,
+    "spo2_drop_warning": 6,
+    "hr_rise_caution": 15,
+    "hr_rise_warning": 30,
+    "rr_rise_caution": 4,
+    "rr_rise_warning": 8,
+    "consecutive": 3,
+    "spe_design_mSv": 250,
+    "career_limit_mSv": 600,
+    "yellow_fraction": 0.8
+  },
+  "baseline_note": "mean değerleri ranges.json vital_karar_parametreleri.baz_cizgi'den. sd yalnızca simülatör gürültüsü (varsayım; karar kuralı sd kullanmaz, sabit fark kullanır). hrv_rmssd ve kan basıncı ranges.json'da yok (varsayım).",
+  "crew": [
+    {
+      "id": "crew-1",
+      "name": "Ayşe",
+      "role": "Commander",
+      "baseline": {
+        "heart_rate": {
+          "mean": 64,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 48,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.6,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 114,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 74,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-2",
+      "name": "Can",
+      "role": "Flight Engineer",
+      "baseline": {
+        "heart_rate": {
+          "mean": 70,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 55,
+          "sd": 9
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 15,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.8,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 118,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 76,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-3",
+      "name": "Ece",
+      "role": "Mission Specialist",
+      "baseline": {
+        "heart_rate": {
+          "mean": 58,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 42,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 13,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.5,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 112,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 72,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-4",
+      "name": "Mert",
+      "role": "Flight Surgeon",
+      "baseline": {
+        "heart_rate": {
+          "mean": 67,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 38,
+          "sd": 7
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 120,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 78,
+          "sd": 5
+        }
+      }
+    }
+  ],
+  "cabin_initial_pio2_mmHg": 149.0,
+  "cabin_initial": {
+    "pp_o2": {
+      "value": 158.8,
+      "unit": "mmHg",
+      "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
+    },
+    "pp_co2": {
+      "value": 2.0,
+      "unit": "mmHg"
+    },
+    "cabin_pressure": {
+      "value": 760,
+      "unit": "mmHg"
+    },
+    "cabin_temp": {
+      "value": 22.0,
+      "unit": "°C"
+    },
+    "rel_humidity": {
+      "value": 45,
+      "unit": "%"
+    },
+    "radiation_dose_rate": {
+      "value": 20,
+      "unit": "µGy/saat",
+      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+    }
+  },
+  "model": {
+    "note": "ranges.json (PR #16 v1.1) değerleri. Zamanlar #14 atmosphere motoruyla birebir hizalıdır: üretim ve giderme arızadan önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün), hacim 75 m³. tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "volume_m3": 75,
+    "crew_count": 4,
+    "total_pressure_mmHg": 760,
+    "temperature_K": 295,
+    "co2_removal_kg_day": 4.0,
+    "o2_generation_kg_day": 3.4,
+    "r_min": 1.0,
+    "r_max": 1.8,
+    "o2_min": 0.49,
+    "o2_max": 1.25,
+    "co2_min": 0.52,
+    "co2_max": 1.5,
+    "measurement_interval_min": 5,
+    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası. ranges.json'daki \"5 saniye (demo)\" ifadesinin birimi netleştirilecek."
+  },
+  "proposed_rules": {
+    "crew_hr_rest_rise_caution": {
+      "condition": "aktivite = dinlenme VE nabız − baz ≥ 15",
+      "consecutive_required": 3,
+      "source": "ranges.json kalp_yuku (varsayım)",
+      "metric": "heart_rate",
+      "skip_when": [
+        "exercise"
+      ]
+    },
+    "crew_hr_rest_rise_critical": {
+      "condition": "aktivite = dinlenme VE nabız − baz ≥ 30",
+      "consecutive_required": 3,
+      "source": "ranges.json kalp_yuku (varsayım)",
+      "metric": "heart_rate",
+      "skip_when": [
+        "exercise"
+      ]
+    },
+    "cabin_pio2_low_caution": {
+      "condition": "kabin PIO2 < 145 (normoksi alt sınırı)",
+      "consecutive_required": 3,
+      "source": "ranges.json kabin.pio2_normoksi_hedef (Tablo 6.2-1, doğrulandı)",
+      "metric": "pp_o2"
+    },
+    "cabin_pio2_low_critical": {
+      "condition": "kabin PIO2 < 127 (hafif hipoksi alt sınırı)",
+      "consecutive_required": 3,
+      "source": "ranges.json kabin.pio2_hafif_hipoksi_alt (Tablo 6.2-1, doğrulandı)",
+      "metric": "pp_o2"
+    },
+    "crew_hypoxia_caution": {
+      "condition": "SpO2 düşüşü ≥ 3 VE kabin PIO2 < 145; dinlenirken ek olarak nabız veya solunum artışı ≥ izle",
+      "consecutive_required": 3,
+      "source": "ranges.json vital_karar_parametreleri.kararlar.olasi_hipoksi (egzersiz istisnası dahil, #21)",
+      "metric": "spo2",
+      "also_requires": "cabin PIO2 < 145"
+    },
+    "crew_hypoxia_critical": {
+      "condition": "SpO2 düşüşü ≥ 6 VE kabin PIO2 < 145",
+      "consecutive_required": 3,
+      "source": "ranges.json spo2_dusus.eylem (varsayım)",
+      "metric": "spo2",
+      "also_requires": "cabin PIO2 < 145"
+    },
+    "exercise_rule": "Egzersizde nabız ve solunum artışı alarm ve hipoksi kanıtı sayılmaz (kullanıcı kuralı). ranges.json olasi_hipoksi koşulu bu istisnayı içerir (#21): nabız/solunum artışı yalnızca dinlenen kişide aranır."
+  },
+  "events": [
+    {
+      "t_min": 10,
+      "type": "o2_generation_rate",
+      "value": 0.0,
+      "note": "O2 üretim ünitesi durur; tüketim nabza göre sürer."
+    },
+    {
+      "t_min": 60,
+      "type": "vital_ramp",
+      "crew_id": "crew-1",
+      "activity": "resting",
+      "targets": {
+        "heart_rate": 80
+      },
+      "ramp_min": 120,
+      "note": "Ayşe dinlenirken nabzı kendi bazı 64'ten 80'e çıkar (+16): kalp yükü İzle. O2 ile ilgisi yok, SpO2 normal."
+    },
+    {
+      "t_min": 60,
+      "type": "vital_ramp",
+      "crew_id": "crew-4",
+      "activity": "resting",
+      "targets": {
+        "heart_rate": 80
+      },
+      "ramp_min": 120,
+      "note": "Mert'in nabzı da 80'e çıkar ama bazı 67: +13, eşiğin (+15) altında → normal. Aynı nabız, farklı karar."
+    },
+    {
+      "t_min": 600,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "exercise",
+      "targets": {
+        "heart_rate": 130,
+        "resp_rate": 26
+      },
+      "ramp_min": 5,
+      "note": "Ece egzersize başlar (kabin PIO2 zaten 145'in altında). Nabız/solunum artışı egzersizden; alarm ve kanıt değil."
+    },
+    {
+      "t_min": 605,
+      "type": "vital_ramp",
+      "crew_id": "crew-3",
+      "activity": "exercise",
+      "targets": {
+        "spo2": 91.5
+      },
+      "ramp_min": 30,
+      "note": "Egzersizde SpO2 98'den 91,5'e düşer (−6,5). Demo için abartılı; ekranda SİMÜLE."
+    },
+    {
+      "t_min": 660,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "resting",
+      "targets": {
+        "heart_rate": 70,
+        "resp_rate": 17,
+        "spo2": 95.0
+      },
+      "ramp_min": 20,
+      "note": "Egzersiz biter. Nabız +12 kalp yükü eşiğinin altında. Solunum dinlenmede +4 kalır: düşük kabin PIO2'sinde hipoksi belirtisi; SpO2 −3 ile birlikte İzle sürer (dinlenme koşulu: SpO2 VE solunum/nabız artışı). Solunum kuralı bu senaryoda yok, ayrı solunum uyarısı çıkmaz."
+    }
+  ],
+  "expected_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "heart_rate",
+      "severity": "caution",
+      "rule_id": "crew_hr_rest_rise_caution",
+      "t_condition": 172.5,
+      "t_earliest": 172,
+      "t_latest": 198,
+      "evidence_metrics": [
+        "heart_rate"
+      ],
+      "why": "Ayşe dinlenirken nabzı kendi bazının (64) 15 üstünde (art arda 3 ölçüm).",
+      "recommendation": "Eforu azalt, izle."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "severity": "caution",
+      "rule_id": "cabin_pio2_low_caution",
+      "t_condition": 372.0,
+      "t_earliest": 372,
+      "t_latest": 407,
+      "evidence_metrics": [
+        "pp_o2"
+      ],
+      "why": "Kabin PIO2 normoksi aralığının (145–155 mmHg) altına indi.",
+      "recommendation": "O2 ünitesini kontrol et, yedek O2'yi hazırla, eforu azalt."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "spo2",
+      "severity": "caution",
+      "rule_id": "crew_hypoxia_caution",
+      "t_condition": 619.0,
+      "t_earliest": 619,
+      "t_latest": 644,
+      "evidence_metrics": [
+        "spo2",
+        "pp_o2"
+      ],
+      "why": "Ece egzersizdeyken SpO2'si kendi bazından (98) 3 puan düştü; kabin PIO2 145'in altında. Egzersiz nabzı kanıt sayılmadı.",
+      "recommendation": "Egzersizi durdur, O2 kaynağını ve kabin PIO2'yi kontrol et."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "spo2",
+      "severity": "critical",
+      "rule_id": "crew_hypoxia_critical",
+      "t_condition": 632.75,
+      "t_earliest": 632,
+      "t_latest": 658,
+      "evidence_metrics": [
+        "spo2",
+        "pp_o2"
+      ],
+      "why": "Ece'nin SpO2'si bazından 6 puan düştü; kabin PIO2 normoksinin altında.",
+      "recommendation": "Egzersizi durdur, yedek O2'ye geç, Dünya'ya raporla."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "severity": "critical",
+      "rule_id": "cabin_pio2_low_critical",
+      "t_condition": 1771.5,
+      "t_earliest": 1771,
+      "t_latest": 1800,
+      "evidence_metrics": [
+        "pp_o2"
+      ],
+      "why": "Kabin PIO2 127 mmHg'nin (hafif hipoksi alt sınırı, Tablo 6.2-1) altına indi.",
+      "recommendation": "Yedek O2'ye geç, Dünya'ya raporla."
+    }
+  ],
+  "forbidden_alerts": [
+    {
+      "crew_id": "crew-3",
+      "metric": "heart_rate",
+      "why": "Egzersiz nabzı (130) kalp yükü sayılmaz; toparlanmada +12 eşiğin altında."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "resp_rate",
+      "why": "Egzersiz solunumu alarm sayılmaz. Dinlenmedeki +4 yalnızca hipoksi kanıtıdır; bu senaryoda solunum için ayrı kural yok."
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "heart_rate",
+      "why": "Mert'in nabzı 80 = bazı 67 + 13; eşiğin (+15) altında. Ayşe ile aynı nabız, farklı karar."
+    },
+    {
+      "crew_id": "crew-1",
+      "metric": "spo2",
+      "why": "Ayşe'nin nabız artışı hipoksi değil; SpO2 normal."
+    },
+    {
+      "crew_id": "crew-2",
+      "metric": "spo2",
+      "why": "Belirtisi olmayana kişi bazlı hipoksi yok."
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "spo2",
+      "why": "Aynı neden."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "why": "CO2 giderme normal."
+    }
+  ],
+  "expected_status_end": {
+    "crew-1": "caution",
+    "crew-2": "nominal",
+    "crew-3": "caution",
+    "crew-4": "nominal",
+    "cabin": "critical"
+  },
+  "forbidden_evidence": [
+    {
+      "crew_id": "crew-3",
+      "rule_id": "crew_hypoxia_caution",
+      "metrics": [
+        "heart_rate",
+        "resp_rate"
+      ],
+      "why": "Egzersizdeyken nabız/solunum hipoksi kanıtı yazılmaz."
+    },
+    {
+      "crew_id": "crew-3",
+      "rule_id": "crew_hypoxia_critical",
+      "metrics": [
+        "heart_rate",
+        "resp_rate"
+      ],
+      "why": "Aynı neden."
+    }
+  ],
+  "demo_notes": [
+    "Ayşe ve Mert'in nabzı ≈80: Ayşe sarı (+16), Mert yeşil (+13). Sabit eşik ikisini aynı boyardı.",
+    "Ece'nin nabzı 130 iken sistem susar, SpO2 düşünce konuşur: egzersizi ayırt eder.",
+    "Ece'nin kişi uyarısı kabin kırmızıya dönmeden çok önce gelir: erken uyarı."
+  ]
+}
