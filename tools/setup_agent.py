@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from check_paths import ROLE_AREAS, ROLE_FILE
+from check_paths import ROLE_AREAS, ROLE_FILE, clean_git_env
 
 NAMES = {"aydin": "Aydın", "baris": "Barış", "enis": "Enis"}
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,7 +26,9 @@ def main(argv: list[str]) -> int:
         encoding="utf-8",
         newline="\n",
     )
-    subprocess.run(["git", "config", "core.hooksPath", ".githooks"], cwd=ROOT, check=True)
+    subprocess.run(
+        ["git", "config", "core.hooksPath", ".githooks"], cwd=ROOT, check=True, env=clean_git_env()
+    )
     print(f"Rol kaydedildi: {NAMES[role]} ({areas})")
     print("Git kancaları açık: main/develop'a commit, alan dışı dosya ve ruff hatası commit'te engellenir.")
     return 0

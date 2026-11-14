@@ -78,6 +78,15 @@ BRANCH_RE = re.compile(
 TITLE_RE = re.compile(rf"^(?P<type>{'|'.join(TYPES)})\((?P<area>{'|'.join(AREAS)})\): \S.{{2,}}$")
 
 
+def clean_git_env() -> dict[str, str]:
+    """GIT_ ile başlayan ortam değişkenleri (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE...) hariç ortam.
+
+    Git kancaları bu değişkenleri ana repoya mutlak yolla ayarlar; alt süreç bunları devralırsa
+    farklı bir depoda (ya da geçici test deposunda) değil gerçek repoda çalışır.
+    """
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+
 def _match(path: str, rule: str) -> bool:
     return path.startswith(rule) if rule.endswith("/") else path == rule
 
@@ -118,6 +127,7 @@ def changed_files(base_ref: str, head_ref: str = "HEAD") -> list[str]:
         text=True,
         encoding="utf-8",
         check=False,
+        env=clean_git_env(),
     )
     if res.returncode != 0:
         raise RuntimeError(res.stderr.strip() or f"git diff çıkış kodu {res.returncode}")
@@ -132,6 +142,7 @@ def staged_files() -> list[str]:
         text=True,
         encoding="utf-8",
         check=False,
+        env=clean_git_env(),
     )
     if res.returncode != 0:
         raise RuntimeError(res.stderr.strip() or f"git diff çıkış kodu {res.returncode}")
