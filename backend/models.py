@@ -111,7 +111,7 @@ class Reading(_Model):
     )
 
     @model_validator(mode="after")
-    def _missing_is_never_normal(self) -> "Reading":
+    def _missing_is_never_normal(self) -> Reading:
         if self.value is None:
             if self.quality == Quality.ok.value:
                 raise ValueError("value=None iken quality 'ok' olamaz")
@@ -189,7 +189,7 @@ class Alert(_Model):
     why: list[Evidence] = Field(min_length=1, description="En az bir kanıt zorunlu.")
 
     @model_validator(mode="after")
-    def _time_order(self) -> "Alert":
+    def _time_order(self) -> Alert:
         if self.last_seen < self.first_seen:
             raise ValueError("last_seen, first_seen'den önce olamaz")
         return self
