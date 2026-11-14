@@ -72,7 +72,7 @@
 <p>Mars yolunda planlı bir EVA olup olmadığını teyit etmedik. Bu yüzden EVA görünümünü onarım ya da acil durum EVA'sı ve yüzey EVA'sı için düşünüyoruz. Dayanağımız NASA-STD-3001'deki giysi içi atmosferi izleme, gösterme ve uyarma ile metabolik hız gereksinimleri ([V2 11034]–[V2 11038]).</p>
 
 <h2>Sağlık kararı: beden ve ortam birlikte</h2>
-<p>Her astronotun vitalleri kendi baz çizgisine göre okunuyor. Aynı nabız bir kişi için normal, diğeri için uyarı olabilir. Karar tek bir ölçümle değil, art arda üç ölçümle tetikleniyor. Vital sapma eşikleri demo parametresi, tıbbi eşik değil.</p>
+<p>Her astronotun vitalleri kendi baz çizgisine göre okunuyor. Aynı nabız bir kişi için normal, diğeri için uyarı olabilir. Karar tek bir ölçümle değil, art arda üç ölçümle tetikleniyor. Ölçüm aralığı 5 görev dakikası (demoda gerçek 0,5 sn, ×600); art arda 3 ölçüm 15 görev dakikası eder, ekranda 1,5 sn sürer. Vital sapma eşikleri demo parametresi, tıbbi eşik değil.</p>
 <table>
   <tr><th style="width:15%">Karar</th><th style="width:33%">Tetik (baz çizgiye göre)</th><th style="width:28%">Öneri</th><th>Dayanak</th></tr>
   <tr><td>Olası hipoksi belirtisi</td><td>SpO2 baz çizgiden en az 3 puan düşer ve kabin PIO2 145 mmHg'nin altındadır. Kişi dinleniyorsa ek olarak nabız ya da solunum artışı aranır. Egzersizdeki kişide bu artışlar şart değil ve kanıt olarak yazılmaz; karar SpO2 ve kabin PIO2'ye dayanır.</td><td>Egzersizi durdur, O2 kaynağını ve kabin PIO2'yi kontrol et, yedek O2'ye geç.</td><td>[V2 6003] normoksi aralığı; vital sapması demo parametresi</td></tr>
@@ -97,27 +97,27 @@
   <tr><td>Kabin ppCO2, sarı kademe</td><td>2,5 mmHg. Baş ağrısı riskini düşük tutmak için 7 günlük ortalama sınırı; genel %80 kuralının istisnası</td><td>OCHMO-TB-004</td><td class="st part">Kısmen</td></tr>
   <tr><td>Kabin ppCO2, eski gereksinim</td><td>Önceki gereksinim 3,8–7,5 mmHg'yi kabul ediyordu; güncel standartta 3 mmHg'ye indirildi</td><td>OCHMO-TB-004</td><td class="st no">Doğrulanmadı<span style="font-weight:400">*</span></td></tr>
   <tr><td>CO2 ve belirtiler</td><td>2,8–4,5 mmHg'de baş ağrısı; 4,5 mmHg üstünde yorgunluk, halsizlik, uyku azalması ve bulantı bildirilmiş</td><td>OCHMO-TB-004</td><td class="st ok">Doğrulandı</td></tr>
-  <tr><td>Solunan O2 kısmi basıncı (PIO2), normoksi ve hipoksi</td><td>Normoksi hedefi 145–155 mmHg (süresiz). Hafif hipoksi alt sınırı 127 mmHg (1 saatlik ortalama, izlemeyle); mutlak alt 122 mmHg</td><td>NASA-STD-3001 Vol 2 Rev E, [V2 6003], Tablo 6.2-1</td><td class="st ok">Doğrulandı</td></tr>
-  <tr><td>PIO2, hiperoksi</td><td>Süresiz üst sınır 356 mmHg; kısa süreli 791 mmHg (6–9 saat)</td><td>NASA-STD-3001 Vol 2 Rev E, Tablo 6.2-1</td><td class="st ok">Doğrulandı</td></tr>
+  <tr><td>Solunan O2 kısmi basıncı (PIO2), normoksi ve hipoksi</td><td>Normoksi hedefi 145–155 mmHg (süresiz). Hafif hipoksi alt sınırı 127 mmHg (1 saatlik ortalama, izlemeyle); mutlak alt 122 mmHg</td><td>NASA-STD-3001 Vol 2 Rev F, [V2 6003], Tablo 6.2-1</td><td class="st ok">Doğrulandı</td></tr>
+  <tr><td>PIO2, hiperoksi</td><td>Süresiz üst sınır 356 mmHg; kısa süreli 791 mmHg (6–9 saat)</td><td>NASA-STD-3001 Vol 2 Rev F, Tablo 6.2-1</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Toplam basınç, sürekli maruziyet</td><td>34,5 kPa'nın üstü, en çok 103 kPa (258,8–772,6 mmHg; mmHg çevirisi bizim)</td><td>NASA-STD-3001 Vol 2, [V2 6006]</td><td class="st part">Kısmen</td></tr>
-  <tr><td>Giysi içi CO2 (PICO2)</td><td>≤ 4,0 mmHg süresiz; 4,0–7,0: günde ≤ 7 saat; 7,0–10,0: ≤ 2,5 saat; 10,0–12,5: ≤ 1 saat; 12,5–15,0: ≤ 0,5 saat; 15,0 üstü aşılmaz. Kabin eşiği (3 mmHg) giysiye uygulanmaz</td><td>NASA-STD-3001 Vol 2 Rev E, [V2 11039], Tablo 11.3-1</td><td class="st ok">Doğrulandı</td></tr>
-  <tr><td>Giyside toplam süre</td><td>≤ 14 saat</td><td>NASA-STD-3001 Vol 2 Rev E, Bölüm 11.3</td><td class="st ok">Doğrulandı</td></tr>
+  <tr><td>Giysi içi CO2 (PICO2)</td><td>≤ 4,0 mmHg süresiz; 4,0–7,0: günde ≤ 8 saat; 7,0–10,0: ≤ 2,5 saat; 10,0–12,5: ≤ 1 saat; 12,5–15,0: ≤ 0,5 saat; 15,0 üstü aşılmaz. Kabin eşiği (3 mmHg) giysiye uygulanmaz</td><td>NASA-STD-3001 Vol 2 Rev F, [V2 11039], Tablo 11.3-1</td><td class="st ok">Doğrulandı</td></tr>
+  <tr><td>Giyside toplam süre</td><td>≤ 14 saat. Rev E'de vardı, Rev F'te bu cümle yok; NASA limiti olarak sunmuyoruz</td><td>NASA-STD-3001 Vol 2 Rev E, Bölüm 11.3</td><td class="st part">Kısmen</td></tr>
   <tr><td>Radyasyon, kariyer limiti</td><td>Astronotun toplam kariyer etkin dozu &lt; 600 mSv. Astronota uygulanan gerçek limit</td><td>NASA-STD-3001 Vol 1, [V1 4030]</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Radyasyon, güneş parçacık olayı (SPE)</td><td>Tasarım referans SPE'si (Ekim 1989 olaylarının toplamı) için etkin doz &lt; 250 mSv. Araç tasarımı gereksinimi; biz uyarı eşiği olarak kullanıyoruz, astronota uygulanan kural olarak sunmuyoruz</td><td>NASA-STD-3001 Vol 1, [V1 4031]</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Yolculukta taban doz hızı (GCR)</td><td>1,8 mSv/gün (yaklaşık 0,075 mSv/saat)</td><td>MSL RAD, Zeitlin vd., Science 2013 (SwRI)</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Gidiş-dönüş transit dozu</td><td>Yaklaşık 660 mSv (0,66 Sv), mevcut itki sistemleriyle</td><td>SwRI basın bülteni, 2013</td><td class="st no">Doğrulanmadı<span style="font-weight:400">*</span></td></tr>
   <tr><td>6 aylık transit dozu</td><td>Yaklaşık 330 mSv. Kaynakta geçmiyor; 1,8 mSv/gün × 183 gün hesabımız</td><td>Hesap</td><td class="st no">Doğrulanmadı<span style="font-weight:400">*</span></td></tr>
   <tr><td>Dozda güneş parçacıklarının payı</td><td>Yaklaşık %5 (MSL'in yolculuğu sırasında)</td><td>SwRI basın bülteni, 2013</td><td class="st no">Doğrulanmadı<span style="font-weight:400">*</span></td></tr>
-  <tr><td>Mars yüzeyi doz hızı</td><td>Derin uzaydakinin yaklaşık yarısı</td><td>MSL RAD (Hassler)</td><td class="st ok">Doğrulandı</td></tr>
-  <tr><td>Metabolik O2 ve CO2</td><td>O2 0,84 kg/kişi-gün (0,49–1,25); CO2 1,0 kg/kişi-gün (0,52–1,5); egzersizli görev günü ortalaması</td><td>NASA-STD-3001 metabolik yük tabloları (OCHMO)</td><td class="st ok">Doğrulandı</td></tr>
+  <tr><td>Mars yüzeyi doz hızı</td><td>Emilen dozda yolculuktakinin yaklaşık yarısı (0,21 / 0,48 mGy/gün); eşdeğer dozda yaklaşık üçte biri (0,67 / 1,8 mSv/gün)</td><td>MSL RAD: Hassler vd., Science 2014; SwRI</td><td class="st part">Kısmen</td></tr>
+  <tr><td>Metabolik O2 ve CO2</td><td>Ekip değeri: O2 0,84 kg/kişi-gün (0,49–1,25); CO2 1,0 kg/kişi-gün (0,52–1,5). NASA tablosu egzersizli gün için O2 0,82, CO2 1,04 veriyor (%2–4 fark); aralıklar o tabloda yok</td><td>OCHMO-TB-004 Rev D (HIDH 2014)</td><td class="st part">Kısmen</td></tr>
   <tr><td>Nabızdan O2 tüketimi</td><td>Tüketim, nabzın baz çizgiye oranıyla 0,49–1,25 kg/gün arasında doğrusal ölçeklenir; CO2 aynı oranla</td><td>Ekip modeli</td><td class="st no">Doğrulanmadı</td></tr>
   <tr><td>Mars iletişim gecikmesi</td><td>Tek yön 3–22 dakika</td><td>NASA</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Gidiş-dönüş gecikme</td><td>En çok yaklaşık 45 dakika</td><td>NASA</td><td class="st part">Kısmen</td></tr>
-  <tr><td>Vital sapma eşikleri</td><td>İzle / Eylem: SpO2 −3 / −6 puan; dinlenme nabzı +15 / +30; solunum +4 / +8; ısı +0,5 / +1,0 °C; art arda 3 ölçüm</td><td>Demo parametresi</td><td class="st no">Doğrulanmadı</td></tr>
+  <tr><td>Vital sapma eşikleri</td><td>İzle / Eylem: SpO2 −3 / −6 puan; dinlenme nabzı +15 / +30; solunum +4 / +8; ısı +0,5 / +1,0 °C; art arda 3 ölçüm. Ölçüm aralığı 5 görev dakikası (demoda gerçek 0,5 sn, ×600)</td><td>Demo parametresi</td><td class="st no">Doğrulanmadı</td></tr>
   <tr><td>Genel sarı kademe</td><td>Resmi limitin %80'i</td><td>Demo parametresi</td><td class="st no">Doğrulanmadı</td></tr>
 </table>
 <p style="font-size:9.5pt">* Bu satırlar dondurulmuş <code>ranges.json</code>'da yer almadığı için durumları "Doğrulanmadı". 330 mSv dışındakiler belirtilen kaynakta geçiyor; <code>ranges.json</code>'a eklenmeleri ekip kararına bağlı.</p>
-<p>Standart revizyonu: NASA-STD-3001 Vol 2'nin Rev E'den daha yeni bir revizyonu yayımlanmış olabilir. Bunu bir kaynakla teyit etmedik (<span class="st no">doğrulanmadı</span>). Tablodaki madde numaraları Rev E metnine göre.</p>
+<p>Standart revizyonu: NASA-STD-3001 Vol 2'nin güncel sürümü Rev F (onay 14 Temmuz 2026; Rev E'nin yerini aldı). Tablodaki Vol 2 değerleri 14 Kasım 2026'da Rev F metninden kontrol edildi. Rev F'te bizi etkileyen iki değişiklik var: giysi PICO2'nin 4,0–7,0 mmHg kademesi günde 7 saatten 8 saate çıktı ve "giyside toplam 14 saat" cümlesi kalktı.</p>
 <p>Dozun nereden geldiği: DONKI olayın zamanını ve türünü verir, doz vermez. Ekrandaki doz, 1,8 mSv/gün taban hızın üstüne olay etkisi eklenerek modelleniyor ve "simüle" etiketi taşıyor. Toplam doz çubuğu 600 mSv kariyer limitine, güneş fırtınası kararı 250 mSv tasarım eşiğine bağlı.</p>
 
 <h2>Sesli arayüz (P4)</h2>
@@ -148,7 +148,7 @@
 <table>
   <tr><th style="width:22%">Ortam</th><th>Limit ve kaynak</th><th style="width:16%">Durum</th></tr>
   <tr><td>Mars transit aracı</td><td>ppCO2 ≤ 3 mmHg (1 saatlik ortalama), NASA-STD-3001 [V2 6004]; PIO2 alt sınırı 127 mmHg, Tablo 6.2-1. Hacim ve kapasiteler demo varsayımı</td><td class="st ok">Doğrulandı</td></tr>
-  <tr><td>Denizaltı</td><td>90 günlük sürekli maruziyet için CO2 %0,8 (yaklaşık 6,1 mmHg). Bir 2018 çalışmasının önerisi; resmi Donanma değeri olarak sunulmuyor, NRC (2007) ile teyit edilmedi</td><td class="st no">Doğrulanmadı</td></tr>
+  <tr><td>Denizaltı</td><td>90 günlük sürekli maruziyet için CO2 %0,8 (yaklaşık 6,1 mmHg). NRC (2007) önerisi (8.000 ppm) ve bir 2018 çalışmasının önerisi; resmi Donanma değeri değil (Donanmanın o tarihteki değeri %0,5)</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Yeraltı kurtarma sığınağı (ABD kömür madeni)</td><td>30 CFR 7.506: kişi başı 96 saat hava; O2 %18,5–23; ortalama CO2 ≤ %1,0, sapmalar ≤ %2,5. CO ve metan modellenmiyor, ekranda yazıyor</td><td class="st ok">Doğrulandı</td></tr>
 </table>
 <p>Mars limiti (yaklaşık %0,39) denizaltı ve sığınak limitlerinden daha sıkı. Bu yüzden her profil kendi limitini ve kaynağını taşıyor; NASA eşiği başka ortama uygulanmıyor. Metabolik değerler astronot ortalaması olduğu için denizaltı ve sığınak kişilerinde varsayım olarak etiketleniyor. Açık maden galerileri kapsam dışı, çünkü oradaki asıl sorun metan, karbonmonoksit ve havalandırma.</p>
@@ -170,14 +170,15 @@
 <p>Ekranlara akan verinin biçimi arka uçtaki Pydantic modellerinde tanımlı ve <code>docs/contract.json</code> olarak dışa veriliyor.</p>
 <h3>Veri kaynakları</h3>
 <ul>
-  <li>NASA DONKI API: gerçek güneş parçacık olayı (SEP) kaydı. Mayıs 2024 için 14 olay döndü; demoda GOES uydusunun &gt;10 MeV ölçümüne dayanan 10 Mayıs 2024 olayı kullanılacak. Kayıt önceden çekilip <code>data/donki/</code> altında JSON olarak saklanacak; API anahtarı repoya konmayacak.</li>
+  <li>NASA DONKI API: gerçek güneş parçacık olayı (SEP) kaydı. Mayıs 2024 için 14 olay döndü; demoda GOES uydusunun &gt;10 MeV ölçümüne dayanan 10 Mayıs 2024 olayı kullanılıyor. Kayıt önceden çekilip <code>data/donki/sep_event.json</code> dosyasında saklanıyor; API anahtarı repoda yok.</li>
   <li>NASA-STD-3001: fizyolojik, radyasyon ve kabin havası eşikleri.</li>
   <li>MSL RAD (Curiosity): Mars yolculuğu ve yüzeyi için doz referansları.</li>
   <li>NASA OSDR ve HRP risk raporları: arka plan ve risk başlıkları.</li>
 </ul>
 
-<h2>Demo akışı (yaklaşık 3 dakika)</h2>
-<p>Olaylar gizli bir demo panelinden elle tetikleniyor. Rastgelelik sabit tohumla (seed) kontrol ediliyor, demo internete ve sese bağlı değil. Simülasyon saati 600 kat hızlı akıyor ve ekranda bu yazıyor.</p>
+<h2>Demo akışı (canlı sunum, yaklaşık 3 dakika)</h2>
+<p><b>Teslim kuralı:</b> Space Apps proje sayfasındaki demo en fazla 30 saniyelik video ya da en fazla 7 slayttan (başlık dahil) oluşmalı ve İngilizce olmalı. Sınırı aşan proje global değerlendirmeye alınmıyor. Aşağıdaki akış canlı sunum ve uzun demo videosu içindir.</p>
+<p>Olaylar gizli bir demo panelinden elle tetikleniyor. Rastgelelik sabit tohumla (seed) kontrol ediliyor, demo internete ve sese bağlı değil. Simülasyon saati 600 kat hızlı akıyor ve ekranda bu yazıyor. Vitaller 5 görev dakikasında bir ölçülüyor (demoda gerçek 0,5 sn, ×600), bu yüzden art arda 3 ölçümlük bir karar ekranda yaklaşık 1,5 saniyede oluşuyor.</p>
 <ol>
   <li>Her şey normal. Habitat paneli tanıtılıyor: dört astronot (Ayşe, Can, Ece, Mert), kabin O2 ve CO2, iki ayrı geri sayım.</li>
   <li>O2 üretimi duruyor ve kabin PIO2 yavaşça düşüyor. Arızadan önce "sınırsız" gösteren O2 sayacı geri saymaya başlıyor; CO2 giderme çalıştığı için CO2 sayacı değişmiyor.</li>
@@ -190,7 +191,7 @@
   <li>Sesli arayüz hazırsa kısa bir komut gösterimi.</li>
 </ol>
 
-<h2>Sık sorulan sorular</h2>
+<h2 style="break-before: page">Sık sorulan sorular</h2>
 <table>
   <tr><th style="width:30%">Soru</th><th>Cevap</th></tr>
   <tr><td>Bu bir yaşam destek paneli değil mi?</td><td>Hayır. Karar birimi astronot. Her kişinin vitalleri kendi baz çizgisine göre okunuyor ve ortamla birleştiriliyor; çıktı kişiye özel durum ve öneri. Yaşam destek paneli yalnızca kabini gösterir.</td></tr>
@@ -198,7 +199,7 @@
   <tr><td>Kemik ve bağışıklık gibi konular neden yok?</td><td>Bu sürüm uzun vadeli değişimleri değil, yolculuk sırasında hızlı karar gerektiren riskleri kapsıyor: kalp ve solunum yükü, ısı sapması, kabin havasının bedene etkisi ve radyasyon.</td></tr>
   <tr><td>Giysi içinde SpO2 nasıl ölçülüyor?</td><td>Alına ya da kulak memesine yerleşen bir sensör varsayıyoruz. Veri simüle, eşikler NASA-STD-3001'den.</td></tr>
   <tr><td>Radyasyon dozu gerçek mi?</td><td>Hayır, simüle. DONKI olayın zamanını ve türünü veriyor; doz, MSL RAD'in ölçtüğü 1,8 mSv/gün taban hızının üstüne kurulan bir model.</td></tr>
-  <tr><td>Egzersiz yapan biri yanlış alarm üretmez mi?</td><td>Kalp yükü kararı yalnızca dinlenirken veriliyor. Egzersizdeki kişide nabız ve solunum artışı hipoksi kanıtı da sayılmıyor; karar SpO2 ve kabin havasına dayanıyor. Ayrıca her uyarı art arda üç ölçümle tetikleniyor ve bir "Neden?" açıklaması taşıyor.</td></tr>
+  <tr><td>Egzersiz yapan biri yanlış alarm üretmez mi?</td><td>Kalp yükü kararı yalnızca dinlenirken veriliyor. Egzersizdeki kişide nabız ve solunum artışı hipoksi kanıtı da sayılmıyor; karar SpO2 ve kabin havasına dayanıyor. Ayrıca her uyarı art arda üç ölçümle (15 görev dakikası) tetikleniyor ve bir "Neden?" açıklaması taşıyor.</td></tr>
   <tr><td>Sensör veri vermezse ne olur?</td><td>Ekran "veri yok" der. Eksik veri hiçbir zaman "normal" sayılmaz.</td></tr>
   <tr><td>İnternet yokken ses çalışır mı?</td><td>Demo sese bağlı değil. Tarayıcıda konuşma tanıma çoğunlukla sunucu tabanlı olduğu için internetsiz çalıştığını iddia etmiyoruz.</td></tr>
   <tr><td>CIMON ya da Callisto'dan farkınız ne?</td><td>Onlar genel amaçlı asistanlar. Biz sağlık ve havaya odaklıyız, sorulmasını beklemeden gerekçeli uyarı veriyoruz ve havayla bedeni aynı modelde tutuyoruz.</td></tr>
@@ -211,13 +212,13 @@
   <li>NASA OCHMO-TB-004, Carbon Dioxide: <a href="https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-004-carbon-dioxide.pdf">https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-004-carbon-dioxide.pdf</a></li>
   <li>NASA-STD-3001 Vol 2, Bölüm 6 (6003, 6004, 6006): <a href="https://www.nasa.gov/reference/6-0-natural-and-induced-environments-vol-2">https://www.nasa.gov/reference/6-0-natural-and-induced-environments-vol-2</a></li>
   <li>NASA-STD-3001 Volume 1, Crew Health: [V1 4030] kariyer limiti, [V1 4031] güneş parçacık olayı tasarım gereksinimi.</li>
-  <li>NASA-STD-3001 Volume 2 Rev E, Bölüm 11 (Extravehicular Activity): [V2 11034]–[V2 11039], Tablo 11.3-1 giysi içi CO2 sınırları.</li>
+  <li>NASA-STD-3001 Volume 2 Rev F (2026), Bölüm 11 (Spacesuits): [V2 11034]–[V2 11039], Tablo 11.3-1 giysi içi CO2 sınırları. Tam metin: <a href="https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf">https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf</a></li>
   <li>NASA DONKI (Space Weather Database Of Notifications, Knowledge, Information), SEP uç noktası, NASA Open APIs: <a href="https://api.nasa.gov/">https://api.nasa.gov/</a>. Demoda kullanılan olay (2024-05-10T13:35:00-SEP-001, GOES &gt;10 MeV): <a href="https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1">https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1</a></li>
   <li>Hassler vd., "Mars' Surface Radiation Environment Measured with the Mars Science Laboratory's Curiosity Rover", Science 343 (2014): <a href="https://doi.org/10.1126/science.1244797">https://doi.org/10.1126/science.1244797</a></li>
   <li>Zeitlin vd., "Measurements of Energetic Particle Radiation in Transit to Mars on the Mars Science Laboratory", Science 340 (2013): <a href="https://doi.org/10.1126/science.1235989">https://doi.org/10.1126/science.1235989</a></li>
   <li>SwRI, MSL RAD ile Mars yolculuğu radyasyon ölçümü: <a href="https://www.swri.org/newsroom/press-releases/swri-led-team-calculates-the-radiation-exposure-associated-trip-mars">https://www.swri.org/newsroom/press-releases/swri-led-team-calculates-the-radiation-exposure-associated-trip-mars</a></li>
   <li>30 CFR 7.506, sığınak hava gereksinimleri: <a href="https://www.ecfr.gov/current/title-30/section-7.506">https://www.ecfr.gov/current/title-30/section-7.506</a></li>
-  <li>NRC 2007, denizaltı maruziyet kılavuz seviyeleri: <a href="https://www.nap.edu/read/11170/chapter/2">https://www.nap.edu/read/11170/chapter/2</a></li>
+  <li>NRC 2007, Emergency and Continuous Exposure Guidance Levels for Selected Submarine Contaminants: Volume 1 (Tablo S-1): <a href="https://www.nap.edu/read/11170/chapter/2">https://www.nap.edu/read/11170/chapter/2</a></li>
   <li>PubMed 2018, denizaltı CO2 maruziyet limiti çalışması: <a href="https://pubmed.ncbi.nlm.nih.gov/30511437/">https://pubmed.ncbi.nlm.nih.gov/30511437/</a></li>
   <li>MDN, SpeechRecognition: <a href="https://developer.mozilla.org/docs/Web/API/SpeechRecognition">https://developer.mozilla.org/docs/Web/API/SpeechRecognition</a></li>
   <li>CIMON (Space.com): <a href="https://www.space.com/42574-ai-robot-cimon-space-station-experiment.html">https://www.space.com/42574-ai-robot-cimon-space-station-experiment.html</a></li>
