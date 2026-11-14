@@ -106,7 +106,7 @@
   <tr><td>Radyasyon, güneş parçacık olayı (SPE)</td><td>Tasarım referans SPE'si (Ekim 1989 olaylarının toplamı) için etkin doz &lt; 250 mSv. Araç tasarımı gereksinimi; biz uyarı eşiği olarak kullanıyoruz, astronota uygulanan kural olarak sunmuyoruz</td><td>NASA-STD-3001 Vol 1, [V1 4031]</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Yolculukta taban doz hızı (GCR)</td><td>1,8 mSv/gün (yaklaşık 0,075 mSv/saat)</td><td>MSL RAD, Zeitlin vd., Science 2013 (SwRI)</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Gidiş-dönüş transit dozu</td><td>Yaklaşık 660 mSv (0,66 Sv), mevcut itki sistemleriyle</td><td>SwRI basın bülteni, 2013</td><td class="st no">Doğrulanmadı<span style="font-weight:400">*</span></td></tr>
-  <tr><td>6 aylık transit dozu</td><td>Yaklaşık 330 mSv. Kaynakta geçmiyor; 1,8 mSv/gün × 183 gün hesabımız</td><td>Hesap</td><td class="st no">Doğrulanmadı</td></tr>
+  <tr><td>6 aylık transit dozu</td><td>Yaklaşık 330 mSv. Kaynakta geçmiyor; 1,8 mSv/gün × 183 gün hesabımız</td><td>Hesap</td><td class="st no">Doğrulanmadı<span style="font-weight:400">*</span></td></tr>
   <tr><td>Dozda güneş parçacıklarının payı</td><td>Yaklaşık %5 (MSL'in yolculuğu sırasında)</td><td>SwRI basın bülteni, 2013</td><td class="st no">Doğrulanmadı<span style="font-weight:400">*</span></td></tr>
   <tr><td>Mars yüzeyi doz hızı</td><td>Derin uzaydakinin yaklaşık yarısı</td><td>MSL RAD (Hassler)</td><td class="st ok">Doğrulandı</td></tr>
   <tr><td>Metabolik O2 ve CO2</td><td>O2 0,84 kg/kişi-gün (0,49–1,25); CO2 1,0 kg/kişi-gün (0,52–1,5); egzersizli görev günü ortalaması</td><td>NASA-STD-3001 metabolik yük tabloları (OCHMO)</td><td class="st ok">Doğrulandı</td></tr>
@@ -116,7 +116,7 @@
   <tr><td>Vital sapma eşikleri</td><td>İzle / Eylem: SpO2 −3 / −6 puan; dinlenme nabzı +15 / +30; solunum +4 / +8; ısı +0,5 / +1,0 °C; art arda 3 ölçüm</td><td>Demo parametresi</td><td class="st no">Doğrulanmadı</td></tr>
   <tr><td>Genel sarı kademe</td><td>Resmi limitin %80'i</td><td>Demo parametresi</td><td class="st no">Doğrulanmadı</td></tr>
 </table>
-<p style="font-size:9.5pt">* Bu satırlar dondurulmuş <code>ranges.json</code>'da yer almadığı için durumları "Doğrulanmadı". Değerler belirtilen kaynakta geçiyor; <code>ranges.json</code>'a eklenmeleri ekip kararına bağlı.</p>
+<p style="font-size:9.5pt">* Bu satırlar dondurulmuş <code>ranges.json</code>'da yer almadığı için durumları "Doğrulanmadı". 330 mSv dışındakiler belirtilen kaynakta geçiyor; <code>ranges.json</code>'a eklenmeleri ekip kararına bağlı.</p>
 <p>Standart revizyonu: NASA-STD-3001 Vol 2'nin Rev E'den daha yeni bir revizyonu yayımlanmış olabilir. Bunu bir kaynakla teyit etmedik (<span class="st no">doğrulanmadı</span>). Tablodaki madde numaraları Rev E metnine göre.</p>
 <p>Dozun nereden geldiği: DONKI olayın zamanını ve türünü verir, doz vermez. Ekrandaki doz, 1,8 mSv/gün taban hızın üstüne olay etkisi eklenerek modelleniyor ve "simüle" etiketi taşıyor. Toplam doz çubuğu 600 mSv kariyer limitine, güneş fırtınası kararı 250 mSv tasarım eşiğine bağlı.</p>
 
@@ -180,7 +180,7 @@
 <p>Olaylar gizli bir demo panelinden elle tetikleniyor. Rastgelelik sabit tohumla (seed) kontrol ediliyor, demo internete ve sese bağlı değil. Simülasyon saati 600 kat hızlı akıyor ve ekranda bu yazıyor.</p>
 <ol>
   <li>Her şey normal. Habitat paneli tanıtılıyor: dört astronot (Ayşe, Can, Ece, Mert), kabin O2 ve CO2, iki ayrı geri sayım.</li>
-  <li>O2 üretimi duruyor ve kabin PIO2 yavaşça düşüyor. Yalnızca O2 sayacı hızlanıyor; CO2 giderme çalıştığı için CO2 sayacı değişmiyor.</li>
+  <li>O2 üretimi duruyor ve kabin PIO2 yavaşça düşüyor. Arızadan önce "sınırsız" gösteren O2 sayacı geri saymaya başlıyor; CO2 giderme çalıştığı için CO2 sayacı değişmiyor.</li>
   <li>Astronot 3 (Ece) egzersizde. Nabzı 130'a, solunumu 26'ya çıkıyor; planlanan egzersiz istisnasıyla sistem bunları alarm ya da hipoksi kanıtı saymayacak. Ece'nin SpO2'si kendi bazından 3 puan düşünce "İzle", 6 puan düşünce "Eylem" oluyor. Kanıt olarak SpO2 ve kabin PIO2 gösteriliyor, öneri "egzersizi durdur, yedek O2'ye geç". Bu kişisel uyarı, kabin uyarısı kırmızıya dönmeden çok önce geliyor. Can ve Mert normal kalıyor.</li>
   <li>Ayrı bir örnek: Ayşe ile Mert'in nabzı ikisinde de 80. Ayşe kendi bazının +16 üstünde olduğu için "İzle" oluyor (kalp yükü, hipoksi değil); Mert +13'te kaldığı için normal. Aynı nabız, iki farklı karar.</li>
   <li>Güneş fırtınası: DONKI kaydı tetikleniyor. Sistem olay sonu dozunu tahmin ediyor ve 200 mSv'yi aşacağını görünce doz alınmadan önce "fırtına sığınağına geç" uyarısı veriyor.</li>
@@ -211,6 +211,9 @@
   <li>NASA OCHMO-TB-004, Carbon Dioxide: <a href="https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-004-carbon-dioxide.pdf">https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-004-carbon-dioxide.pdf</a></li>
   <li>NASA-STD-3001 Vol 2, Bölüm 6 (6003, 6004, 6006): <a href="https://www.nasa.gov/reference/6-0-natural-and-induced-environments-vol-2">https://www.nasa.gov/reference/6-0-natural-and-induced-environments-vol-2</a></li>
   <li>NASA-STD-3001 Volume 1, Crew Health: [V1 4030] kariyer limiti, [V1 4031] güneş parçacık olayı tasarım gereksinimi.</li>
+  <li>NASA-STD-3001 Volume 2 Rev E, Bölüm 11 (Extravehicular Activity): [V2 11034]–[V2 11039], Tablo 11.3-1 giysi içi CO2 sınırları.</li>
+  <li>NASA DONKI (Space Weather Database Of Notifications, Knowledge, Information), SEP uç noktası, NASA Open APIs: <a href="https://api.nasa.gov/">https://api.nasa.gov/</a>. Demoda kullanılan olay (2024-05-10T13:35:00-SEP-001, GOES &gt;10 MeV): <a href="https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1">https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1</a></li>
+  <li>Hassler vd., "Mars' Surface Radiation Environment Measured with the Mars Science Laboratory's Curiosity Rover", Science 343 (2014): <a href="https://doi.org/10.1126/science.1244797">https://doi.org/10.1126/science.1244797</a></li>
   <li>Zeitlin vd., "Measurements of Energetic Particle Radiation in Transit to Mars on the Mars Science Laboratory", Science 340 (2013): <a href="https://doi.org/10.1126/science.1235989">https://doi.org/10.1126/science.1235989</a></li>
   <li>SwRI, MSL RAD ile Mars yolculuğu radyasyon ölçümü: <a href="https://www.swri.org/newsroom/press-releases/swri-led-team-calculates-the-radiation-exposure-associated-trip-mars">https://www.swri.org/newsroom/press-releases/swri-led-team-calculates-the-radiation-exposure-associated-trip-mars</a></li>
   <li>30 CFR 7.506, sığınak hava gereksinimleri: <a href="https://www.ecfr.gov/current/title-30/section-7.506">https://www.ecfr.gov/current/title-30/section-7.506</a></li>
