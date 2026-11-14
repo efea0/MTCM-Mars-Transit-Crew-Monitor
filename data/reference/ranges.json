@@ -13,6 +13,9 @@
     "degisiklik_1_1": "Radyasyon kararı projeksiyona bağlandı; kalp yükü yalnızca dinlenmede; nabız-O2 ölçeği tanımlandı, CO2 aynı oranla ölçeklenir; sığınak normal profili yıkayıcı ve O2 stoku ile; demo zaman çarpanı eklendi; CO2 sarı eşiği genel %80 kuralının istisnası olarak işaretlendi.",
     "hazirlayan": "Efe",
     "dondurma": "2026-11-14T19:30:00+03:00",
+    "dondurma_istisnalari": [
+      "2026-11-14: vital_karar_parametreleri.kararlar.olasi_hipoksi koşuluna egzersiz istisnası eklendi (Barış'ın isteği, Efe'nin onayı). Hiçbir sayısal değer değişmedi; kalp_yuku kuralıyla ve hypoxia senaryosuyla tutarlılık için."
+    ],
     "kural": "Bu dosya motorun ve uyarıların tek kaynağıdır. Dondurmadan sonra değer değişmez. Her kayıtta 'kaynak' ve 'status' alanı zorunludur. Doğrulanamayan kayıtta kaynak 'varsayım' ile başlar.",
     "status_degerleri": {
       "doğrulandı": "Değer kaynak metinden okundu.",
@@ -229,7 +232,7 @@
     "isi_artis": { "izle": 0.5, "eylem": 1.0, "birim": "°C (baz çizgiden)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
     "kararlar": {
       "olasi_hipoksi": {
-        "kosul": "spo2_dusus ≥ izle VE (nabiz_artis ≥ izle VEYA solunum_artis ≥ izle) VE kabin PIO2 < 145",
+        "kosul": "spo2_dusus ≥ izle VE kabin PIO2 < 145; aktivite == 'dinlenme' ise ek olarak (nabiz_artis ≥ izle VEYA solunum_artis ≥ izle). Egzersizde nabız/solunum şartı aranmaz ve kanıt olarak yazılmaz.",
         "oneri": "Egzersizi durdur, O2 kaynağını ve kabin PIO2'yi kontrol et, yedek O2'ye geç.",
         "dayanak": "Tablo 6.2-1 normoksi aralığı (doğrulandı) + vital sapması (doğrulanmadı)"
       },
