@@ -1,6 +1,13 @@
+import subprocess
+
 import pytest
 
 from tools import check_paths as cp
+
+
+def _git(cwd, *args):
+    """Test deposusunda git: GIT_* ortam değişkenleri temizlenir, yalnızca verilen cwd'de çalışır."""
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, env=cp.clean_git_env())
 
 
 @pytest.mark.parametrize(
@@ -115,10 +122,8 @@ def test_fork_rejected():
 
 
 def test_renames_and_unicode_paths(tmp_path, monkeypatch):
-    import subprocess
-
     def git(*args):
-        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+        _git(tmp_path, *args)
 
     git("init", "-q", "-b", "develop")
     git("config", "user.email", "t@example.com")
@@ -137,6 +142,35 @@ def test_renames_and_unicode_paths(tmp_path, monkeypatch):
     files = cp.changed_files("develop")
     assert "backend/models.py" in files and "backend/schemas.py" in files
     assert "reports/görev planı.md" in files
+
+
+def test_git_env_leak_does_not_reach_temp_repo(tmp_path, monkeypatch):
+    # Kanca ortamını taklit et: GIT_DIR bir "gerçek" depoyu gösteriyormuş gibi, ama bu yol
+    # geçici dizinin içinde ve var olmayan bir yol. Sızıntı varsa git init bu yolu oluşturur.
+    decoy = tmp_path / "decoy-real-repo.git"
+    monkeypatch.setenv("GIT_DIR", str(decoy))
+    monkeypatch.setenv("GIT_WORK_TREE", str(decoy))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(decoy / "index"))
+    assert not any(k.startswith("GIT_") for k in cp.clean_git_env())
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "develop")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "t")
+    (repo / "backend").mkdir()
+    (repo / "backend" / "rules.py").write_text("x", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "base")
+    _git(repo, "switch", "-qc", "feat/backend/x")
+    (repo / "backend" / "rules2.py").write_text("y", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "change")
+
+    monkeypatch.chdir(repo)
+    assert cp.changed_files("develop") == ["backend/rules2.py"]
+    assert not decoy.exists()
+    assert (repo / ".git").is_dir()
 
 
 def test_role_limits_areas(monkeypatch):
