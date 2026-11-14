@@ -11,6 +11,7 @@ simulator.py ve rules.py yazılmadan önce de çalışır. Denetlenenler:
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,10 @@ WATER_VAPOR_MMHG = 47.0
 O2_MOLAR_G = 32.0
 CO2_MOLAR_G = 44.0
 STEP_MIN = 0.25
+# Simülatörün sirkadiyen nabız dalgası (bpm); metabolizma nabızdan beslendiği için kabin zamanlarını
+# birkaç dakika kaydırır. HİPOTEZ: simülatör (#35) sabitiyle aynı tutulur.
+HEART_RATE_CIRCADIAN_BPM = 0.5
+CIRCADIAN_PERIOD_MIN = 1440.0
 MINUTES_PER_DAY = 1440.0
 TOLERANCE_MIN = 2.0
 
@@ -84,11 +89,17 @@ def first_time(s: Scenario, predicate: Callable[[float], bool]) -> float | None:
     return next((i * STEP_MIN for i in range(steps + 1) if predicate(i * STEP_MIN)), None)
 
 
+def metabolic_heart_rate(s: Scenario, crew_id: str, t: float) -> float:
+    """Metabolizmayı besleyen nabız: rampalı vital + sirkadiyen dalga (gürültüsüz)."""
+    wave = math.sin(math.tau * t / CIRCADIAN_PERIOD_MIN)
+    return vital(s, crew_id, "heart_rate", t) + HEART_RATE_CIRCADIAN_BPM * wave
+
+
 def metabolic_kg_day(s: Scenario, t: float) -> tuple[float, float]:
     md = s["model"]
     o2 = co2 = 0.0
     for c in s["crew"]:
-        r = vital(s, c["id"], "heart_rate", t) / c["baseline"]["heart_rate"]["mean"]
+        r = metabolic_heart_rate(s, c["id"], t) / c["baseline"]["heart_rate"]["mean"]
         a = min(1.0, max(0.0, (r - md["r_min"]) / (md["r_max"] - md["r_min"])))
         o2 += md["o2_min"] + (md["o2_max"] - md["o2_min"]) * a
         co2 += md["co2_min"] + (md["co2_max"] - md["co2_min"]) * a
@@ -96,8 +107,9 @@ def metabolic_kg_day(s: Scenario, t: float) -> tuple[float, float]:
 
 
 def cabin_series(s: Scenario) -> list[tuple[float, float, float]]:
-    """(t, PIO2 mmHg, ppCO2 mmHg). #14 atmosphere motoruyla aynı denge: üretim ve giderme arızadan
-    önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün); tükenen gaz sıfırda tutulur."""
+    """(t, PIO2 mmHg, ppCO2 mmHg). Net 0 modeli (simülatörle aynı): arızadan önce O2 üretimi tüketime,
+    CO2 giderme üretime eşitlenir, kabin sabit kalır. O2 arızası üretimi kapatır; CO2 arızası gidermeyi
+    kapasitenin (4,0 kg/gün) katına indirir. Tükenen gaz sıfırda tutulur."""
     md = s["model"]
     total = md["total_pressure_mmHg"]
 
@@ -113,10 +125,10 @@ def cabin_series(s: Scenario) -> list[tuple[float, float, float]]:
         t = i * STEP_MIN
         out.append((t, pp_o2 * (total - WATER_VAPOR_MMHG) / total, pp_co2))
         o2_use, co2_make = metabolic_kg_day(s, t)
-        o2_supply = 0.0 if o2_fail is not None and t >= o2_fail else md["o2_generation_kg_day"]
-        removal = md["co2_removal_kg_day"] * (
-            co2_fail["value"] if co2_fail and t >= co2_fail["t_min"] else 1.0
-        )
+        o2_supply = 0.0 if o2_fail is not None and t >= o2_fail else o2_use
+        removal = co2_make
+        if co2_fail and t >= co2_fail["t_min"]:
+            removal = co2_fail["value"] * md["co2_removal_kg_day"]
         pp_o2 = max(0.0, pp_o2 + (o2_supply - o2_use) * mmhg_per_kg(O2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY)
         pp_co2 = max(
             0.0, pp_co2 + (co2_make - removal) * mmhg_per_kg(CO2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY
@@ -145,7 +157,7 @@ def test_cabin_series_matches_atmosphere_engine(name: str) -> None:
     """Bağımsız kütle dengesi, birleşen backend/atmosphere.py motoruyla aynı kabin serisini verir."""
     from dataclasses import replace
 
-    from backend.atmosphere import CabinState, load_profile, step
+    from backend.atmosphere import CabinState, load_profile, metabolic_rates, step
 
     s = load(name)
     profile = load_profile(ROOT / "data" / "reference" / "ranges.json", "mars_transit")
@@ -161,13 +173,18 @@ def test_cabin_series_matches_atmosphere_engine(name: str) -> None:
         engine_pio2 = state.pp_o2_mmhg * (total - profile.ranges.water_vapour_mmhg) / total
         assert engine_pio2 == pytest.approx(pio2, abs=1e-6), (name, t)
         assert state.pp_co2_mmhg == pytest.approx(pp_co2, abs=1e-6), (name, t)
-        active = profile
-        if co2_fail and t >= co2_fail["t_min"]:
-            active = replace(
-                profile, co2_removal_kg_per_day=co2_fail["value"] * profile.co2_removal_kg_per_day
-            )
         rates = tuple(
-            (vital(s, c["id"], "heart_rate", t), c["baseline"]["heart_rate"]["mean"]) for c in s["crew"]
+            (metabolic_heart_rate(s, c["id"], t), c["baseline"]["heart_rate"]["mean"]) for c in s["crew"]
+        )
+        loads = [metabolic_rates(heart, base, profile.ranges.metabolism) for heart, base in rates]
+        active = replace(
+            profile,
+            o2_supply_kg_per_day=sum(load[0] for load in loads),
+            co2_removal_kg_per_day=(
+                co2_fail["value"] * profile.co2_removal_kg_per_day
+                if co2_fail and t >= co2_fail["t_min"]
+                else sum(load[1] for load in loads)
+            ),
         )
         state = step(
             state, active, rates, STEP_MIN * 60, o2_supply_failed=o2_fail is not None and t >= o2_fail

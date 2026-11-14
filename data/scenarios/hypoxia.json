@@ -214,7 +214,7 @@
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Zamanlar #14 atmosphere motoruyla birebir hizalıdır: üretim ve giderme arızadan önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün), hacim 75 m³. tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "note": "ranges.json (PR #16 v1.1) değerleri. Kabin dengesi simülatörle aynı net 0 modelidir: arızadan önce O2 üretimi tüketime, CO2 giderme üretime eşitlenir ve kabin sabit kalır. O2 arızası üretimi kapatır; CO2 arızası gidermeyi kapasitenin (4,0 kg/gün) katına indirir. Metabolizma nabızdan (rampalar + ±0,5 bpm sirkadiyen dalga) beslenir; hacim 75 m³. tests/test_scenarios.py kabin serisini backend/atmosphere.py ile adım adım karşılaştırır.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -363,9 +363,9 @@
       "metric": "pp_o2",
       "severity": "caution",
       "rule_id": "cabin_pio2_low_caution",
-      "t_condition": 372.0,
-      "t_earliest": 372,
-      "t_latest": 407,
+      "t_condition": 363.0,
+      "t_earliest": 363,
+      "t_latest": 398,
       "evidence_metrics": [
         "pp_o2"
       ],
@@ -407,9 +407,9 @@
       "metric": "pp_o2",
       "severity": "critical",
       "rule_id": "cabin_pio2_low_critical",
-      "t_condition": 1771.5,
-      "t_earliest": 1771,
-      "t_latest": 1800,
+      "t_condition": 1762.75,
+      "t_earliest": 1762,
+      "t_latest": 1798,
       "evidence_metrics": [
         "pp_o2"
       ],
