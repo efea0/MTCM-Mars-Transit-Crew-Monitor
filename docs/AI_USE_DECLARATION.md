@@ -54,11 +54,18 @@ All data shown in the app is simulated. The app is decision support, not medical
   with scope, lint and test checks. Tests in the repository today cover:
   - the data contract: missing data is never counted as normal, every alert needs evidence, exactly 4 crew;
   - the O₂/CO₂ model: countdowns, strict limit edges, O₂ supply failure, exercise raising O₂ use,
-    and thresholds read from `ranges.json` instead of being written in code.
+    and thresholds read from `ranges.json` instead of being written in code;
+  - the demo scenarios (`tests/test_scenarios.py`): each scenario's expected-decision table is recomputed with an
+    independent model and checked for these behaviors: an alert needs 3 consecutive readings; exercise never raises a
+    cardiac-load alert; when activity is unknown, heart rate is not used as evidence; the radiation warning comes
+    before the dose is received; missing data is "unknown", never "normal". Thresholds must match `ranges.json`,
+    and the solar storm must match the saved NASA DONKI event;
+  - the Earth link delay queue (`backend/comms.py`), with the 3–22 min delay read from `ranges.json`;
+  - the DONKI fetch script (`data/donki/fetch_donki.py`).
 
-  **[TODO before submitting]** Alert rules (`backend/rules.py`) are not written yet. List rule tests here only after
-  they exist (for example: consecutive readings, exercise not flagged as cardiac load,
-  radiation warning before the dose is received).
+  Two known gaps in the data contract are recorded as expected failures (`xfail`) and are not counted above.
+  **[TODO before submitting]** The scenario tests check the expected decisions, not the alert engine. When
+  `backend/rules.py` is written, add tests that run the engine on the same scenarios and list them here.
 - Text: in `data/reference/messages.json`, live values and every alert threshold and limit are placeholders
   filled from `ranges.json` at runtime, so the limits on screen come from the same table the rules use.
   A few context words stay fixed in the text: averaging periods (1-hour, 7-day), "headache risk under 1%",
