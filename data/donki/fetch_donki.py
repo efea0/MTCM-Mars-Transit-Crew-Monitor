@@ -6,7 +6,7 @@ olayları verir, DOZ VERMEZ; doz simülasyonda modellenir.
 Kullanım (repo kökünden):
     python data/donki/fetch_donki.py
     python data/donki/fetch_donki.py --start 2024-05-01 --end 2024-05-31
-    python data/donki/fetch_donki.py --sep-id 2024-05-09T13:59:00-SEP-001
+    python data/donki/fetch_donki.py --sep-id 2024-05-10T13:35:00-SEP-001
 
 API anahtarı: NASA_API_KEY ortam değişkeni; yoksa DEMO_KEY. Anahtar dosyaya yazılmaz, repoya konmaz.
 """
@@ -30,6 +30,8 @@ DEFAULT_START = "2024-05-01"
 DEFAULT_END = "2024-05-31"
 TIMEOUT_S = 30
 HTTP_TOO_MANY_REQUESTS = 429
+MODEL_PREFIX = "MODEL:"
+GOES_10MEV = ">10 MeV"
 
 Event = dict[str, Any]
 
@@ -41,10 +43,29 @@ def fetch_events(start: str, end: str, api_key: str) -> list[Event]:
         return json.load(resp)
 
 
+def _instrument_names(event: Event) -> list[str]:
+    return [i.get("displayName", "") for i in event.get("instruments") or []]
+
+
+def is_model(event: Event) -> bool:
+    """Olay yalnızca model tahminiyle mi bildirilmiş (ör. "MODEL: REleASE:...")?"""
+    names = _instrument_names(event)
+    return bool(names) and all(n.startswith(MODEL_PREFIX) for n in names)
+
+
+def is_goes_10mev(event: Event) -> bool:
+    """Olay GOES >10 MeV kanalında mı ölçülmüş? NOAA S-ölçeği bu kanala dayanır."""
+    return any(n.startswith("GOES") and GOES_10MEV in n for n in _instrument_names(event))
+
+
 def pick_event(events: list[Event], sep_id: str | None = None) -> Event:
     """Demo için tek olay seçer.
 
-    sep_id verilirse o olay; verilmezse bağlantılı olayı (flare/CME) olan en erken olay.
+    sep_id verilirse o olay. Verilmezse bağlantılı olayı (flare/CME) olanlar arasında sırayla:
+    1. GOES >10 MeV ile ölçülen en erken olay,
+    2. model tahmini olmayan (ölçülmüş) en erken olay,
+    3. en erken olay.
+    Bağlantılı olay hiç yoksa aynı sıra tüm olaylara uygulanır.
     Sıralama sabittir: aynı veride her çalıştırmada aynı olay çıkar.
     """
     if not events:
@@ -55,8 +76,10 @@ def pick_event(events: list[Event], sep_id: str | None = None) -> Event:
                 return event
         raise ValueError(f"sepID bulunamadı: {sep_id}")
     ordered = sorted(events, key=lambda e: e.get("eventTime", ""))
-    linked = [e for e in ordered if e.get("linkedEvents")]
-    return (linked or ordered)[0]
+    pool = [e for e in ordered if e.get("linkedEvents")] or ordered
+    goes = [e for e in pool if is_goes_10mev(e)]
+    measured = [e for e in pool if not is_model(e)]
+    return (goes or measured or pool)[0]
 
 
 def build_payload(events: list[Event], selected: Event, start: str, end: str) -> dict[str, Any]:

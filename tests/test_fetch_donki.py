@@ -55,6 +55,45 @@ def test_prefers_linked_even_if_not_earliest() -> None:
     assert fd.pick_event(events)["sepID"] == "Y"
 
 
+GOES = [{"displayName": "GOES-P: SEISS >10 MeV"}]
+GOES_100 = [{"displayName": "GOES-P: SEISS >100 MeV"}]
+SOHO = [{"displayName": "SOHO: COSTEP 15.8-39.8 MeV"}]
+MODEL = [{"displayName": "MODEL: REleASE:ACE/EPAM 15.8-39.8 MeV"}]
+LINK = [{"activityID": "FLR-1"}]
+
+
+def _ev(sep_id: str, time: str, instruments: list[dict[str, str]]) -> dict[str, Any]:
+    return {"sepID": sep_id, "eventTime": time, "instruments": instruments, "linkedEvents": LINK}
+
+
+def test_model_prediction_is_not_picked_when_measurement_exists() -> None:
+    events = [_ev("M", "2024-05-09T13:59Z", MODEL), _ev("S", "2024-05-10T12:59Z", SOHO)]
+    assert fd.pick_event(events)["sepID"] == "S"
+
+
+def test_goes_10mev_is_preferred_over_earlier_measurement() -> None:
+    events = [
+        _ev("M", "2024-05-09T13:59Z", MODEL),
+        _ev("S", "2024-05-10T12:59Z", SOHO),
+        _ev("G", "2024-05-10T13:35Z", GOES),
+        _ev("H", "2024-05-11T02:10Z", GOES_100),
+    ]
+    assert fd.pick_event(events)["sepID"] == "G"
+
+
+def test_goes_100mev_alone_is_not_the_10mev_channel() -> None:
+    assert not fd.is_goes_10mev(_ev("H", "2024-05-11T02:10Z", GOES_100))
+
+
+def test_only_models_falls_back_to_earliest() -> None:
+    events = [_ev("M2", "2024-05-13T13:10Z", MODEL), _ev("M1", "2024-05-09T13:59Z", MODEL)]
+    assert fd.pick_event(events)["sepID"] == "M1"
+
+
+def test_event_without_instruments_is_not_called_model() -> None:
+    assert not fd.is_model({"sepID": "X", "instruments": None})
+
+
 def test_explicit_sep_id() -> None:
     assert fd.pick_event(SAMPLE, "B")["sepID"] == "B"
 
@@ -103,6 +142,11 @@ def test_saved_file_has_raw_response_and_fetch_time(saved: dict[str, Any]) -> No
 def test_saved_selection_is_reproducible(saved: dict[str, Any]) -> None:
     assert fd.pick_event(saved["raw_response"]) == saved["selected"]
     assert saved["selected"]["linkedEvents"], "seçilen olay bir patlamaya/CME'ye bağlı olmalı"
+
+
+def test_saved_selection_is_goes_measurement_not_model(saved: dict[str, Any]) -> None:
+    assert fd.is_goes_10mev(saved["selected"]), "jüri için ölçülmüş GOES >10 MeV olayı seçilmeli"
+    assert not fd.is_model(saved["selected"])
 
 
 def test_saved_file_contains_no_api_key() -> None:

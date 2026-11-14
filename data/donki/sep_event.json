@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-11-14T14:23:03+00:00",
+  "fetched_at": "2026-11-14T17:19:33+00:00",
   "source": "https://api.nasa.gov/DONKI/SEP",
   "query": {
     "startDate": "2024-05-01",
@@ -7,27 +7,71 @@
   },
   "note": "DONKI olay zamanı ve türü verir, doz vermez. Doz simüle edilir.",
   "selected": {
-    "sepID": "2024-05-09T13:59:00-SEP-001",
-    "eventTime": "2024-05-09T13:59Z",
+    "sepID": "2024-05-10T13:35:00-SEP-001",
+    "eventTime": "2024-05-10T13:35Z",
     "instruments": [
       {
-        "displayName": "MODEL: REleASE:ACE/EPAM 15.8-39.8 MeV"
+        "displayName": "GOES-P: SEISS >10 MeV"
       }
     ],
-    "link": "https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30609/-1",
+    "link": "https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1",
     "linkedEvents": [
       {
+        "activityID": "2024-05-08T04:20:00-FLR-001"
+      },
+      {
+        "activityID": "2024-05-08T04:37:00-FLR-001"
+      },
+      {
+        "activityID": "2024-05-08T05:36:00-CME-001"
+      },
+      {
+        "activityID": "2024-05-08T11:26:00-FLR-001"
+      },
+      {
+        "activityID": "2024-05-08T12:24:00-CME-001"
+      },
+      {
+        "activityID": "2024-05-08T21:08:00-FLR-001"
+      },
+      {
+        "activityID": "2024-05-08T22:05:00-FLR-001"
+      },
+      {
+        "activityID": "2024-05-08T22:24:00-CME-001"
+      },
+      {
         "activityID": "2024-05-09T08:45:00-FLR-001"
+      },
+      {
+        "activityID": "2024-05-09T09:24:00-CME-001"
+      },
+      {
+        "activityID": "2024-05-09T17:23:00-FLR-001"
+      },
+      {
+        "activityID": "2024-05-09T18:23:00-CME-001"
+      },
+      {
+        "activityID": "2024-05-10T06:27:00-FLR-001"
+      },
+      {
+        "activityID": "2024-05-10T07:12:00-CME-001"
       }
     ],
     "sentNotifications": [
       {
-        "messageID": "20240509-AL-004",
-        "messageIssueTime": "2024-05-09T14:00Z",
-        "messageURL": "https://ccmc.gsfc.nasa.gov/DONKI/view/Alert/30611/1"
+        "messageID": "20240510-AL-004",
+        "messageIssueTime": "2024-05-10T13:46Z",
+        "messageURL": "https://ccmc.gsfc.nasa.gov/DONKI/view/Alert/30678/1"
+      },
+      {
+        "messageID": "20240510-AL-005",
+        "messageIssueTime": "2024-05-10T14:12Z",
+        "messageURL": "https://ccmc.gsfc.nasa.gov/DONKI/view/Alert/30679/1"
       }
     ],
-    "submissionTime": "2024-05-09T13:54Z",
+    "submissionTime": "2024-05-10T13:46Z",
     "versionId": 1
   },
   "raw_response": [
