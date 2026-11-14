@@ -87,8 +87,9 @@
         "caution": "{name}: possible hypoxia sign – monitor",
         "critical": "{name}: possible hypoxia sign – act now"
       },
-      "why_note": "SpO₂ {spo2}% is {spo2_drop} points below {name}'s baseline {spo2_base}%, with HR +{hr_rise} bpm and/or breathing +{rr_rise}/min, for {n_consecutive} consecutive readings. Cabin PIO₂ {pio2} mmHg is below the {pio2_target_min}–{pio2_target_max} mmHg normoxia target. Body and cabin point the same way.",
-      "why_exercise_addon": "{name} is exercising, so O₂ use is highest and symptoms appear first in this crew member.",
+      "_not": "ranges.json #21 egzersiz istisnası: activity == rest ise why_note_rest, exercise ise why_note_exercise. Egzersizde nabız/solunum artışı kanıt olarak yazılmaz.",
+      "why_note_rest": "SpO₂ {spo2}% is {spo2_drop} points below {name}'s baseline {spo2_base}%, with HR +{hr_rise} bpm and/or breathing +{rr_rise}/min, for {n_consecutive} consecutive readings. Cabin PIO₂ {pio2} mmHg is below the {pio2_target_min}–{pio2_target_max} mmHg normoxia target. Body and cabin point the same way.",
+      "why_note_exercise": "SpO₂ {spo2}% is {spo2_drop} points below {name}'s baseline {spo2_base}% for {n_consecutive} consecutive readings, while cabin PIO₂ {pio2} mmHg is below the {pio2_target_min}–{pio2_target_max} mmHg normoxia target. {name} is exercising, so O₂ use is highest and symptoms appear first in this crew member. Heart rate and breathing rise during exercise are expected and are not used as evidence.",
       "recommendation": {
         "caution": "Reduce activity, check the O₂ source and cabin PIO₂, prepare backup O₂",
         "critical": "Stop exercise now, check the O₂ source and cabin PIO₂, switch to backup O₂"
