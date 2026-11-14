@@ -20,7 +20,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-CONTRACT_VERSION = "0.1.0"
+CONTRACT_VERSION = "0.2.0"
 CREW_SIZE = 4
 
 
@@ -78,6 +78,9 @@ class Metric(str, Enum):
     cabin_temp = "cabin_temp"  # °C
     rel_humidity = "rel_humidity"  # %
     radiation_dose_rate = "radiation_dose_rate"  # µGy/saat
+    pio2 = "pio2"  # mmHg, solunan O₂ kısmi basıncı (kabin pp_o2'den türetilir)
+    # kişi bazlı radyasyon (simüle)
+    event_dose = "event_dose"  # mSv, aktif güneş parçacık olayında alınan doz
 
 
 class Scenario(str, Enum):
@@ -87,6 +90,15 @@ class Scenario(str, Enum):
     sleep_deprivation = "sleep_deprivation"
     solar_storm = "solar_storm"  # radyasyon artışı (DONKI ile bağlanabilir)
     sensor_dropout = "sensor_dropout"  # eksik veri davranışını göstermek için
+
+
+class Activity(str, Enum):
+    """Astronotun o anki etkinliği. Egzersizde nabız/solunum artışı alarm ve kanıt sayılmaz."""
+
+    resting = "resting"
+    exercise = "exercise"
+    sleep = "sleep"
+    unknown = "unknown"  # bilinmiyorsa 'dinleniyor' varsayılmaz
 
 
 class Sender(str, Enum):
@@ -109,6 +121,11 @@ class Reading(_Model):
         default=Status.unknown,
         description="rules.py doldurur; değerlendirilmemişse unknown.",
     )
+    baseline_delta: float | None = Field(
+        default=None,
+        description="Yalnızca kişi vitallerinde: değer − kişinin kendi baz çizgisi (okumanın biriminde). "
+        "Kabin okumalarında ve veri yokken null.",
+    )
 
     @model_validator(mode="after")
     def _missing_is_never_normal(self) -> Reading:
@@ -117,6 +134,8 @@ class Reading(_Model):
                 raise ValueError("value=None iken quality 'ok' olamaz")
             if self.status != Status.unknown.value:
                 raise ValueError("value=None iken status yalnızca 'unknown' olabilir")
+            if self.baseline_delta is not None:
+                raise ValueError("value=None iken baseline_delta null olmalı")
         elif self.quality != Quality.ok.value and self.status == Status.nominal.value:
             raise ValueError("kalitesi 'ok' olmayan okuma 'nominal' sayılamaz")
         return self
@@ -147,6 +166,17 @@ class CrewMember(_Model):
     name: str
     role: str = Field(description="Örn. 'Commander', 'Flight Surgeon'.")
     vitals: CrewVitals
+    activity: Activity = Activity.unknown
+    cumulative_dose_msv: float | None = Field(
+        default=None,
+        ge=0,
+        description="Kariyer kümülatif efektif doz (mSv, simüle); 600 mSv kariyer limitine oranlanır.",
+    )
+    event_dose_msv: float | None = Field(
+        default=None,
+        ge=0,
+        description="Aktif güneş parçacık olayında alınan doz (mSv, simüle); olay yoksa null.",
+    )
     status: Status = Status.unknown
 
 
@@ -173,6 +203,20 @@ class ThresholdRule(_Model):
     comparator: Comparator
     threshold: float | None = Field(description="comparator=missing ise null.")
     consecutive_required: int = Field(ge=1, description="Uyarı için art arda kaç ölçüm.")
+    average_window_s: float | None = Field(
+        default=None,
+        gt=0,
+        description="Ortalama penceresi (s); örn. CO₂ için 3600 = 1 saatlik ortalama. null = anlık değer.",
+    )
+    relative_to_baseline: bool = Field(
+        default=False,
+        description="True ise kıyaslanan nicelik 'değer − kişinin baz çizgisi', threshold da aynı "
+        "birimde fark olarak okunur (örn. nabız +15, SpO₂ −3). False = mutlak eşik.",
+    )
+    skip_when: list[Activity] = Field(
+        default_factory=list,
+        description="Bu etkinliklerde kural çalışmaz; örn. nabız sapması için ['exercise'].",
+    )
     source: str = Field(description="Eşiğin kaynağı (NASA-STD-3001 vb.) veya 'HİPOTEZ'.")
 
 

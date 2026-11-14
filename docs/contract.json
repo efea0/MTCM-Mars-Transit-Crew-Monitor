@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Mars Transit Crew Health & Cabin Air Monitor - API contract",
-  "contract_version": "0.1.0",
+  "contract_version": "0.2.0",
   "generated_from": "backend/models.py",
   "crew_size": 4,
   "roots": {
@@ -19,6 +19,17 @@
     }
   },
   "$defs": {
+    "Activity": {
+      "description": "Astronotun o anki etkinliği. Egzersizde nabız/solunum artışı alarm ve kanıt sayılmaz.",
+      "enum": [
+        "resting",
+        "exercise",
+        "sleep",
+        "unknown"
+      ],
+      "title": "Activity",
+      "type": "string"
+    },
     "Alert": {
       "additionalProperties": false,
       "properties": {
@@ -203,6 +214,38 @@
         "vitals": {
           "$ref": "#/$defs/CrewVitals"
         },
+        "activity": {
+          "$ref": "#/$defs/Activity",
+          "default": "unknown"
+        },
+        "cumulative_dose_msv": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Kariyer kümülatif efektif doz (mSv, simüle); 600 mSv kariyer limitine oranlanır.",
+          "title": "Cumulative Dose Msv"
+        },
+        "event_dose_msv": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Aktif güneş parçacık olayında alınan doz (mSv, simüle); olay yoksa null.",
+          "title": "Event Dose Msv"
+        },
         "status": {
           "$ref": "#/$defs/Status",
           "default": "unknown"
@@ -323,7 +366,9 @@
         "cabin_pressure",
         "cabin_temp",
         "rel_humidity",
-        "radiation_dose_rate"
+        "radiation_dose_rate",
+        "pio2",
+        "event_dose"
       ],
       "title": "Metric",
       "type": "string"
@@ -373,6 +418,19 @@
           "$ref": "#/$defs/Status",
           "default": "unknown",
           "description": "rules.py doldurur; değerlendirilmemişse unknown."
+        },
+        "baseline_delta": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Yalnızca kişi vitallerinde: değer − kişinin kendi baz çizgisi (okumanın biriminde). Kabin okumalarında ve veri yokken null.",
+          "title": "Baseline Delta"
         }
       },
       "required": [
@@ -430,7 +488,7 @@
       "description": "SSE ile her tick'te gönderilen tam paket (event: telemetry).",
       "properties": {
         "contract_version": {
-          "default": "0.1.0",
+          "default": "0.2.0",
           "title": "Contract Version",
           "type": "string"
         },
@@ -536,6 +594,34 @@
           "minimum": 1,
           "title": "Consecutive Required",
           "type": "integer"
+        },
+        "average_window_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ortalama penceresi (s); örn. CO₂ için 3600 = 1 saatlik ortalama. null = anlık değer.",
+          "title": "Average Window S"
+        },
+        "relative_to_baseline": {
+          "default": false,
+          "description": "True ise kıyaslanan nicelik 'değer − kişinin baz çizgisi', threshold da aynı birimde fark olarak okunur (örn. nabız +15, SpO₂ −3). False = mutlak eşik.",
+          "title": "Relative To Baseline",
+          "type": "boolean"
+        },
+        "skip_when": {
+          "description": "Bu etkinliklerde kural çalışmaz; örn. nabız sapması için ['exercise'].",
+          "items": {
+            "$ref": "#/$defs/Activity"
+          },
+          "title": "Skip When",
+          "type": "array"
         },
         "source": {
           "description": "Eşiğin kaynağı (NASA-STD-3001 vb.) veya 'HİPOTEZ'.",

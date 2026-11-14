@@ -77,3 +77,62 @@ def test_frame_needs_exactly_four_crew():
 def test_unknown_fields_rejected():
     with pytest.raises(ValidationError):
         m.Reading(value=1.0, unit="x", ts=T0, extra_field=1)
+
+
+def test_new_crew_fields_have_safe_defaults():
+    member = crew_member(1)
+    assert member.activity == "unknown"
+    assert member.cumulative_dose_msv is None
+    assert member.event_dose_msv is None
+    assert reading().baseline_delta is None
+    assert "pio2" in m.Metric.__members__ and "event_dose" in m.Metric.__members__
+
+
+def test_activity_and_doses_are_validated():
+    v = {f: reading() for f in m.CrewVitals.model_fields}
+    base = dict(id="crew-1", name="A", role="Pilot", vitals=m.CrewVitals(**v))
+    assert m.CrewMember(**base, activity="exercise").activity == "exercise"
+    with pytest.raises(ValidationError):
+        m.CrewMember(**base, activity="running")
+    with pytest.raises(ValidationError):
+        m.CrewMember(**base, cumulative_dose_msv=-1.0)
+    with pytest.raises(ValidationError):
+        m.CrewMember(**base, event_dose_msv=-0.1)
+
+
+def test_missing_value_has_no_baseline_delta():
+    assert reading(15.0, baseline_delta=15.0).baseline_delta == 15.0
+    with pytest.raises(ValidationError):
+        reading(None, quality="missing", baseline_delta=1.0)
+
+
+def rule(**kw):
+    base = dict(
+        id="hr-rise-caution",
+        metric="heart_rate",
+        severity="caution",
+        comparator=">=",
+        threshold=15.0,
+        consecutive_required=3,
+        source="HİPOTEZ",
+    )
+    base.update(kw)
+    return m.ThresholdRule(**base)
+
+
+def test_threshold_rule_new_fields_default_to_absolute_instant_rule():
+    r = rule()
+    assert r.average_window_s is None
+    assert r.relative_to_baseline is False
+    assert r.skip_when == []
+
+
+def test_threshold_rule_personal_and_windowed_options():
+    r = rule(relative_to_baseline=True, skip_when=["exercise", "sleep"])
+    assert r.relative_to_baseline is True and r.skip_when == ["exercise", "sleep"]
+    assert rule(metric="pp_co2", average_window_s=3600).average_window_s == 3600
+    assert rule(metric="pio2", severity="critical", comparator="<", threshold=127.0).metric == "pio2"
+    with pytest.raises(ValidationError):
+        rule(average_window_s=0)
+    with pytest.raises(ValidationError):
+        rule(skip_when=["running"])
