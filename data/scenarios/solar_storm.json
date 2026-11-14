@@ -214,7 +214,7 @@
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Zamanlar #14 atmosphere motoruyla birebir hizalıdır: üretim ve giderme arızadan önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün), hacim 75 m³. tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -231,18 +231,11 @@
     "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası. ranges.json'daki \"5 saniye (demo)\" ifadesinin birimi netleştirilecek."
   },
   "proposed_rules": {
-    "cabin_dose_rate_spe_caution": {
-      "condition": "doz hızı > 1000 µGy/saat (GCR tabanının ≈50 katı: olay başladı)",
-      "consecutive_required": 3,
-      "source": "varsayım (ekip tanımı)",
-      "metric": "radiation_dose_rate"
-    },
     "event_dose_projection_critical": {
-      "condition": "SEP sürüyor VE (olay dozu + doz hızı × kalan süre) ≥ 0.8 × 250 mSv",
+      "condition": "SEP sürüyor VE (olay dozu + doz hızı × kalan süre) ≥ 0.8 × 250 mSv (kişi bazlı)",
       "consecutive_required": 3,
       "source": "ranges.json radyasyon_etkisi; [V1 4031] (doğrulandı), %80 kademe (varsayım)",
-      "metric": "radiation_dose_rate",
-      "requires_contract_field": true
+      "metric": "event_dose"
     }
   },
   "events": [
@@ -267,32 +260,68 @@
   ],
   "expected_alerts": [
     {
-      "crew_id": null,
-      "metric": "radiation_dose_rate",
-      "severity": "caution",
-      "rule_id": "cabin_dose_rate_spe_caution",
-      "t_condition": 30,
-      "t_earliest": 30,
-      "t_latest": 50,
-      "evidence_metrics": [
-        "radiation_dose_rate"
-      ],
-      "why": "Doz hızı tabanın çok üstünde; DONKI kaydına dayanan SEP başladı.",
-      "recommendation": "Doz takibini başlat."
-    },
-    {
-      "crew_id": null,
-      "metric": "radiation_dose_rate",
+      "crew_id": "crew-1",
+      "metric": "event_dose",
       "severity": "critical",
       "rule_id": "event_dose_projection_critical",
       "t_condition": 30,
       "t_earliest": 30,
       "t_latest": 45,
       "evidence_metrics": [
-        "radiation_dose_rate"
+        "event_dose"
       ],
-      "why": "Tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
-      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor."
+      "why": "Ayşe için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
+      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "engine_metric": "event_dose",
+      "engine_rule_id": "karar-radyasyon_etkisi"
+    },
+    {
+      "crew_id": "crew-2",
+      "metric": "event_dose",
+      "severity": "critical",
+      "rule_id": "event_dose_projection_critical",
+      "t_condition": 30,
+      "t_earliest": 30,
+      "t_latest": 45,
+      "evidence_metrics": [
+        "event_dose"
+      ],
+      "why": "Can için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
+      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "engine_metric": "event_dose",
+      "engine_rule_id": "karar-radyasyon_etkisi"
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "event_dose",
+      "severity": "critical",
+      "rule_id": "event_dose_projection_critical",
+      "t_condition": 30,
+      "t_earliest": 30,
+      "t_latest": 45,
+      "evidence_metrics": [
+        "event_dose"
+      ],
+      "why": "Ece için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
+      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "engine_metric": "event_dose",
+      "engine_rule_id": "karar-radyasyon_etkisi"
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "event_dose",
+      "severity": "critical",
+      "rule_id": "event_dose_projection_critical",
+      "t_condition": 30,
+      "t_earliest": 30,
+      "t_latest": 45,
+      "evidence_metrics": [
+        "event_dose"
+      ],
+      "why": "Mert için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
+      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "engine_metric": "event_dose",
+      "engine_rule_id": "karar-radyasyon_etkisi"
     }
   ],
   "forbidden_alerts": [
@@ -351,8 +380,7 @@
     "note": "15 dk korumasız + 705 dk sığınakta. Uyarı dozdan önce geldiği için toplam ≈80 mSv; 250'nin çok altında."
   },
   "contract_gaps": [
-    "Sözleşmede kişi bazlı kümülatif/olay dozu alanı yok (v0.2.0 yaması Aydın'da). Radyasyon uyarıları şimdilik kabin uyarısı (crew_id=null).",
-    "ThresholdRule'da projeksiyon (tahmini doz) yok; rules.py'de özel mantık ister."
+    "ThresholdRule'da projeksiyon (tahmini doz) yok; kural motorunda (#43) özel mantık olarak işlenir."
   ],
-  "status_note": "Olay t=750'de biter; kabin nominal'e döner. Kişi durumları kişi bazlı doz alanı gelene kadar nominal."
+  "status_note": "Olay t=750'de biter; kabin ve kişi durumları nominal'e döner. Radyasyon kararı ranges.json radyasyon_etkisi gereği kişi bazlıdır (event_dose); ayrı bir kabin radyasyon uyarısı beklenmez."
 }

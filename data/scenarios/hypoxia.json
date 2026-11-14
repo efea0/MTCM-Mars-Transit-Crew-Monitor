@@ -214,7 +214,7 @@
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Zamanlar #14 atmosphere motoruyla birebir hizalıdır: üretim ve giderme arızadan önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün), hacim 75 m³. tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -335,9 +335,9 @@
       "crew_id": "crew-3",
       "activity": "resting",
       "targets": {
-        "heart_rate": 70,
-        "resp_rate": 17,
-        "spo2": 95.0
+        "heart_rate": 69,
+        "resp_rate": 19,
+        "spo2": 94.0
       },
       "ramp_min": 10,
       "note": "Egzersiz biter; dinlenmeye 10 dk rampa. 660 ve 665'te nabız hâlâ yüksek ama 2 ölçüm; 3. dinlenme ölçümünde (670) baz +11,6: eşiğin (+15) altında, kalp yükü uyarısı çıkmaz. Solunum dinlenmede +4 kalır: düşük kabin PIO2'sinde hipoksi belirtisi; SpO2 −3 ile birlikte İzle sürer (dinlenme koşulu: SpO2 VE solunum/nabız artışı). Solunum kuralı bu senaryoda yok, ayrı solunum uyarısı çıkmaz."
@@ -356,21 +356,25 @@
         "heart_rate"
       ],
       "why": "Ayşe dinlenirken nabzı kendi bazının (64) 15 üstünde (art arda 3 ölçüm).",
-      "recommendation": "Eforu azalt, izle."
+      "recommendation": "Eforu azalt, izle.",
+      "engine_metric": "heart_rate",
+      "engine_rule_id": "karar-kalp_yuku"
     },
     {
       "crew_id": null,
       "metric": "pp_o2",
       "severity": "caution",
       "rule_id": "cabin_pio2_low_caution",
-      "t_condition": 368.75,
-      "t_earliest": 368,
-      "t_latest": 403,
+      "t_condition": 362.75,
+      "t_earliest": 362,
+      "t_latest": 398,
       "evidence_metrics": [
         "pp_o2"
       ],
       "why": "Kabin PIO2 normoksi aralığının (145–155 mmHg) altına indi.",
-      "recommendation": "O2 ünitesini kontrol et, yedek O2'yi hazırla, eforu azalt."
+      "recommendation": "O2 ünitesini kontrol et, yedek O2'yi hazırla, eforu azalt.",
+      "engine_metric": "pio2",
+      "engine_rule_id": "pio2-normoxia-low"
     },
     {
       "crew_id": "crew-3",
@@ -385,7 +389,9 @@
         "pp_o2"
       ],
       "why": "Ece egzersizdeyken SpO2'si kendi bazından (98) 3 puan düştü; kabin PIO2 145'in altında. Egzersiz nabzı kanıt sayılmadı.",
-      "recommendation": "Egzersizi durdur, O2 kaynağını ve kabin PIO2'yi kontrol et."
+      "recommendation": "Egzersizi durdur, O2 kaynağını ve kabin PIO2'yi kontrol et.",
+      "engine_metric": "spo2",
+      "engine_rule_id": "karar-olasi_hipoksi"
     },
     {
       "crew_id": "crew-3",
@@ -400,21 +406,25 @@
         "pp_o2"
       ],
       "why": "Ece'nin SpO2'si bazından 6 puan düştü; kabin PIO2 normoksinin altında.",
-      "recommendation": "Egzersizi durdur, yedek O2'ye geç, Dünya'ya raporla."
+      "recommendation": "Egzersizi durdur, yedek O2'ye geç, Dünya'ya raporla.",
+      "engine_metric": "spo2",
+      "engine_rule_id": "karar-olasi_hipoksi"
     },
     {
       "crew_id": null,
       "metric": "pp_o2",
       "severity": "critical",
       "rule_id": "cabin_pio2_low_critical",
-      "t_condition": 1753.5,
-      "t_earliest": 1753,
-      "t_latest": 1800,
+      "t_condition": 1754.75,
+      "t_earliest": 1754,
+      "t_latest": 1789,
       "evidence_metrics": [
         "pp_o2"
       ],
       "why": "Kabin PIO2 127 mmHg'nin (hafif hipoksi alt sınırı, Tablo 6.2-1) altına indi.",
-      "recommendation": "Yedek O2'ye geç, Dünya'ya raporla."
+      "recommendation": "Yedek O2'ye geç, Dünya'ya raporla.",
+      "engine_metric": "pio2",
+      "engine_rule_id": "pio2-hypoxia-low"
     }
   ],
   "forbidden_alerts": [
@@ -426,7 +436,7 @@
     {
       "crew_id": "crew-3",
       "metric": "resp_rate",
-      "why": "Egzersiz solunumu alarm sayılmaz. Dinlenmedeki +4 yalnızca hipoksi kanıtıdır; bu senaryoda solunum için ayrı kural yok."
+      "why": "Egzersiz solunumu alarm sayılmaz. Dinlenmedeki +6 yalnızca hipoksi kanıtıdır; bu senaryoda solunum için ayrı kural yok."
     },
     {
       "crew_id": "crew-4",
