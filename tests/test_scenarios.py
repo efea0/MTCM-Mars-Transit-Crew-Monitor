@@ -263,8 +263,10 @@ def test_initial_pio2_is_inside_normoxia() -> None:
     s = load("hypoxia")
     th = s["thresholds"]
     assert th["pio2_normoxia_min"] <= s["cabin_initial_pio2_mmHg"] <= th["pio2_normoxia_max"]
-    kpa = s["cabin_initial_pio2_mmHg"] * 760 / (760 - WATER_VAPOR_MMHG) * PA_PER_MMHG / 1000
-    assert s["cabin_initial"]["pp_o2"]["value"] == pytest.approx(kpa, abs=0.01)
+    pp_o2 = s["cabin_initial_pio2_mmHg"] * 760 / (760 - WATER_VAPOR_MMHG)
+    assert s["cabin_initial"]["pp_o2"]["unit"] == "mmHg"
+    assert s["cabin_initial"]["pp_o2"]["value"] == pytest.approx(pp_o2, abs=0.05)
+    assert s["cabin_initial"]["cabin_pressure"]["unit"] == "mmHg"
 
 
 # ---------------------------------------------------------------- nominal

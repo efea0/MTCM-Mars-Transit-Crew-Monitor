@@ -187,8 +187,8 @@
   "cabin_initial_pio2_mmHg": 149.0,
   "cabin_initial": {
     "pp_o2": {
-      "value": 21.17,
-      "unit": "kPa",
+      "value": 158.8,
+      "unit": "mmHg",
       "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
     },
     "pp_co2": {
@@ -196,8 +196,8 @@
       "unit": "mmHg"
     },
     "cabin_pressure": {
-      "value": 101.3,
-      "unit": "kPa"
+      "value": 760,
+      "unit": "mmHg"
     },
     "cabin_temp": {
       "value": 22.0,
@@ -214,7 +214,7 @@
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Arızadan önce yaşam destek regüle (net 0) varsayılır. #14 (atmosphere.py) birleşince zamanlar motorla yeniden kontrol edilir.",
+    "note": "ranges.json (PR #16 v1.1) değerleri. Arızadan önce yaşam destek regüle (net 0) varsayılır. Zamanlar #14 motoruyla doğrulandı (nabız hedefleriyle adım adım çalıştırıldı).",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -228,7 +228,7 @@
     "co2_min": 0.52,
     "co2_max": 1.5,
     "measurement_interval_min": 5,
-    "measurement_note": "AÇIK SORU: ranges.json ölçüm aralığı 5 s (demo) ve zaman çarpanı ×600 → 50 görev dakikası; 3 art arda ölçüm 150 görev dakikası eder. Senaryolar 5 görev dakikası varsayar; Aydın'a soruldu."
+    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası. ranges.json'daki \"5 saniye (demo)\" ifadesinin birimi netleştirilecek."
   },
   "proposed_rules": {
     "crew_hr_rest_rise_caution": {
