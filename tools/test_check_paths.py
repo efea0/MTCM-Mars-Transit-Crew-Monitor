@@ -5,7 +5,15 @@ from tools import check_paths as cp
 
 @pytest.mark.parametrize(
     "branch",
-    ["feat/backend/spo2-rules", "fix/frontend/alert-list", "docs/delivery/readme", "chore/infra/ci"],
+    [
+        "feat/backend/spo2-rules",
+        "fix/frontend/alert-list",
+        "docs/delivery/readme",
+        "chore/infra/ci",
+        "test/qa/missing-data",
+        "feat/comms/light-delay",
+        "docs/reference/pio2-table",
+    ],
 )
 def test_valid_branch_names(branch):
     assert cp.BRANCH_RE.match(branch)
@@ -17,6 +25,7 @@ def test_valid_branch_names(branch):
         "baris/backend",
         "feat/spo2",
         "feat/api/spo2",
+        "feat/data/x",
         "Feat/backend/x",
         "feat/backend/Spo2_Rules",
         "feat/backend/a/b",
@@ -46,7 +55,16 @@ def test_invalid_branch_names(branch):
         ("infra", ".github/workflows/path-guard.yml", True),
         ("infra", "Makefile", True),  # sahipsiz kök dosya -> infra
         ("infra", "README.md", False),
-        ("data", "data/donki.json", True),
+        ("backend", "backend/comms.py", False),
+        ("comms", "backend/comms.py", True),
+        ("comms", "backend/rules.py", False),
+        ("qa", "tests/test_rules.py", True),
+        ("qa", "tests/test_models.py", False),
+        ("qa", "data/scenarios/o2-failure.json", True),
+        ("qa", "data/donki/sep_event.json", True),
+        ("qa", "backend/rules.py", False),
+        ("reference", "data/reference/ranges.json", True),
+        ("reference", "data/scenarios/x.json", False),
     ],
 )
 def test_area_scope(area, path, ok):
@@ -54,10 +72,13 @@ def test_area_scope(area, path, ok):
 
 
 def test_owner_lookup():
-    assert cp.owner_of("docs/contract.json") == "contract"
-    assert cp.owner_of("tests/test_models.py") == "contract"
-    assert cp.owner_of("docs/x.md") == "delivery"
-    assert cp.owner_of("Makefile") == "infra"
+    assert cp.owners_of("docs/contract.json") == ["contract"]
+    assert cp.owners_of("tests/test_models.py") == ["contract"]
+    assert cp.owners_of("tests/test_comms.py") == ["comms", "qa"]
+    assert cp.owners_of("tests/test_rules.py") == ["backend", "qa"]
+    assert cp.owners_of("docs/x.md") == ["delivery"]
+    assert cp.owners_of("Makefile") == ["infra"]
+    assert cp.owners_of("data/random.json") == []
 
 
 def test_main_accepts_only_develop():

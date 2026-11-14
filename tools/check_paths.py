@@ -23,13 +23,16 @@ FROZEN_TYPES = ("feat", "refactor")
 SLUG_MAX = 40
 
 # alan -> (izinli yollar, hariç yollar). "/" ile biten = klasör öneki, diğerleri tam yol.
+# Sahipler: backend/frontend/contract/infra -> Aydın · comms/qa -> Barış · reference/delivery -> Enis
 AREAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "backend": (
         ("backend/", "tests/", "requirements.txt"),
-        ("backend/models.py", "tests/test_models.py"),
+        ("backend/models.py", "backend/comms.py", "tests/test_models.py", "tests/test_comms.py"),
     ),
     "frontend": (("frontend/",), ()),
-    "data": (("data/",), ()),
+    "comms": (("backend/comms.py", "tests/test_comms.py"), ()),
+    "qa": (("tests/", "data/scenarios/", "data/donki/"), ("tests/test_models.py",)),
+    "reference": (("data/reference/",), ()),
     "delivery": (
         ("docs/", "README.md", "reports/", "research_notes/"),
         ("docs/contract.json",),
@@ -60,26 +63,23 @@ def _match(path: str, rule: str) -> bool:
     return path.startswith(rule) if rule.endswith("/") else path == rule
 
 
-def in_area(area: str, path: str) -> bool:
+def _explicitly_in(area: str, path: str) -> bool:
     allowed, excluded = AREAS[area]
     if any(_match(path, r) for r in excluded):
         return False
-    if any(_match(path, r) for r in allowed):
-        return True
-    # Hiçbir alana ait olmayan kök dosyalar altyapıya düşer.
-    return area == "infra" and "/" not in path and owner_of(path, root_fallback=False) is None
+    return any(_match(path, r) for r in allowed)
 
 
-def owner_of(path: str, root_fallback: bool = True) -> str | None:
-    for exact in (True, False):  # önce tam dosya, sonra klasör eşleşmesi
-        for area, (allowed, excluded) in AREAS.items():
-            if any(_match(path, r) for r in excluded):
-                continue
-            if any(r.endswith("/") != exact and _match(path, r) for r in allowed):
-                return area
-    if root_fallback and "/" not in path:
-        return "infra"
-    return None
+def owners_of(path: str) -> list[str]:
+    """Dosyaya dokunabilen alanlar. Hiçbir alana ait olmayan kök dosyalar altyapıya düşer."""
+    owners = [a for a in AREAS if _explicitly_in(a, path)]
+    if not owners and "/" not in path:
+        owners = ["infra"]
+    return owners
+
+
+def in_area(area: str, path: str) -> bool:
+    return area in owners_of(path)
 
 
 def changed_files(base_ref: str) -> list[str]:
@@ -133,7 +133,7 @@ def check(branch: str, base: str, title: str | None, base_ref: str) -> list[str]
         return errors + [f"git diff başarısız: {exc}"]
     outside = [p for p in files if not in_area(area, p)]
     for p in outside:
-        errors.append(f"Alan dışı dosya: {p} (sahibi: {owner_of(p) or 'belirsiz'} alanı)")
+        errors.append(f"Alan dışı dosya: {p} (izinli alan: {', '.join(owners_of(p)) or 'yok'})")
     if not errors:
         print(f"OK: {branch} -> {base}, {len(files)} dosya '{area}' alanında")
     return errors
