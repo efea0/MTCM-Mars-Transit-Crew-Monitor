@@ -23,7 +23,7 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
           fetch-depth: 0
-          persist-credentials: false
+          # Token yalnızca okuma yetkili (contents: read); private repodan PR commit'lerini çekmek için gerekli.
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
