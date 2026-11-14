@@ -17,7 +17,8 @@
     "dondurma": "2026-11-14T19:30:00+03:00",
     "dondurma_istisnalari": [
       "2026-11-14: vital_karar_parametreleri.kararlar.olasi_hipoksi koşuluna egzersiz istisnası eklendi (Barış'ın isteği, Efe'nin onayı). Hiçbir sayısal değer değişmedi; kalp_yuku kuralıyla ve hypoxia senaryosuyla tutarlılık için.",
-      "2026-11-14: Kaynak denetimi (Efe). NASA-STD-3001 Vol 2 Rev F (onay 2026-07-14) Rev E'nin yerini aldı; Tablo 6.2-1, [V2 6003], [V2 6004], [V2 6006] Rev F metninde aynı. Tek sayısal değişiklik: giysi.pico2_limitleri 4,0–7,0 mmHg kademesi 7,0 → 8,0 saat/gün (Rev F Tablo 11.3-1). giyside_toplam_sure_max (14 saat) Rev F'te yok → kısmen. Metabolik oranlar OCHMO-TB-004 Rev D tablosundan %2–4 farklı → kısmen (sayılar aynı). mars_yuzeyi_orani yalnızca emilen doz için → kısmen. Denizaltı CO2 %0,8 NRC 2007 Tablo S-1 ile doğrulandı. Motorun ve kuralların kullandığı hiçbir eşik değişmedi."
+      "2026-11-14: Kaynak denetimi (Efe). NASA-STD-3001 Vol 2 Rev F (onay 2026-07-14) Rev E'nin yerini aldı; Tablo 6.2-1, [V2 6003], [V2 6004], [V2 6006] Rev F metninde aynı. Tek sayısal değişiklik: giysi.pico2_limitleri 4,0–7,0 mmHg kademesi 7,0 → 8,0 saat/gün (Rev F Tablo 11.3-1). giyside_toplam_sure_max (14 saat) Rev F'te yok → kısmen. Metabolik oranlar OCHMO-TB-004 Rev D tablosundan %2–4 farklı → kısmen (sayılar aynı). mars_yuzeyi_orani yalnızca emilen doz için → kısmen. Denizaltı CO2 %0,8 NRC 2007 Tablo S-1 ile doğrulandı. Motorun ve kuralların kullandığı hiçbir eşik değişmedi.",
+      "2026-11-14: olcum_araligi birimi saniye (demo) yerine görev dakikası olarak düzeltildi; hiçbir eşik veya karar değişmedi (Efe'nin onayı)."
     ],
     "kural": "Bu dosya motorun ve uyarıların tek kaynağıdır. Dondurmadan sonra değer değişmez. Her kayıtta 'kaynak' ve 'status' alanı zorunludur. Doğrulanamayan kayıtta kaynak 'varsayım' ile başlar.",
     "status_degerleri": {
@@ -219,7 +220,7 @@
   "vital_karar_parametreleri": {
     "_not": "Hepsi demo parametresidir, tıbbi eşik değildir. Karar tek ölçümle değil, art_arda_olcum kadar ardışık ölçümle tetiklenir.",
     "art_arda_olcum": { "deger": 3, "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
-    "olcum_araligi": { "deger": 5, "birim": "saniye (demo)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
+    "olcum_araligi": { "deger": 5, "birim": "görev dakikası (demoda gerçek 0,5 sn, ×600)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
     "baz_cizgi": {
       "astronotlar": [
         { "id": 1, "nabiz": 64, "spo2": 98, "isi": 36.6, "solunum": 14 },
