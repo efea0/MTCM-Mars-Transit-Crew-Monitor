@@ -249,7 +249,7 @@
     {
       "t_min": 30,
       "type": "sep_onset",
-      "ref": "2024-05-09T13:59:00-SEP-001",
+      "ref": "2024-05-10T13:35:00-SEP-001",
       "note": "DONKI kaydı tetiklenir; doz hızı ≈16 667 µGy/saat (25 mSv/saat efektif, varsayım). Tahmini olay süresi 12 saat."
     },
     {
@@ -319,10 +319,12 @@
   },
   "donki": {
     "file": "data/donki/sep_event.json",
-    "sepID": "2024-05-09T13:59:00-SEP-001",
-    "event_time": "2024-05-09T13:59Z",
-    "linked_flare": "2024-05-09T08:45:00-FLR-001",
-    "notification": "20240509-AL-004 (2024-05-09T14:00Z)",
+    "sepID": "2024-05-10T13:35:00-SEP-001",
+    "event_time": "2024-05-10T13:35Z",
+    "instrument": "GOES-P: SEISS >10 MeV",
+    "linked_flare": "2024-05-10T06:27:00-FLR-001",
+    "linked_events_count": 14,
+    "notification": "20240510-AL-004 (2024-05-10T13:46Z)",
     "note": "DONKI yalnızca zamanı ve bağlantıları verir. Doz büyüklüğü demo seçimidir; ekranda 'doz (simüle)'."
   },
   "dose_assumptions": {

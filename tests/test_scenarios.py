@@ -418,3 +418,7 @@ def test_solar_storm_matches_saved_donki_event() -> None:
     assert s["donki"]["sepID"] == selected["sepID"]
     assert s["donki"]["event_time"] == selected["eventTime"]
     assert s["donki"]["linked_flare"] in [e["activityID"] for e in selected["linkedEvents"]]
+    assert s["donki"]["linked_events_count"] == len(selected["linkedEvents"])
+    names = [i["displayName"] for i in selected["instruments"]]
+    assert s["donki"]["instrument"] in names
+    assert not s["donki"]["instrument"].startswith("MODEL:"), "senaryo ölçülmüş olaya dayanmalı"
