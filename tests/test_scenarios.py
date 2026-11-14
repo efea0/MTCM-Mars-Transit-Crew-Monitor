@@ -1,0 +1,209 @@
+"""Senaryo dosyaları (data/scenarios/*.json) için tutarlılık testleri — sahibi: Barış (qa).
+
+simulator.py ve rules.py yazılmadan önce de çalışır. İki şeyi denetler:
+1. Biçim: dosya adı = Scenario enum değeri, crew/metric/severity sözleşmeyle uyumlu, zamanlar mantıklı.
+2. Beklenen karar tablosundaki zaman pencereleri, senaryodaki varsayımlardan yeniden hesaplanan anı kapsar.
+   Biri bir sayıyı değiştirip tabloyu güncellemeyi unutursa test kırılır.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from backend import models as m
+
+SCENARIO_DIR = Path(__file__).resolve().parent.parent / "data" / "scenarios"
+SCENARIO_FILES = sorted(SCENARIO_DIR.glob("*.json"))
+
+CREW_METRICS = set(m.CrewVitals.model_fields)
+CABIN_METRICS = set(m.CabinAtmosphere.model_fields) - {"status"}
+SEVERITIES = {s.value for s in m.Severity}
+STATUSES = {s.value for s in m.Status}
+
+MMHG_PER_KPA = 7.50062
+GAS_CONSTANT = 8.314
+O2_MOLAR_KG = 0.032
+
+
+def load(name: str) -> dict[str, Any]:
+    return json.loads((SCENARIO_DIR / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def find_alert(s: dict[str, Any], crew_id: str | None, metric: str, severity: str) -> dict[str, Any]:
+    for a in s["expected_alerts"]:
+        if (a["crew_id"], a["metric"], a["severity"]) == (crew_id, metric, severity):
+            return a
+    raise AssertionError(f"beklenen uyarı yok: {crew_id} {metric} {severity}")
+
+
+def assert_in_window(t: float, alert: dict[str, Any]) -> None:
+    lo, hi = alert["t_earliest"], alert["t_latest"]
+    assert lo <= t <= hi, f"{alert['rule_id']}: hesaplanan t={t:.1f}, pencere [{lo}, {hi}]"
+
+
+def ramp_cross_time(event: dict[str, Any], baseline: dict[str, float], metric: str, z: float) -> float:
+    """Doğrusal rampada metriğin baz + z·sd değerini geçtiği görev dakikası."""
+    slope = (event["targets"][metric] - baseline["mean"]) / event["ramp_min"]
+    return event["t_min"] + z * baseline["sd"] / slope
+
+
+# ---------------------------------------------------------------- tüm senaryolar: biçim
+
+
+def test_scenario_dir_has_files() -> None:
+    assert SCENARIO_FILES, "data/scenarios/ boş"
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_scenario_format(path: Path) -> None:
+    s = json.loads(path.read_text(encoding="utf-8"))
+    assert s["scenario"] == path.stem, "dosya adı ile scenario alanı aynı olmalı (AGENTS.md §5)"
+    assert s["scenario"] in {sc.value for sc in m.Scenario}
+    assert s["simulated"] is True
+    assert s["seed"] == 42, "demo tekrarlanabilir olmalı"
+
+    crew_ids = [c["id"] for c in s["crew"]]
+    assert crew_ids == [f"crew-{i}" for i in range(1, m.CREW_SIZE + 1)]
+    for c in s["crew"]:
+        assert set(c["baseline"]) == CREW_METRICS, c["id"]
+        assert all(b["sd"] > 0 for b in c["baseline"].values())
+    assert set(s["cabin_initial"]) == CABIN_METRICS
+
+    for e in s["events"]:
+        assert 0 <= e["t_min"] <= s["duration_min"], e
+        assert e.get("crew_id") in {*crew_ids, None}, e
+        assert set(e.get("targets", {})) <= CREW_METRICS, e
+
+    for a in s["expected_alerts"]:
+        assert a["severity"] in SEVERITIES
+        assert a["t_earliest"] <= a["t_latest"] <= s["duration_min"]
+        assert a["why"] and a["recommendation"], "her uyarının nedeni ve önerisi olmalı"
+        assert a["evidence_metrics"], "Alert.why en az bir kanıt ister"
+        assert a["rule_id"] in s["proposed_rules"], a["rule_id"]
+        allowed = CABIN_METRICS if a["crew_id"] is None else CREW_METRICS
+        assert a["metric"] in allowed, a
+        assert a["crew_id"] in {*crew_ids, None}
+        assert set(a["evidence_metrics"]) <= CREW_METRICS | CABIN_METRICS
+
+    assert set(s["expected_status_end"]) == {*crew_ids, "cabin"}
+    assert set(s["expected_status_end"].values()) <= STATUSES
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_expected_and_forbidden_do_not_overlap(path: Path) -> None:
+    s = json.loads(path.read_text(encoding="utf-8"))
+    expected = {(a["crew_id"], a["metric"]) for a in s["expected_alerts"]}
+    forbidden = {(f["crew_id"], f["metric"]) for f in s.get("forbidden_alerts", [])}
+    assert not expected & forbidden, f"hem bekleniyor hem yasak: {expected & forbidden}"
+
+
+# ---------------------------------------------------------------- hypoxia
+
+
+@pytest.fixture(scope="module")
+def hypoxia() -> dict[str, Any]:
+    return load("hypoxia")
+
+
+@pytest.fixture(scope="module")
+def baselines(hypoxia: dict[str, Any]) -> dict[str, dict[str, dict[str, float]]]:
+    return {c["id"]: c["baseline"] for c in hypoxia["crew"]}
+
+
+def o2_drop_kpa_per_hour(s: dict[str, Any]) -> float:
+    v = s["assumptions"]
+    kg_per_hour = v["crew_count"] * v["o2_consumption_kg_per_person_day"] / 24
+    pa_per_kg = (1 / O2_MOLAR_KG) * GAS_CONSTANT * v["temperature_K"] / v["free_volume_m3"]
+    return kg_per_hour * pa_per_kg / 1000
+
+
+def kpa_time(s: dict[str, Any], level_kpa: float) -> float:
+    fail = next(e for e in s["events"] if e["type"] == "o2_generation_rate")
+    start = s["cabin_initial"]["pp_o2"]["value"]
+    return fail["t_min"] + (start - level_kpa) / o2_drop_kpa_per_hour(s) * 60
+
+
+def test_hypoxia_cabin_values_match_pio2(hypoxia: dict[str, Any]) -> None:
+    v = hypoxia["assumptions"]
+    dry = (v["total_pressure_mmHg"] - v["water_vapor_mmHg"]) / v["total_pressure_mmHg"]
+    pio2_start = hypoxia["cabin_initial"]["pp_o2"]["value"] * MMHG_PER_KPA * dry
+    pio2_limit = hypoxia["proposed_rules"]["cabin_pp_o2_low_warning"]["threshold"] * MMHG_PER_KPA * dry
+    assert pio2_start == pytest.approx(149, abs=0.5)
+    assert pio2_limit == pytest.approx(139, abs=0.5)
+
+
+def test_hypoxia_cabin_alert_timings(hypoxia: dict[str, Any]) -> None:
+    rules = hypoxia["proposed_rules"]
+    t_caution = kpa_time(hypoxia, rules["cabin_pp_o2_low_caution"]["threshold"])
+    t_warning = kpa_time(hypoxia, rules["cabin_pp_o2_low_warning"]["threshold"])
+    assert_in_window(t_caution, find_alert(hypoxia, None, "pp_o2", "caution"))
+    assert_in_window(t_warning, find_alert(hypoxia, None, "pp_o2", "warning"))
+    assert_in_window(t_warning, find_alert(hypoxia, "crew-3", "spo2", "warning"))
+
+    fail_t = next(e for e in hypoxia["events"] if e["type"] == "o2_generation_rate")["t_min"]
+    countdown = hypoxia["expected_countdown"]
+    computed = t_warning - (fail_t + 1)
+    assert computed == pytest.approx(countdown["o2_min_at_t11"], rel=countdown["tolerance_pct"] / 100)
+
+
+def test_hypoxia_crew3_exercising_when_spo2_drops(
+    hypoxia: dict[str, Any], baselines: dict[str, dict[str, dict[str, float]]]
+) -> None:
+    exercise = next(
+        e for e in hypoxia["events"] if e.get("crew_id") == "crew-3" and e.get("activity") == "exercise"
+    )
+    drop = next(e for e in hypoxia["events"] if e.get("crew_id") == "crew-3" and "spo2" in e["targets"])
+    spo2 = baselines["crew-3"]["spo2"]
+
+    t_caution = ramp_cross_time(drop, spo2, "spo2", -2)
+    t_z3 = ramp_cross_time(drop, spo2, "spo2", -3)
+    caution = find_alert(hypoxia, "crew-3", "spo2", "caution")
+    warning = find_alert(hypoxia, "crew-3", "spo2", "warning")
+    assert_in_window(t_caution, caution)
+    assert t_z3 < warning["t_earliest"], "uyarı anında SpO2 zaten 3 SD altında olmalı"
+
+    # Astronot 3, hipoksi kararlarının ikisi sırasında da egzersizde
+    for a in (caution, warning):
+        assert exercise["t_min"] <= a["t_earliest"] and a["t_latest"] <= exercise["end_min"], a["rule_id"]
+    # Kişi uyarısı, kabin alt sınırı aşılmadan önce gelir (erken uyarı)
+    assert caution["t_latest"] < find_alert(hypoxia, None, "pp_o2", "warning")["t_earliest"]
+
+
+def test_hypoxia_exercise_heart_rate_is_not_evidence(hypoxia: dict[str, Any]) -> None:
+    forbidden = {(f["crew_id"], f["metric"]) for f in hypoxia["forbidden_alerts"]}
+    assert ("crew-3", "heart_rate") in forbidden
+    assert ("crew-3", "resp_rate") in forbidden
+    for a in hypoxia["expected_alerts"]:
+        if a["crew_id"] == "crew-3":
+            assert not {"heart_rate", "resp_rate"} & set(a["evidence_metrics"]), a["rule_id"]
+            assert "pp_o2" in a["evidence_metrics"], "hipoksi kararı ortamla birleştirilir"
+    guarded = {f["rule_id"] for f in hypoxia["forbidden_evidence"] if f["crew_id"] == "crew-3"}
+    assert guarded == {"crew_hypoxia_caution", "crew_hypoxia_warning"}
+
+
+def test_hypoxia_personal_heart_rate_deviation(
+    hypoxia: dict[str, Any], baselines: dict[str, dict[str, dict[str, float]]]
+) -> None:
+    drift = next(e for e in hypoxia["events"] if e.get("crew_id") == "crew-2")
+    assert drift["activity"] == "resting"
+    hr2, hr4 = baselines["crew-2"]["heart_rate"], baselines["crew-4"]["heart_rate"]
+
+    assert_in_window(
+        ramp_cross_time(drift, hr2, "heart_rate", 2), find_alert(hypoxia, "crew-2", "heart_rate", "caution")
+    )
+    assert_in_window(
+        ramp_cross_time(drift, hr2, "heart_rate", 3), find_alert(hypoxia, "crew-2", "heart_rate", "warning")
+    )
+
+    # Aynı nabız: crew-2 için alarm, crew-4 için normal (sabit eşik ikisini aynı boyardı)
+    final_hr = drift["targets"]["heart_rate"]
+    assert (final_hr - hr2["mean"]) / hr2["sd"] >= 3
+    assert abs(final_hr - hr4["mean"]) / hr4["sd"] < 2
+    assert ("crew-4", "heart_rate") in {(f["crew_id"], f["metric"]) for f in hypoxia["forbidden_alerts"]}
+    assert ("crew-2", "spo2") in {(f["crew_id"], f["metric"]) for f in hypoxia["forbidden_alerts"]}
+    assert hypoxia["expected_status_end"]["crew-2"] == "warning"
+    assert hypoxia["expected_status_end"]["crew-4"] == "nominal"
