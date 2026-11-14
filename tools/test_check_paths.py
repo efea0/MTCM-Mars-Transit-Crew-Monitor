@@ -137,3 +137,18 @@ def test_renames_and_unicode_paths(tmp_path, monkeypatch):
     files = cp.changed_files("develop")
     assert "backend/models.py" in files and "backend/schemas.py" in files
     assert "reports/görev planı.md" in files
+
+
+def test_role_limits_areas(monkeypatch):
+    monkeypatch.setattr(cp, "changed_files", lambda *_: ["tests/test_rules.py"])
+    assert cp.check("test/qa/rules", "develop", None, "x", role="baris") == []
+    errors = cp.check("feat/backend/rules", "develop", None, "x", role="baris")
+    assert any("rolüne ait değil" in e for e in errors)
+    assert cp.check("feat/backend/x", "develop", None, "x", role="nobody")
+
+
+def test_read_role(tmp_path):
+    f = tmp_path / ".agent-role"
+    assert cp.read_role(str(f)) is None
+    f.write_text("baris\n# not\n", encoding="utf-8")
+    assert cp.read_role(str(f)) == "baris"

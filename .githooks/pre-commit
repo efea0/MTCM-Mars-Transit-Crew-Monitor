@@ -1,0 +1,17 @@
+#!/bin/sh
+# Proje yasası, yerel denetim (AGENTS.md §2-4). Atlatmak (--no-verify) yasaktır.
+PY=$(command -v python || command -v python3)
+branch=$(git symbolic-ref --short HEAD 2>/dev/null) || exit 0
+case "$branch" in
+  main|develop)
+    echo "HATA: '$branch' üzerine commit atılmaz. Önce: git switch -c <tür>/<alan>/<kısa-açıklama>" >&2
+    exit 1 ;;
+esac
+"$PY" tools/check_paths.py "$branch" --staged || exit 1
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
+if [ -n "$files" ]; then
+  if ! "$PY" -m ruff check $files || ! "$PY" -m ruff format --check $files; then
+    echo "HATA: ruff temiz değil. Çalıştır: ruff format . && ruff check ." >&2
+    exit 1
+  fi
+fi
