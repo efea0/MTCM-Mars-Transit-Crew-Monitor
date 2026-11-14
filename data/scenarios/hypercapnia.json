@@ -290,11 +290,11 @@
       "crew_id": "crew-3",
       "activity": "resting",
       "targets": {
-        "resp_rate": 18,
+        "resp_rate": 19,
         "heart_rate": 68
       },
       "ramp_min": 30,
-      "note": "Ece'de solunum artar (13 → 18, +5). Nabız 58 → 68 (+10) dinlenme eşiğinin altında. Kabin ppCO2 bu sırada ≥ 2,8 mmHg (NASA baş ağrısı aralığı)."
+      "note": "Ece'de solunum artar (13 → 19, +6). Nabız 58 → 68 (+10) dinlenme eşiğinin altında. Kabin ppCO2 bu sırada ≥ 2,8 mmHg (NASA baş ağrısı aralığı)."
     }
   ],
   "expected_alerts": [
@@ -310,22 +310,26 @@
         "pp_co2"
       ],
       "why": "Kabin ppCO2 2.5 mmHg'yi geçti (sarı kademe).",
-      "recommendation": "CO2 giderme ünitesini kontrol et, egzersizi ertele."
+      "recommendation": "CO2 giderme ünitesini kontrol et, egzersizi ertele.",
+      "engine_metric": "pp_co2",
+      "engine_rule_id": "ppco2-caution"
     },
     {
       "crew_id": "crew-3",
       "metric": "resp_rate",
       "severity": "caution",
       "rule_id": "crew_co2_effect_caution",
-      "t_condition": 505.0,
-      "t_earliest": 505,
-      "t_latest": 530,
+      "t_condition": 501.0,
+      "t_earliest": 501,
+      "t_latest": 526,
       "evidence_metrics": [
         "resp_rate",
         "pp_co2"
       ],
-      "why": "Kabin ppCO2 2,5 üstündeyken Ece'nin solunumu bazından (13) 4 fazla.",
-      "recommendation": "Dinlen, CO2 gidermeyi güçlendir, belirtileri izle."
+      "why": "Kabin ppCO2 2,5 üstündeyken Ece'nin solunumu bazından (13) en az 4 fazla (+6'ya çıkar).",
+      "recommendation": "Dinlen, CO2 gidermeyi güçlendir, belirtileri izle.",
+      "engine_metric": "pp_co2",
+      "engine_rule_id": "karar-olasi_co2_etkisi"
     },
     {
       "crew_id": null,
@@ -339,7 +343,9 @@
         "pp_co2"
       ],
       "why": "ppCO2'nin 1 saatlik ortalaması 3.0 mmHg'yi aştı [V2 6004].",
-      "recommendation": "Yedek CO2 gidermeyi devreye al, eforu en aza indir, Dünya'ya raporla."
+      "recommendation": "Yedek CO2 gidermeyi devreye al, eforu en aza indir, Dünya'ya raporla.",
+      "engine_metric": "pp_co2",
+      "engine_rule_id": "ppco2-limit"
     },
     {
       "crew_id": "crew-3",
@@ -354,7 +360,9 @@
         "pp_co2"
       ],
       "why": "Ece'de belirti sürüyor ve kabin 1 saatlik ortalaması sınırın üstünde.",
-      "recommendation": "Egzersizi durdur, seviye 3 mmHg altına inene kadar izle, Dünya'ya raporla."
+      "recommendation": "Egzersizi durdur, seviye 3 mmHg altına inene kadar izle, Dünya'ya raporla.",
+      "engine_metric": "pp_co2",
+      "engine_rule_id": "karar-olasi_co2_etkisi"
     }
   ],
   "forbidden_alerts": [
