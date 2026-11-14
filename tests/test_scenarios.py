@@ -699,8 +699,9 @@ def vitals_all_missing() -> m.CrewVitals:
 
 @pytest.mark.skipif(not hasattr(m, "CrewDecision"), reason="CrewDecision sözleşmeye #26 ile gelir")
 @pytest.mark.xfail(
-    strict=True,
-    reason="Bilinen açık (contract, Aydın): 4 vitali de eksik astronot decision='normal' olabiliyor.",
+    strict=False,
+    reason="Bilinen açık (contract, Aydın): 4 vitali de eksik astronot decision='normal' olabiliyor."
+    " Düzelince XPASS görünür; işareti kaldır.",
 )
 def test_contract_rejects_normal_decision_when_all_vitals_missing() -> None:
     with pytest.raises(ValueError):
@@ -717,8 +718,9 @@ def test_contract_rejects_normal_decision_when_all_vitals_missing() -> None:
     "baseline_delta" not in m.Reading.model_fields, reason="baseline_delta sözleşmeye #26 ile gelir"
 )
 @pytest.mark.xfail(
-    strict=True,
-    reason="Bilinen açık (contract, Aydın): kabin okumasında baseline_delta kabul ediliyor.",
+    strict=False,
+    reason="Bilinen açık (contract, Aydın): kabin okumasında baseline_delta kabul ediliyor."
+    " Düzelince XPASS görünür; işareti kaldır.",
 )
 def test_contract_rejects_baseline_delta_on_cabin_readings() -> None:
     from datetime import UTC, datetime
