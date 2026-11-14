@@ -28,6 +28,7 @@ MMHG_PER_KPA = 7.50062
 GAS_CONSTANT = 8.314
 O2_MOLAR_KG = 0.032
 CO2_MOLAR_KG = 0.04401
+REST_RULE_Z = 2.0  # crew_hr_rest_z_caution ve benzeri dinlenme kurallarının en düşük eşiği
 REQUIRED_SCENARIOS = {"nominal", "hypoxia", "hypercapnia", "solar_storm"}
 
 
@@ -101,6 +102,38 @@ def test_expected_and_forbidden_do_not_overlap(path: Path) -> None:
     expected = {(a["crew_id"], a["metric"]) for a in s["expected_alerts"]}
     forbidden = {(f["crew_id"], f["metric"]) for f in s.get("forbidden_alerts", [])}
     assert not expected & forbidden, f"hem bekleniyor hem yasak: {expected & forbidden}"
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_resting_targets_of_forbidden_metrics_stay_below_rest_rules(path: Path) -> None:
+    """Dinlenen kişinin yasak listesindeki vitali dinlenme kuralını tetiklememeli (|z| < 2).
+
+    Örnek: egzersiz sonrası toparlanmada crew-3'ün nabzı 80'e çıkarsa (z=3,4) crew_hr_rest_z_* kuralları
+    nabız uyarısı üretir; oysa crew-3 heart_rate yasak. Dosya kendi içinde çelişmiş olur.
+    """
+    s = json.loads(path.read_text(encoding="utf-8"))
+    base = {c["id"]: c["baseline"] for c in s["crew"]}
+    forbidden = {(f["crew_id"], f["metric"]) for f in s.get("forbidden_alerts", [])}
+    for e in s["events"]:
+        if e.get("activity") == "exercise" or not e.get("crew_id"):
+            continue
+        for metric, target in e.get("targets", {}).items():
+            if (e["crew_id"], metric) not in forbidden:
+                continue
+            b = base[e["crew_id"]][metric]
+            z = (target - b["mean"]) / b["sd"]
+            assert (
+                abs(z) < REST_RULE_Z
+            ), f"t={e['t_min']} {e['crew_id']} {metric}={target} z={z:+.2f} ama yasak"
+
+
+@pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
+def test_crew_rules_using_cabin_evidence_declare_cabin_condition(path: Path) -> None:
+    """Kişi uyarısı kabin metriğini kanıt gösteriyorsa, kuralı da kabin koşulunu içermeli."""
+    s = json.loads(path.read_text(encoding="utf-8"))
+    for a in s["expected_alerts"]:
+        if a["crew_id"] and set(a["evidence_metrics"]) & CABIN_METRICS:
+            assert "also_requires" in s["proposed_rules"][a["rule_id"]], a["rule_id"]
 
 
 # ---------------------------------------------------------------- hypoxia
@@ -281,11 +314,10 @@ def test_hypercapnia_timings() -> None:
     ), "belirti NASA baş ağrısı aralığında başlamalı"
 
     base = {c["id"]: c["baseline"] for c in s["crew"]}["crew-3"]
-    t_both = max(
-        ramp_cross_time(symptom, base["resp_rate"], "resp_rate", 2),
-        ramp_cross_time(symptom, base["heart_rate"], "heart_rate", 2),
-    )
-    assert_in_window(t_both, by_rule(s, "crew_co2_effect_caution"))
+    # Kişi koşulu yalnızca solunum (ranges.json olasi_co2_etkisi); kabin 2,5 mmHg'yi daha önce geçmiş olmalı
+    t_rr = ramp_cross_time(symptom, base["resp_rate"], "resp_rate", 2)
+    assert t_at(rules["cabin_pp_co2_caution"]["threshold"]) < t_rr
+    assert_in_window(t_rr, by_rule(s, "crew_co2_effect_caution"))
     assert by_rule(s, "crew_co2_effect_warning")["t_latest"] >= t_limit_avg
 
 

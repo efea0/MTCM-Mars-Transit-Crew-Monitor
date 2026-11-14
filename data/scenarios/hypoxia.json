@@ -73,7 +73,7 @@
     "cabin_pp_o2_low_warning": {"metric": "pp_o2", "comparator": "<", "threshold": 19.75, "consecutive_required": 3, "source": "[V2 6003] PIO2 139 mmHg alt sınırının kabin karşılığı (kısmen doğrulandı)"},
     "crew_hr_rest_z_caution": {"metric": "heart_rate", "z": 2.0, "consecutive_required": 3, "only_when": "resting", "source": "HİPOTEZ (demo parametresi)"},
     "crew_hr_rest_z_warning": {"metric": "heart_rate", "z": 3.0, "consecutive_required": 5, "only_when": "resting", "source": "HİPOTEZ (demo parametresi)"},
-    "crew_hypoxia_caution": {"metric": "spo2", "z": -2.0, "consecutive_required": 3, "source": "HİPOTEZ (demo parametresi)"},
+    "crew_hypoxia_caution": {"metric": "spo2", "z": -2.0, "consecutive_required": 3, "also_requires": "cabin pp_o2 < 20.5 kPa (cabin_pp_o2_low_caution aktif)", "source": "HİPOTEZ (demo parametresi)"},
     "crew_hypoxia_warning": {"metric": "spo2", "z": -3.0, "consecutive_required": 3, "also_requires": "cabin pp_o2 < 19.75 kPa", "source": "HİPOTEZ + [V2 6003]"},
     "exercise_rule": "Egzersizde nabız ve solunum artışı beklenir: heart_rate/resp_rate kuralları çalışmaz ve hipoksi kararında kanıt olarak kullanılmaz. Hipoksi kararı SpO2 + kabin pp_o2 ile verilir. Egzersizde SpO2 normalde sabit kalır; düşmesi bu yüzden anlamlıdır."
   },
@@ -90,8 +90,8 @@
      "targets": {"spo2": 93.5}, "ramp_min": 30,
      "note": "Egzersiz sırasında Ece'nin SpO2'si düşer. Demo için abartılı: gerçekte PIO2 ≈ 139 mmHg'de egzersiz desatürasyonu daha küçüktür. Ekranda 'SİMÜLE'."},
     {"t_min": 815, "type": "vital_ramp", "crew_id": "crew-3", "activity": "resting",
-     "targets": {"heart_rate": 80, "resp_rate": 18, "spo2": 95.5}, "ramp_min": 20,
-     "note": "Egzersiz biter. SpO2 kısmen toparlanır ama kabin alt sınırın altında olduğu için baz çizginin 3 SD altında kalır."}
+     "targets": {"heart_rate": 74, "resp_rate": 17, "spo2": 95.5}, "ramp_min": 20,
+     "note": "Egzersiz biter. Nabız ve solunum dinlenme kurallarının altında kalır (74 bpm z=1,71; 17/dk z=1,33), ayrı nabız/solunum uyarısı çıkmaz. SpO2 kısmen toparlanır ama kabin alt sınırın altında olduğu için baz çizginin 3 SD altında kalır."}
   ],
   "expected_alerts": [
     {"crew_id": "crew-2", "metric": "heart_rate", "severity": "caution", "rule_id": "crew_hr_rest_z_caution",

@@ -210,18 +210,20 @@
     "crew_co2_effect_caution": {
       "metric": "resp_rate",
       "z": 2.0,
-      "also_requires": "heart_rate z ≥ 2 ve kabin pp_co2 ≥ 2,5 mmHg",
+      "also_requires": "kabin pp_co2 ≥ 2,5 mmHg (cabin_pp_co2_caution aktif)",
       "consecutive_required": 3,
       "only_when": "resting",
-      "source": "HİPOTEZ (demo parametresi)"
+      "source": "HİPOTEZ (demo parametresi)",
+      "note": "Kişi koşulu yalnızca solunum (ranges.json olasi_co2_etkisi ile aynı). Nabız kanıt olarak eklenebilir ama koşul değildir."
     },
     "crew_co2_effect_warning": {
       "metric": "resp_rate",
       "z": 2.0,
-      "also_requires": "heart_rate z ≥ 2 ve kabin 1 saatlik ortalama > 3 mmHg",
+      "also_requires": "kabin 1 saatlik ortalama > 3 mmHg (cabin_pp_co2_warning aktif)",
       "consecutive_required": 3,
       "only_when": "resting",
-      "source": "HİPOTEZ + [V2 6004]"
+      "source": "HİPOTEZ + [V2 6004]",
+      "note": "Kişi koşulu yalnızca solunum (ranges.json olasi_co2_etkisi ile aynı). Nabız kanıt olarak eklenebilir ama koşul değildir."
     }
   },
   "events": [
@@ -238,10 +240,10 @@
       "activity": "resting",
       "targets": {
         "resp_rate": 19,
-        "heart_rate": 76
+        "heart_rate": 74
       },
       "ramp_min": 30,
-      "note": "Ece'de solunum ve nabız artar. Kabin pp_co2 bu sırada ≈2,84 mmHg, NASA'nın baş ağrısı bildirdiği aralıkta."
+      "note": "Ece'de solunum artar (19/dk, z=2,67), nabız hafif yükselir (74, z=1,71: dinlenme nabız kuralının altında, ayrı kalp yükü uyarısı çıkmaz). Kabin pp_co2 bu sırada ≈2,84 mmHg, NASA'nın baş ağrısı bildirdiği aralıkta."
     }
   ],
   "expected_alerts": [
@@ -267,10 +269,9 @@
       "t_latest": 175,
       "evidence_metrics": [
         "resp_rate",
-        "heart_rate",
         "pp_co2"
       ],
-      "why": "Kabin pp_co2 yükselirken Ece'nin solunumu ve nabzı kendi baz çizgisinin 2 SD üstünde. İkisi birlikte t≈156'da sağlanır.",
+      "why": "Kabin pp_co2 2,5 mmHg üstündeyken Ece'nin solunum hızı kendi baz çizgisinin 2 SD üstünde (art arda ölçüm). Hesaplanan an: t≈152,5.",
       "recommendation": "Dinlen, CO2 gidermeyi güçlendir, belirtileri izle."
     },
     {
@@ -295,7 +296,6 @@
       "t_latest": 195,
       "evidence_metrics": [
         "resp_rate",
-        "heart_rate",
         "pp_co2"
       ],
       "why": "Ece'nin belirtileri sürüyor ve kabin 1 saatlik ortalaması sınırın üstünde.",
@@ -321,7 +321,7 @@
     {
       "crew_id": "crew-3",
       "metric": "heart_rate",
-      "why": "Nabız, CO2 kararının kanıtı; ayrı kalp yükü uyarısı çift alarm olur."
+      "why": "Nabız 74 (z=1,71) dinlenme nabız kuralının altında; ayrı kalp yükü uyarısı çift alarm olur."
     },
     {
       "crew_id": "crew-3",
