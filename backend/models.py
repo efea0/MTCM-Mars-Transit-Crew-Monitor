@@ -73,8 +73,8 @@ class Metric(str, Enum):
     diastolic_bp = "diastolic_bp"  # mmHg
     # kabin
     pp_co2 = "pp_co2"  # mmHg
-    pp_o2 = "pp_o2"  # kPa
-    cabin_pressure = "cabin_pressure"  # kPa
+    pp_o2 = "pp_o2"  # mmHg (kabin kısmi basıncı; PIO₂ değil)
+    cabin_pressure = "cabin_pressure"  # mmHg
     cabin_temp = "cabin_temp"  # °C
     rel_humidity = "rel_humidity"  # %
     radiation_dose_rate = "radiation_dose_rate"  # µGy/saat
@@ -114,7 +114,7 @@ class Reading(_Model):
     """Tek bir sensör okuması. value=None ise quality 'ok' olamaz."""
 
     value: float | None = Field(description="Ölçülen değer; veri yoksa null.")
-    unit: str = Field(description="Örn. 'bpm', '%', 'mmHg', 'kPa'.")
+    unit: str = Field(description="Örn. 'bpm', '%', 'mmHg'.")
     ts: datetime = Field(description="Ölçüm zamanı (UTC, ISO-8601).")
     quality: Quality = Quality.ok
     status: Status = Field(
