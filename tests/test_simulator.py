@@ -19,6 +19,11 @@ from backend.simulator import SIMULATION_EPOCH, SimulationFinished, Simulator
 REAL_DATA = Path(__file__).resolve().parents[1] / "data"
 INTERVAL_MIN = 5
 SECONDS_PER_MIN = 60
+CONSECUTIVE_MEASUREMENTS = 3
+CABIN_PCO2_MMHG = 2.0
+PIO2_CAUTION_MMHG = 145
+PIO2_CRITICAL_MMHG = 127
+PIO2_RULES = {PIO2_CAUTION_MMHG: "cabin_pio2_low_caution", PIO2_CRITICAL_MMHG: "cabin_pio2_low_critical"}
 BASELINES = {
     "heart_rate": (64.0, 2.0),
     "hrv_rmssd": (48.0, 8.0),
@@ -642,27 +647,44 @@ def test_missing_required_fields(
         make_simulator(tmp_path, ranges_path, scenario)
 
 
+def _pio2_mmhg(pp_o2_mmhg: float, total_mmhg: float, water_vapour_mmhg: float) -> float:
+    return pp_o2_mmhg * (total_mmhg - water_vapour_mmhg) / total_mmhg
+
+
+def _condition_minute(samples: list[tuple[float, float]], threshold: float, required: int) -> float | None:
+    """PIO2'nin eşiğin altında art arda `required` ölçüm tamamladığı dakika (ölçüm sırasıyla)."""
+    run = 0
+    for minute, pio2 in samples:
+        run = run + 1 if pio2 < threshold else 0
+        if run == required:
+            return minute
+    return None
+
+
 @pytest.mark.skipif(
     not (REAL_DATA / "scenarios" / "hypoxia.json").is_file()
     or not (REAL_DATA / "reference" / "ranges.json").is_file(),
     reason="Gerçek hypoxia senaryosu veya referans yok",
 )
 def test_real_hypoxia_pio2_crossing_times() -> None:
-    sim = Simulator(Scenario.hypoxia)
-    first_crossing: dict[int, float] = {}
+    scenario_data = json.loads((REAL_DATA / "scenarios" / "hypoxia.json").read_text(encoding="utf-8"))
+    interval_min = scenario_data["model"]["measurement_interval_min"]
+    alerts = {alert["rule_id"]: alert for alert in scenario_data["expected_alerts"]}
     profile = atmosphere.load_profile(REAL_DATA / "reference" / "ranges.json", "mars_transit")
-    for frame in collect(sim):
-        pio2 = (
-            frame.cabin.pp_o2.value
-            * (profile.total_pressure_mmhg - profile.ranges.water_vapour_mmhg)
-            / profile.total_pressure_mmhg
+    samples: list[tuple[float, float]] = []
+    for frame in collect(Simulator(Scenario.hypoxia)):
+        assert frame.cabin.pp_co2.value == CABIN_PCO2_MMHG
+        pio2 = _pio2_mmhg(
+            frame.cabin.pp_o2.value, profile.total_pressure_mmhg, profile.ranges.water_vapour_mmhg
         )
-        assert frame.cabin.pp_co2.value == 2.0
-        for threshold in (145, 127):
-            if pio2 < threshold:
-                first_crossing.setdefault(threshold, frame.mission_elapsed_s / SECONDS_PER_MIN)
-    assert first_crossing[145] == pytest.approx(366, abs=INTERVAL_MIN)
-    assert first_crossing[127] == pytest.approx(1766, abs=INTERVAL_MIN)
+        samples.append((frame.mission_elapsed_s / SECONDS_PER_MIN, pio2))
+    assert len(samples) > 1
+    assert samples[1][0] - samples[0][0] == pytest.approx(interval_min)
+    for threshold, rule_id in PIO2_RULES.items():
+        condition_min = _condition_minute(samples, threshold, CONSECUTIVE_MEASUREMENTS)
+        assert condition_min is not None, f"PIO2 {threshold} altına hiç inmedi"
+        window = alerts[rule_id]
+        assert window["t_earliest"] <= condition_min <= window["t_latest"], rule_id
 
 
 @pytest.mark.skipif(
