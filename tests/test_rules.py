@@ -14,7 +14,6 @@ from backend.atmosphere import load_profile
 from backend.models import (
     Activity,
     CabinAtmosphere,
-    Comparator,
     CrewDecision,
     CrewMember,
     CrewVitals,
@@ -313,7 +312,8 @@ def test_unknown_and_sleep_activity_gate() -> None:
 # 5. Eksik Veri Davranışı Testi
 # ==============================================================================
 def test_missing_data_status_and_alerts() -> None:
-    """value=None → unknown; kesinti sayacı sıfırlar; 3 ardışıkta missing Alert üretilir."""
+    """Eksik veri artık uyarı üretmez; Reading/Crew status=unknown; sağlıklı veride nominale döner;
+    aktif uyarı varken karar düşmez."""
     engine = r.RulesEngine()
 
     # 1. tick: SpO2 eksik
@@ -328,26 +328,146 @@ def test_missing_data_status_and_alerts() -> None:
     assert c1_e1.vitals.spo2.baseline_delta is None
     assert c1_e1.status == Status.unknown
     assert c1_e1.decision == CrewDecision.unknown
+    assert e1.alerts == []
 
     # 2. tick: SpO2 yine eksik
     f2 = make_frame(tick=2, crew_list=[c1] + [c for c in make_frame().crew if c.id != "crew-1"])
     e2 = engine.evaluate(f2)
-    assert not any(a.id == "crew-1:missing-spo2" for a in e2.alerts)
+    assert e2.alerts == []
 
-    # 3. tick: SpO2 3. kez eksik → missing Alert tetiklenmeli
+    # 3. tick: SpO2 3. kez eksik → HİÇBİR uyarı üretilmez (senaryo ve v5 uyumu)
     f3 = make_frame(tick=3, crew_list=[c1] + [c for c in make_frame().crew if c.id != "crew-1"])
     e3 = engine.evaluate(f3)
-    miss_alert = next((a for a in e3.alerts if a.id == "crew-1:missing-spo2"), None)
-    assert miss_alert is not None
-    assert miss_alert.severity == Severity.caution
-    assert miss_alert.rule_id == "missing-spo2"
-    assert miss_alert.why[0].comparator == Comparator.missing
-    assert miss_alert.why[0].threshold is None
-    assert "3 ölçümdür veri yok" in miss_alert.why[0].note
-
-    # Uyarı varken başka bir okuma eksik olduğunda karar düşmemeli
     c1_e3 = next(c for c in e3.crew if c.id == "crew-1")
-    assert c1_e3.decision == CrewDecision.watch
+    assert c1_e3.status == Status.unknown
+    assert c1_e3.decision == CrewDecision.unknown
+    assert e3.alerts == []
+
+    # 4. tick: Sağlıklı veri gelince durum nominal/normal'e döner
+    f4 = make_frame(tick=4)
+    e4 = engine.evaluate(f4)
+    c1_e4 = next(c for c in e4.crew if c.id == "crew-1")
+    assert c1_e4.vitals.spo2.status == Status.nominal
+    assert c1_e4.status == Status.nominal
+    assert c1_e4.decision == CrewDecision.normal
+    assert e4.alerts == []
+
+    # Aktif bir uyarı varken (örn. vücut sıcaklığı hafif yüksekken karar-isi_sapmasi açık)
+    # başka bir okuma eksildiğinde karar watch kalmalı (düşmemeli)
+    engine_warn = r.RulesEngine()
+    # Alper baz sıcaklık 36.6. izle=0.5, eylem=1.0. Hafif yüksek (caution/watch) için delta=+0.7 -> 37.3
+    warm_vitals = make_vitals().model_copy(update={"core_temp": make_reading(37.3, "C")})
+    c1_warm = CrewMember(id="crew-1", name="Alper", role="CDR", vitals=warm_vitals, activity=Activity.resting)
+    for tick in range(1, 4):
+        f = make_frame(tick=tick, crew_list=[c1_warm] + [c for c in make_frame().crew if c.id != "crew-1"])
+        e_warm = engine_warn.evaluate(f)
+
+    # 3. tickte karar-isi_sapmasi açıldı ve decision watch oldu
+    c1_w3 = next(c for c in e_warm.crew if c.id == "crew-1")
+    assert any(a.id == "crew-1:karar-isi_sapmasi" for a in e_warm.alerts)
+    assert c1_w3.decision == CrewDecision.watch
+
+    # 4. tick: SpO2 eksik geldi ama sıcaklık hala yüksek
+    warm_missing_spo2 = warm_vitals.model_copy(update={"spo2": missing_spo2})
+    c1_wm = CrewMember(
+        id="crew-1", name="Alper", role="CDR", vitals=warm_missing_spo2, activity=Activity.resting
+    )
+    f4_wm = make_frame(tick=4, crew_list=[c1_wm] + [c for c in make_frame().crew if c.id != "crew-1"])
+    e4_wm = engine_warn.evaluate(f4_wm)
+    c1_w4 = next(c for c in e4_wm.crew if c.id == "crew-1")
+    # Karar watch kalmalı, düşmemeli
+    assert c1_w4.decision == CrewDecision.watch
+    assert any(a.id == "crew-1:karar-isi_sapmasi" for a in e4_wm.alerts)
+
+
+def test_crew_co2_severity_bound_to_cabin_limit() -> None:
+    """Kişi CO2 kararının şiddeti kabin ppco2-limit uyarısının aktifliğine bağlıdır."""
+    # 1. Anlık mod (co2_window_s=None)
+    engine_instant = r.RulesEngine(co2_window_s=None)
+
+    # Alper baz resp_rate = 14.0. Solunum artışı +4 -> 18.0.
+    vitals_co2 = make_vitals().model_copy(update={"resp_rate": make_reading(18.0, "bpm")})
+    c1_co2 = CrewMember(id="crew-1", name="Alper", role="CDR", vitals=vitals_co2, activity=Activity.resting)
+
+    # ppCO2 = 2.7 (> 2.5 caution, < 3.0). 3 tick verelim.
+    for tick in (1, 2, 3):
+        f = make_frame(
+            tick=tick,
+            cabin=make_cabin(pp_co2=2.7),
+            crew_list=[c1_co2] + [c for c in make_frame().crew if c.id != "crew-1"],
+        )
+        res = engine_instant.evaluate(f)
+
+    # 3. tick: Kişi uyarısı caution açılır
+    crew_alert = next((a for a in res.alerts if a.id == "crew-1:karar-olasi_co2_etkisi"), None)
+    assert crew_alert is not None
+    assert crew_alert.severity == Severity.caution
+    assert not any(a.id == "cabin:ppco2-limit" for a in res.alerts)
+
+    # Şimdi ppCO2 = 3.4 (> 3.0 limit) yapalım.
+    # 1. ve 2. tick'te kabin uyarısı henüz açılmaz (3 ardışık gerekir), kişi uyarısı caution KALMALI.
+    for tick in (4, 5):
+        f = make_frame(
+            tick=tick,
+            cabin=make_cabin(pp_co2=3.4),
+            crew_list=[c1_co2] + [c for c in make_frame().crew if c.id != "crew-1"],
+        )
+        res = engine_instant.evaluate(f)
+        assert not any(a.id == "cabin:ppco2-limit" for a in res.alerts)
+        ca = next(a for a in res.alerts if a.id == "crew-1:karar-olasi_co2_etkisi")
+        assert ca.severity == Severity.caution
+
+    # 6. tick (3.4'ün 3. ölçümü): cabin:ppco2-limit aktifleşir ve kişi uyarısı anında critical olur!
+    f6 = make_frame(
+        tick=6,
+        cabin=make_cabin(pp_co2=3.4),
+        crew_list=[c1_co2] + [c for c in make_frame().crew if c.id != "crew-1"],
+    )
+    res6 = engine_instant.evaluate(f6)
+    assert any(a.id == "cabin:ppco2-limit" for a in res6.alerts)
+    ca6 = next(a for a in res6.alerts if a.id == "crew-1:karar-olasi_co2_etkisi")
+    assert ca6.severity == Severity.critical
+
+    # 2. Kayan pencere modu (co2_window_s=3600.0)
+    engine_win = r.RulesEngine(co2_window_s=3600.0)
+    # Başlangıçta 1 saat nominal pp_co2=2.0 (t=0)
+    t0 = datetime(2026, 11, 14, 12, 0, 0, tzinfo=UTC)
+    f_nom = make_frame(
+        tick=1,
+        cabin=make_cabin(pp_co2=2.0, ts=t0),
+        crew_list=[c1_co2] + [c for c in make_frame().crew if c.id != "crew-1"],
+    )
+    engine_win.evaluate(f_nom)
+
+    # 10 saniye sonra ppCO2=3.4 gelsin (3 ardışık ölçüm).
+    # Pencere ortalaması hala ~2.0 olduğundan cabin:ppco2-limit açılmaz.
+    for i in range(1, 4):
+        ti = t0 + timedelta(seconds=i * 10)
+        f_co2 = make_frame(
+            tick=1 + i,
+            cabin=make_cabin(pp_co2=3.4, ts=ti),
+            crew_list=[c1_co2] + [c for c in make_frame().crew if c.id != "crew-1"],
+        )
+        res_win = engine_win.evaluate(f_co2)
+
+    # 3. tickte kişi uyarısı açılır ama kabin uyarısı aktif olmadığı için caution kalır!
+    assert not any(a.id == "cabin:ppco2-limit" for a in res_win.alerts)
+    ca_win = next(a for a in res_win.alerts if a.id == "crew-1:karar-olasi_co2_etkisi")
+    assert ca_win.severity == Severity.caution
+
+    # Pencereyi dolduracak şekilde 1 saat boyunca ppCO2=3.4 gelsin
+    t_later = t0 + timedelta(seconds=3700)
+    for i in range(3):
+        f_later = make_frame(
+            tick=10 + i,
+            cabin=make_cabin(pp_co2=3.4, ts=t_later + timedelta(seconds=i * 10)),
+            crew_list=[c1_co2] + [c for c in make_frame().crew if c.id != "crew-1"],
+        )
+        res_later = engine_win.evaluate(f_later)
+
+    assert any(a.id == "cabin:ppco2-limit" for a in res_later.alerts)
+    ca_crit = next(a for a in res_later.alerts if a.id == "crew-1:karar-olasi_co2_etkisi")
+    assert ca_crit.severity == Severity.critical
 
 
 # ==============================================================================

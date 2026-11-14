@@ -5,14 +5,15 @@ Bu modül, NASA-STD-3001 ve data/reference/ranges.json referanslarına dayanarak
 2. Kabin pp_o2 ve kabin basıncından PIO2 değerini türetir (kPa/mmHg birim çevrimleriyle).
 3. Etkinlik kapısını (skip_when) işleterek egzersiz/uyku/bilinmeyen etkinliklerdeki
    yanıltıcı vital alarmlarını engeller.
-4. Eksik veride (missing/faulty) sayacı sıfırlar ve ardışık eksiklikte missing uyarısı üretir.
+4. Eksik veride (missing/faulty) durumu unknown yapar, kuralların sayacını sıfırlar ve
+   kanıt saymaz (uyarı üretmez).
 5. 3 ardışık ölçüm kuralını (consecutive_required) işletir.
 6. Kişi bazlı kararları (hipoksi, CO2 etkisi, ısı sapması, kalp yükü, radyasyon etkisi) üretir.
 7. ppCO2 için 1 saatlik kayan ortalama penceresini (average_window_s) hesaplar.
 8. Kişi ve kabin genel durumunu (status) ve kişi kararını (decision) belirler.
 9. Tüm tıbbi ve çevresel sayısal eşikleri ranges.json dosyasından çalışma anında okur;
-   yalnızca birim dönüşümü (MMHG_PER_KPA), eksik veri eşiği (MISSING_ALERT_AFTER) ve
-   pencere süresi (CO2_LIMIT_WINDOW_S) modül başında isimli sabit olarak tanımlanmıştır.
+   yalnızca birim dönüşümü (MMHG_PER_KPA) ve pencere süresi (CO2_LIMIT_WINDOW_S)
+   modül başında isimli sabit olarak tanımlanmıştır.
 """
 
 from __future__ import annotations
@@ -43,7 +44,6 @@ from backend.models import (
 )
 
 DEFAULT_RANGES: Final[Path] = Path(__file__).resolve().parent.parent / "data" / "reference" / "ranges.json"
-MISSING_ALERT_AFTER: Final[int] = 3
 CO2_LIMIT_WINDOW_S: Final[float] = 3600.0
 MMHG_PER_KPA: Final[float] = 7.50062
 
@@ -115,9 +115,6 @@ class RulesEngine:
 
         # Durum takibi (frame'ler arası süreklilik)
         self._co2_window: list[tuple[float, float]] = []  # (mission_elapsed_s, pp_co2_mmhg)
-        self._missing_counters: dict[tuple[str, Metric], int] = {}
-        self._missing_first_seen: dict[tuple[str, Metric], datetime] = {}
-        self._missing_alerts: dict[tuple[str, Metric], Alert] = {}
 
         self._consecutive_counts: dict[str, int] = {}
         self._alert_first_seen: dict[str, datetime] = {}
@@ -297,9 +294,6 @@ class RulesEngine:
     def reset(self) -> None:
         """Motorun tüm kayan pencerelerini ve sayaçlarını sıfırlar."""
         self._co2_window.clear()
-        self._missing_counters.clear()
-        self._missing_first_seen.clear()
-        self._missing_alerts.clear()
         self._consecutive_counts.clear()
         self._alert_first_seen.clear()
         self._active_alerts.clear()
@@ -310,31 +304,23 @@ class RulesEngine:
         cabin = frame.cabin
         pio2_mmhg = derive_pio2(cabin.pp_o2, cabin.cabin_pressure, self.water_vapour_mmhg)
 
-        # 2. Eksik veri sayaçlarını kabin için güncelle
-        self._update_missing_reading("cabin", Metric.pp_co2, cabin.pp_co2, frame.ts)
-        self._update_missing_reading("cabin", Metric.pp_o2, cabin.pp_o2, frame.ts)
-        self._update_missing_reading("cabin", Metric.cabin_pressure, cabin.cabin_pressure, frame.ts)
-        self._update_missing_reading("cabin", Metric.cabin_temp, cabin.cabin_temp, frame.ts)
-        self._update_missing_reading("cabin", Metric.rel_humidity, cabin.rel_humidity, frame.ts)
-        self._update_missing_reading("cabin", Metric.radiation_dose_rate, cabin.radiation_dose_rate, frame.ts)
-
-        # 3. Kabin kurallarını değerlendir
+        # 2. Kabin kurallarını değerlendir
         self._evaluate_cabin_rules(frame, pio2_mmhg)
 
-        # 4. Mürettebat okumalarını, baz çizgilerini ve kararlarını değerlendir
+        # 3. Mürettebat okumalarını, baz çizgilerini ve kararlarını değerlendir
         updated_crew: list[CrewMember] = []
         for crew in frame.crew:
             member = self._evaluate_crew_member(crew, frame, pio2_mmhg, sep)
             updated_crew.append(member)
 
-        # 5. Kabin okuma durumlarını (Reading.status) ve genel kabin durumunu belirle
+        # 4. Kabin okuma durumlarını (Reading.status) ve genel kabin durumunu belirle
         updated_cabin = self._finalize_cabin(cabin, pio2_mmhg)
 
-        # 6. Aktif tüm uyarıları topla (kararlı sıralama)
-        all_alerts = list(self._active_alerts.values()) + list(self._missing_alerts.values())
+        # 5. Aktif tüm uyarıları topla (kararlı sıralama)
+        all_alerts = list(self._active_alerts.values())
         all_alerts.sort(key=lambda a: a.id)
 
-        # 7. Yeni TelemetryFrame örneği üret (asla mutasyon yok)
+        # 6. Yeni TelemetryFrame örneği üret (asla mutasyon yok)
         return frame.model_copy(
             update={
                 "crew": updated_crew,
@@ -342,48 +328,6 @@ class RulesEngine:
                 "alerts": all_alerts,
             }
         )
-
-    def _update_missing_reading(
-        self, subject_id: str, metric: Metric, reading: Reading, ts: datetime
-    ) -> None:
-        key = (subject_id, metric)
-        is_ok = reading.value is not None and reading.quality == Quality.ok.value
-        if not is_ok:
-            count = self._missing_counters.get(key, 0) + 1
-            self._missing_counters[key] = count
-            if count == 1:
-                self._missing_first_seen[key] = reading.ts
-            if count >= MISSING_ALERT_AFTER:
-                first_seen = self._missing_first_seen[key]
-                alert_id = f"{subject_id}:missing-{metric.value}"
-                rule_id = f"missing-{metric.value}"
-                name = subject_id if subject_id != "cabin" else "Kabin"
-                alert = Alert(
-                    id=alert_id,
-                    crew_id=subject_id if subject_id != "cabin" else None,
-                    metric=metric,
-                    severity=Severity.caution,
-                    message=f"{name}: {metric.value} sensöründen veri yok",
-                    rule_id=rule_id,
-                    consecutive_count=count,
-                    first_seen=first_seen,
-                    last_seen=ts,
-                    why=[
-                        Evidence(
-                            metric=metric,
-                            value=None,
-                            threshold=None,
-                            comparator=Comparator.missing,
-                            ts=reading.ts,
-                            note=f"{count} ölçümdür veri yok",
-                        )
-                    ],
-                )
-                self._missing_alerts[key] = alert
-        else:
-            self._missing_counters[key] = 0
-            self._missing_first_seen.pop(key, None)
-            self._missing_alerts.pop(key, None)
 
     def _evaluate_cabin_rules(self, frame: TelemetryFrame, pio2_mmhg: float | None) -> None:
         cabin = frame.cabin
@@ -662,13 +606,7 @@ class RulesEngine:
             if m not in baselines:
                 raise ValueError(f"{cid} için {m.value} baz çizgisi yok")
 
-        # 1. Eksik veri sayaçlarını güncelle
-        for field_name in CrewVitals.model_fields:
-            metric = Metric(field_name)
-            reading = getattr(crew.vitals, field_name)
-            self._update_missing_reading(cid, metric, reading, frame.ts)
-
-        # 2. Reading'leri baseline_delta ve status ile güncelle
+        # 1. Reading'leri baseline_delta ve status ile güncelle
         vitals_dict: dict[str, Reading] = {}
         for field_name in CrewVitals.model_fields:
             metric = Metric(field_name)
@@ -688,15 +626,11 @@ class RulesEngine:
 
         updated_vitals = CrewVitals(**vitals_dict)
 
-        # 3. 5 Kişi bazlı kararı değerlendir
+        # 2. 5 Kişi bazlı kararı değerlendir
         sep_missing = self._evaluate_crew_decisions(crew, updated_vitals, frame, pio2_mmhg, sep)
 
-        # 4. Kişinin genel durumunu ve kararını belirle
-        all_active_crew_alerts = [
-            a
-            for a in list(self._active_alerts.values()) + list(self._missing_alerts.values())
-            if a.crew_id == cid
-        ]
+        # 3. Kişinin genel durumunu ve kararını belirle
+        all_active_crew_alerts = [a for a in self._active_alerts.values() if a.crew_id == cid]
 
         if all_active_crew_alerts:
             severities = {a.severity for a in all_active_crew_alerts}
@@ -953,7 +887,7 @@ class RulesEngine:
         if co2_cond:
             assert co2_mmhg is not None
             assert rr_r.baseline_delta is not None
-            sev = Severity.critical if co2_mmhg > self.ppco2_limit_1saat_ort else Severity.caution
+            sev = Severity.critical if "cabin:ppco2-limit" in self._active_alerts else Severity.caution
             count = self._consecutive_counts.get(co2_id, 0) + 1
             self._consecutive_counts[co2_id] = count
             if count == 1:
@@ -1269,11 +1203,7 @@ class RulesEngine:
         )
 
         # Genel kabin durumu
-        all_active_cabin_alerts = [
-            a
-            for a in list(self._active_alerts.values()) + list(self._missing_alerts.values())
-            if a.crew_id is None
-        ]
+        all_active_cabin_alerts = [a for a in self._active_alerts.values() if a.crew_id is None]
 
         if all_active_cabin_alerts:
             severities = {a.severity for a in all_active_cabin_alerts}
