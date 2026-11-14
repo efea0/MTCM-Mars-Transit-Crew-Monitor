@@ -13,6 +13,7 @@
     "degisiklik_1_2": "Kaynak denetimi (2026-11-14): NASA-STD-3001 Vol 2 Rev F (2026-07-14) Rev E'nin yerini aldı; atıflar Rev F'e çevrildi. Giysi PICO2 4,0–7,0 mmHg kademesi 8,0 saat/gün oldu. 14 saatlik giysi süresi, metabolik oranlar ve Mars yüzeyi oranı 'kısmen' oldu; denizaltı %0,8 NRC 2007 ile doğrulandı.",
     "degisiklik_1_1": "Radyasyon kararı projeksiyona bağlandı; kalp yükü yalnızca dinlenmede; nabız-O2 ölçeği tanımlandı, CO2 aynı oranla ölçeklenir; sığınak normal profili yıkayıcı ve O2 stoku ile; demo zaman çarpanı eklendi; CO2 sarı eşiği genel %80 kuralının istisnası olarak işaretlendi.",
     "hazirlayan": "Efe",
+    "si_kullanimi": "SI (Claude Code) yardımıyla hazırlandı: dosya taslağı, birim çevirileri ve kaynak denetimi. Değerler belirtilen kaynaklarla karşılaştırıldı; kaynağı varsayım olan satırlar ekip kararıdır. Ayrıntı: docs/AI_USE_DECLARATION.md",
     "dondurma": "2026-11-14T19:30:00+03:00",
     "dondurma_istisnalari": [
       "2026-11-14: vital_karar_parametreleri.kararlar.olasi_hipoksi koşuluna egzersiz istisnası eklendi (Barış'ın isteği, Efe'nin onayı). Hiçbir sayısal değer değişmedi; kalp_yuku kuralıyla ve hypoxia senaryosuyla tutarlılık için.",
