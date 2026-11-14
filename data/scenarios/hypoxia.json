@@ -264,7 +264,7 @@
     "crew_hypoxia_caution": {
       "condition": "SpO2 düşüşü ≥ 3 VE kabin PIO2 < 145; dinlenirken ek olarak nabız veya solunum artışı ≥ izle",
       "consecutive_required": 3,
-      "source": "ranges.json olasi_hipoksi + egzersiz istisnası (ekip kuralı, ranges.json'a eklenmeli)",
+      "source": "ranges.json vital_karar_parametreleri.kararlar.olasi_hipoksi (egzersiz istisnası dahil, #21)",
       "metric": "spo2",
       "also_requires": "cabin PIO2 < 145"
     },
@@ -275,7 +275,7 @@
       "metric": "spo2",
       "also_requires": "cabin PIO2 < 145"
     },
-    "exercise_rule": "Egzersizde nabız ve solunum artışı alarm ve hipoksi kanıtı sayılmaz (kullanıcı kuralı). ranges.json olasi_hipoksi koşulu nabız VEYA solunum artışı istiyor; egzersiz istisnası orada henüz yok — Enis/Aydın'a bildirildi."
+    "exercise_rule": "Egzersizde nabız ve solunum artışı alarm ve hipoksi kanıtı sayılmaz (kullanıcı kuralı). ranges.json olasi_hipoksi koşulu bu istisnayı içerir (#21): nabız/solunum artışı yalnızca dinlenen kişide aranır."
   },
   "events": [
     {
