@@ -20,7 +20,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-CONTRACT_VERSION = "0.1.0"
+CONTRACT_VERSION = "0.2.0"
 CREW_SIZE = 4
 
 
@@ -86,6 +86,7 @@ class Scenario(str, Enum):
     hypercapnia = "hypercapnia"  # CO₂ yükselişi / scrubber arızası
     sleep_deprivation = "sleep_deprivation"
     solar_storm = "solar_storm"  # radyasyon artışı (DONKI ile bağlanabilir)
+    heart_rate_deviation = "heart_rate_deviation"  # tek bir mürettebatta nabız sapması
     sensor_dropout = "sensor_dropout"  # eksik veri davranışını göstermek için
 
 
