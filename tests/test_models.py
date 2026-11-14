@@ -188,3 +188,13 @@ def test_threshold_rule_personal_and_windowed_options():
         rule(average_window_s=0)
     with pytest.raises(ValidationError):
         rule(skip_when=["running"])
+
+
+def test_every_metric_has_a_unit() -> None:
+    assert set(m.METRIC_UNITS) == set(m.Metric)
+
+
+@pytest.mark.parametrize("metric", ["pp_o2", "pp_co2", "cabin_pressure", "pio2"])
+def test_pressure_metrics_are_mmhg(metric: str) -> None:
+    # Birim sessizce kPa'ya dönerse eşikler (mmHg) 7,5 kat yanlış okunur.
+    assert m.METRIC_UNITS[m.Metric(metric)] == "mmHg"

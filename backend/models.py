@@ -92,6 +92,26 @@ class Metric(str, Enum):
     event_dose = "event_dose"  # mSv, aktif güneş parçacık olayında alınan doz
 
 
+# Her metriğin sözleşmedeki birimi. Enum yorumlarıyla aynı tutulur; tests/test_models.py sabitler.
+METRIC_UNITS: dict[Metric, str] = {
+    Metric.heart_rate: "bpm",
+    Metric.hrv_rmssd: "ms",
+    Metric.spo2: "%",
+    Metric.resp_rate: "nefes/dk",
+    Metric.core_temp: "°C",
+    Metric.systolic_bp: "mmHg",
+    Metric.diastolic_bp: "mmHg",
+    Metric.pp_co2: "mmHg",
+    Metric.pp_o2: "mmHg",
+    Metric.cabin_pressure: "mmHg",
+    Metric.cabin_temp: "°C",
+    Metric.rel_humidity: "%",
+    Metric.radiation_dose_rate: "µGy/saat",
+    Metric.pio2: "mmHg",
+    Metric.event_dose: "mSv",
+}
+
+
 class Scenario(str, Enum):
     nominal = "nominal"
     hypoxia = "hypoxia"  # O₂ düşüşü
