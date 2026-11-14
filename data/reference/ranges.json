@@ -4,7 +4,9 @@
     {"id": "pio2-hypoxia-low", "metric": "pio2", "severity": "critical", "comparator": "<", "threshold": 127, "consecutive_required": 3, "source": "NASA-STD-3001 Vol 2 Rev F, Tablo 6.2-1", "status": "doğrulandı"},
     {"id": "pio2-normoxia-high", "metric": "pio2", "severity": "caution", "comparator": ">", "threshold": 155, "consecutive_required": 3, "source": "NASA-STD-3001 Vol 2 Rev F, [V2 6003], Tablo 6.2-1", "status": "doğrulandı"},
     {"id": "ppco2-limit", "metric": "pp_co2", "severity": "critical", "comparator": ">", "threshold": 3.0, "consecutive_required": 3, "source": "NASA-STD-3001 Vol 2, [V2 6004]; OCHMO-TB-004", "status": "doğrulandı"},
-    {"id": "ppco2-caution", "metric": "pp_co2", "severity": "caution", "comparator": ">", "threshold": 2.5, "consecutive_required": 3, "source": "NASA OCHMO-TB-004", "status": "kısmen"}
+    {"id": "ppco2-caution", "metric": "pp_co2", "severity": "caution", "comparator": ">", "threshold": 2.5, "consecutive_required": 3, "source": "NASA OCHMO-TB-004", "status": "kısmen"},
+    {"id": "sleep-short-caution", "metric": "sleep_hours", "severity": "caution", "comparator": "<", "threshold": 6.0, "consecutive_required": 2, "source": "varsayım (HİPOTEZ, Ekip kararı)", "status": "doğrulanmadı"},
+    {"id": "sleep-short-warning", "metric": "sleep_hours", "severity": "warning", "comparator": "<", "threshold": 5.0, "consecutive_required": 2, "source": "varsayım (HİPOTEZ, Ekip kararı)", "status": "doğrulanmadı"}
   ],
 
   "meta": {
@@ -19,7 +21,8 @@
       "2026-11-14: vital_karar_parametreleri.kararlar.olasi_hipoksi koşuluna egzersiz istisnası eklendi (Barış'ın isteği, Efe'nin onayı). Hiçbir sayısal değer değişmedi; kalp_yuku kuralıyla ve hypoxia senaryosuyla tutarlılık için.",
       "2026-11-14: Kaynak denetimi (Efe). NASA-STD-3001 Vol 2 Rev F (onay 2026-07-14) Rev E'nin yerini aldı; Tablo 6.2-1, [V2 6003], [V2 6004], [V2 6006] Rev F metninde aynı. Tek sayısal değişiklik: giysi.pico2_limitleri 4,0–7,0 mmHg kademesi 7,0 → 8,0 saat/gün (Rev F Tablo 11.3-1). giyside_toplam_sure_max (14 saat) Rev F'te yok → kısmen. Metabolik oranlar OCHMO-TB-004 Rev D tablosundan %2–4 farklı → kısmen (sayılar aynı). mars_yuzeyi_orani yalnızca emilen doz için → kısmen. Denizaltı CO2 %0,8 NRC 2007 Tablo S-1 ile doğrulandı. Motorun ve kuralların kullandığı hiçbir eşik değişmedi.",
       "2026-11-14: olcum_araligi birimi saniye (demo) yerine görev dakikası olarak düzeltildi; hiçbir eşik veya karar değişmedi (Efe'nin onayı).",
-      "2026-11-15: meta.kurallar_notu güncellendi: pio2 artık sözleşme 0.2.0 (#26) ile Metric listesinde. Yalnızca not; hiçbir değer değişmedi (Aydın'ın isteği, Efe'nin onayı)."
+      "2026-11-15: meta.kurallar_notu güncellendi: pio2 artık sözleşme 0.2.0 (#26) ile Metric listesinde. Yalnızca not; hiçbir değer değişmedi (Aydın'ın isteği, Efe'nin onayı).",
+      "2026-11-15: Uyku eksikliği kuralı eklendi (Barış'ın sleep_deprivation senaryosu için, Efe'nin onayı): kurallar'a sleep-short-caution / sleep-short-warning, vital_karar_parametreleri.uyku_suresi ve kararlar.uyku_eksikligi. Eşikler HİPOTEZ (doğrulanmadı). Mevcut hiçbir eşik veya karar değişmedi. metric 'sleep_hours' henüz models.py Metric listesinde yok (Aydın)."
     ],
     "kural": "Bu dosya motorun ve uyarıların tek kaynağıdır. Dondurmadan sonra değer değişmez. Her kayıtta 'kaynak' ve 'status' alanı zorunludur. Doğrulanamayan kayıtta kaynak 'varsayım' ile başlar.",
     "status_degerleri": {
@@ -27,7 +30,7 @@
       "kısmen": "Kaynak doğrulandı; yorum veya birim dönüşümü ekibe ait.",
       "doğrulanmadı": "NASA veya resmi kaynakta karşılığı yok; demo parametresi. Tıbbi eşik değildir, sunumda böyle söylenir."
     },
-    "kurallar_notu": "kurallar listesi AGENTS.md §5 ThresholdRule biçimidir; değerler aşağıdaki iç içe kayıtlarla birebir aynıdır. Birim mmHg. metric 'pio2' sözleşme 0.2.0 (#26) ile models.py Metric listesinde var.",
+    "kurallar_notu": "kurallar listesi AGENTS.md §5 ThresholdRule biçimidir; değerler aşağıdaki iç içe kayıtlarla birebir aynıdır. Basınç kurallarında birim mmHg, sleep_hours kurallarında saat. metric 'pio2' sözleşme 0.2.0 (#26) ile models.py Metric listesinde var.",
     "birim_notu": "Basınçlar mmHg. 1 atm = 760 mmHg. ppCO2 (mmHg) = toplam basınç (mmHg) × CO2 oranı."
   },
 
@@ -237,6 +240,12 @@
     "nabiz_artis_dinlenme": { "izle": 15, "eylem": 30, "birim": "atım/dk (baz çizgiden)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
     "solunum_artis": { "izle": 4, "eylem": 8, "birim": "nefes/dk (baz çizgiden)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
     "isi_artis": { "izle": 0.5, "eylem": 1.0, "birim": "°C (baz çizgiden)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
+    "uyku_suresi": {
+      "izle": 6.0, "eylem": 5.0, "birim": "saat / uyku dönemi (altına inerse)", "art_arda_donem": 2,
+      "olcum": "Her uyku dönemi sonunda bir ölçüm: o dönemde activity == 'sleep' olan sürelerin toplamı (görev saati). Vital ölçüm aralığından (olcum_araligi) bağımsızdır; art arda sayısı uyku dönemi cinsindendir.",
+      "kaynak": "varsayım (HİPOTEZ, Ekip kararı). Arka plan: Barger vd., Lancet Neurology 13(9):904–912, 2014 (astronotlarda uçuş sırasında uyku eksikliği); eşik değerleri bu kaynaktan okunmadı.",
+      "status": "doğrulanmadı"
+    },
     "kararlar": {
       "olasi_hipoksi": {
         "kosul": "spo2_dusus ≥ izle VE kabin PIO2 < 145; aktivite == 'dinlenme' ise ek olarak (nabiz_artis ≥ izle VEYA solunum_artis ≥ izle). Egzersizde nabız/solunum şartı aranmaz ve kanıt olarak yazılmaz.",
@@ -262,6 +271,11 @@
         "kosul": "SEP olayı başladı VE (olay sonu tahmini doz ≥ 0.8 × spe_tasarim_esigi VEYA olay dozu ≥ 0.8 × spe_tasarim_esigi) VEYA kümülatif ≥ 0.8 × kariyer_limiti. Tahmini doz = şimdiki olay dozu + doz hızı × kalan olay süresi. Sığınak uyarısı dozu almadan ÖNCE verilir; 200 mSv alındıktan sonra değil.",
         "oneri": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
         "dayanak": "[V1 4030], [V1 4031] (doğrulandı); %80 sarı kademe (doğrulanmadı)"
+      },
+      "uyku_eksikligi": {
+        "kosul": "uyku_suresi < izle (6 saat) art arda 2 uyku döneminde → İzle; < eylem (5 saat) art arda 2 uyku döneminde → Eylem. Kanıt olarak ilgili uyku dönemlerinin süreleri yazılır. Uyku verisi yoksa 'veri yok' (normal sayılmaz).",
+        "oneri": "Riskli işleri (EVA, onarım) ertele, ek uyku dönemi planla, Dünya'ya raporla. Tanı değil.",
+        "dayanak": "doğrulanmadı (HİPOTEZ)"
       }
     },
     "durum_rengi": "Kişinin durumu en ağır kararına göre: Normal (yeşil) / İzle (sarı) / Eylem (kırmızı).",
