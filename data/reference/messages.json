@@ -2,6 +2,7 @@
   "meta": {
     "surum": "1.1",
     "hazirlayan": "Enis",
+    "si_kullanimi": "Metin taslakları SI (Claude Code) ile yazıldı, ekip kontrol etti. Sayılar ranges.json ve belirtilen kaynaklardan gelir. Ayrıntı: docs/AI_USE_DECLARATION.md",
     "tarih": "2026-11-14",
     "amac": "Ekranda görünen tüm metinler: uyarı mesajı, 'Neden?' kanıt notu, öneri, EVA ve Dünya paneli. rules.py / comms.py / frontend metni buradan okur; uyarı metni koda sabit yazılmaz.",
     "bicim": "Python str.format şablonları. Her {yer_tutucu} 'placeholders' bölümünde açıklanır. Eşik sayıları metne yazılmaz; ranges.json'dan doldurulur, böylece ekran ile motor hiçbir zaman çelişmez.",
