@@ -63,6 +63,38 @@ def test_delay_bounds_reject_bad_reference(tmp_path) -> None:
         comms.load_delay_bounds_s(tmp_path / "yok.json")
 
 
+# K1 regresyonu: doğrudan verilen delay_bounds_s de doğrulanır; sıfır/negatif gecikme sızmaz
+def test_delay_bounds_argument_is_validated() -> None:
+    for bad_bounds in ((0, 100), (-10, 100), (100, 5), (-5, -1)):
+        with pytest.raises(ValueError):
+            DelayedLink(one_way_delay_s=10 * MIN, delay_bounds_s=bad_bounds)
+    q = DelayedLink(one_way_delay_s=10 * MIN, delay_bounds_s=(3 * MIN, 22 * MIN))
+    assert (q.min_delay_s, q.max_delay_s) == (3 * MIN, 22 * MIN)
+
+
+# kenar: boş kuyrukta tüm işlemler güvenli ve boş döner
+def test_empty_queue_operations_are_safe() -> None:
+    q = link()
+    assert q.update(0) == []
+    assert q.messages() == []
+    assert q.contract_messages(EPOCH, 0) == []
+    q.release(CABIN_CO2)  # bilinmeyen anahtar, etkisiz
+    assert q.update(10 * MIN) == []
+    assert q.messages() == []
+
+
+# kenar: aynı anda gönderilen mesajlar eşit zamanlarla sıraya girer, FIFO bozulmaz (K5)
+def test_simultaneous_sends_share_fifo_times() -> None:
+    q = link(one_way_delay_s=10 * MIN, ground_processing_s=2 * MIN)
+    keys = (CABIN_CO2, CREW2_HR, ("crew-3", "spo2", "warning"))
+    sent = [q.send(key, f"rapor-{i}", 100 * MIN) for i, key in enumerate(keys)]
+    assert all(m is not None for m in sent)
+    assert {m.deliver_s for m in sent} == {100 * MIN + 10 * MIN}
+    assert {m.reply_s for m in sent} == {100 * MIN + 10 * MIN + 2 * MIN + 10 * MIN}
+    q.update(1000 * MIN)
+    assert [m.state for m in q.messages()] == [MessageState.replied] * 3
+
+
 # K3, K4
 def test_state_sequence_and_times() -> None:
     q = link(one_way_delay_s=10 * MIN, ground_processing_s=2 * MIN)
