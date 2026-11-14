@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from backend import models as m
 
@@ -23,7 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCENARIO_DIR = ROOT / "data" / "scenarios"
 RANGES_PATH = ROOT / "data" / "reference" / "ranges.json"
 SCENARIO_FILES = sorted(SCENARIO_DIR.glob("*.json"))
-REQUIRED_SCENARIOS = {"nominal", "hypoxia", "hypercapnia", "solar_storm"}
+REQUIRED_SCENARIOS = {"nominal", "hypoxia", "hypercapnia", "solar_storm", "sensor_dropout"}
 
 CREW_METRICS = set(m.CrewVitals.model_fields)
 CABIN_METRICS = {  # yalnızca Reading alanları; status ve geri sayım alanları ölçüm değildir
@@ -727,3 +729,139 @@ def test_contract_rejects_baseline_delta_on_cabin_readings() -> None:
     fields["pp_co2"] = m.Reading(value=1.0, unit="x", ts=ts, baseline_delta=0.5)
     with pytest.raises(ValueError):
         m.CabinAtmosphere(**fields)
+
+
+# ---------------------------------------------------------------- sensor_dropout
+
+
+@pytest.fixture(scope="module")
+def dropout() -> Scenario:
+    return load("sensor_dropout")
+
+
+def quality_events(s: Scenario) -> list[dict[str, Any]]:
+    return [e for e in s["events"] if e["type"] == "sensor_quality"]
+
+
+def test_sensor_dropout_events_are_well_formed(dropout: Scenario) -> None:
+    qualities = {q.value for q in m.Quality} - {m.Quality.ok.value}
+    events = quality_events(dropout)
+    assert {e["quality"] for e in events} == qualities, "missing, stale ve sensor_fault üçü de denenmeli"
+    for e in events:
+        assert 0 <= e["t_min"] < e["until_min"] <= dropout["duration_min"], e
+        allowed = CABIN_METRICS if e["crew_id"] is None else CREW_METRICS
+        assert e["metric"] in allowed, e
+        assert ("stale_value" in e) == (e["quality"] == "stale"), e
+        assert ("reported_value" in e) == (e["quality"] == "sensor_fault"), e
+
+
+def test_sensor_dropout_status_table_matches_events(dropout: Scenario) -> None:
+    events = {(e["crew_id"], e["metric"]): e for e in quality_events(dropout)}
+    table = {(d["crew_id"], d["metric"]): d for d in dropout["expected_data_status"]}
+    assert table.keys() == events.keys()
+    for key, d in table.items():
+        e = events[key]
+        assert (d["t_from"], d["t_until"], d["quality"]) == (e["t_min"], e["until_min"], e["quality"]), key
+        assert d["status"] == "unknown" and "nominal" in d["forbidden_status"], key
+        assert d["recovery"]["status"] == "nominal", key
+        assert d["t_until"] <= d["recovery"]["t_earliest"] <= d["recovery"]["t_latest"], key
+        assert d["recovery"]["t_latest"] <= dropout["duration_min"], key
+
+
+def test_sensor_dropout_expectations_are_valid_contract_readings(dropout: Scenario) -> None:
+    """Beklenen durumlar sözleşme modeliyle kurulabilmeli; 'nominal' ise sözleşmece de reddedilmeli."""
+    ts = datetime(2026, 1, 1, tzinfo=UTC)
+    for d in dropout["expected_data_status"]:
+        fields = {"value": d["value"], "unit": "x", "ts": ts, "quality": d["quality"]}
+        assert m.Reading(**fields, status=d["status"]).status == "unknown"
+        with pytest.raises(ValidationError):
+            m.Reading(**fields, status="nominal")
+
+
+def missing_alerts(s: Scenario) -> list[dict[str, Any]]:
+    return [a for a in s["expected_alerts"] if a["rule_id"].startswith("missing-")]
+
+
+def test_sensor_dropout_no_data_alert_times(dropout: Scenario) -> None:
+    """3. art arda geçersiz ölçümde 'veri yok' uyarısı: t_from + (consecutive − 1) × ölçüm aralığı."""
+    n = dropout["thresholds"]["consecutive"]
+    step = dropout["model"]["measurement_interval_min"]
+    alerts = {(a["crew_id"], a["metric"]): a for a in missing_alerts(dropout)}
+    statuses = {(d["crew_id"], d["metric"]): d for d in dropout["expected_data_status"]}
+    assert alerts.keys() == statuses.keys(), "her bozuk sensör için tam bir 'veri yok' uyarısı"
+    for key, alert in alerts.items():
+        d = statuses[key]
+        computed = d["t_from"] + (n - 1) * step
+        assert computed == pytest.approx(alert["t_condition"], abs=TOLERANCE_MIN), key
+        assert alert["t_earliest"] <= computed <= alert["t_latest"] <= dropout["duration_min"], key
+        assert computed < d["t_until"], "uyarı kopma bitmeden çıkmalı"
+        assert alert["severity"] == "caution", "eksik veri limit aşımı değildir"
+        assert alert["rule_id"] == f"missing-{d['metric']}"
+        assert alert["evidence_metrics"] == [d["metric"]]
+
+
+def test_sensor_dropout_fault_value_would_trip_the_limit_if_evaluated(dropout: Scenario) -> None:
+    fault = next(e for e in quality_events(dropout) if e["quality"] == "sensor_fault")
+    assert fault["reported_value"] > dropout["thresholds"]["ppco2_red_1h"], "test anlamını yitirir"
+    assert fault["reported_value"] > 4 * dropout["cabin_initial"]["pp_co2"]["value"], "imkânsız sıçrama"
+    d = next(d for d in dropout["expected_data_status"] if d["crew_id"] is None)
+    assert d["value"] is None, "sensor_fault değeri kural motoruna girmez"
+    assert {"nominal", "critical"} <= set(d["forbidden_status"])
+    cabin = next(f for f in dropout["forbidden_rules"] if f["crew_id"] is None and f["metric"] == "pp_co2")
+    assert {"cabin_pp_co2_critical"} <= set(cabin["rule_ids"])
+    assert [a["rule_id"] for a in dropout["expected_alerts"] if a["crew_id"] is None] == ["missing-pp_co2"]
+
+
+def test_sensor_dropout_forbidden_rules_do_not_overlap_expected(dropout: Scenario) -> None:
+    expected = {(a["crew_id"], a["metric"], a["rule_id"]) for a in dropout["expected_alerts"]}
+    for f in dropout["forbidden_rules"]:
+        assert f["rule_ids"], f
+        for rule_id in f["rule_ids"]:
+            assert (f["crew_id"], f["metric"], rule_id) not in expected, (f["crew_id"], rule_id)
+    forbidden_keys = {(f["crew_id"], f["metric"]) for f in dropout["forbidden_rules"]}
+    assert forbidden_keys == {(d["crew_id"], d["metric"]) for d in dropout["expected_data_status"]}
+
+
+def test_sensor_dropout_crew3_target_has_margin_over_sensor_noise(dropout: Scenario) -> None:
+    """Gürültü (sd) eşiği aşan hedefi kırpmasın: hedef sapma eşik + 2 sd'den büyük olmalı."""
+    th = dropout["thresholds"]
+    crew3 = next(c for c in dropout["crew"] if c["id"] == "crew-3")["baseline"]["heart_rate"]
+    target = next(
+        e["targets"]["heart_rate"]
+        for e in dropout["events"]
+        if e.get("crew_id") == "crew-3" and "heart_rate" in e.get("targets", {})
+    )
+    assert target - crew3["mean"] >= th["hr_rise_caution"] + 2 * crew3["sd"]
+
+
+def test_sensor_dropout_does_not_hide_another_persons_alert(dropout: Scenario) -> None:
+    """crew-3'ün gerçek nabız sapması, crew-2'nin sensörü kopukken oluşur ve uyarıya dönüşür."""
+    th = dropout["thresholds"]
+    base = baseline(dropout, "crew-3", "heart_rate")
+    t = first_time(
+        dropout, lambda t: vital(dropout, "crew-3", "heart_rate", t) - base >= th["hr_rise_caution"]
+    )
+    alert = by_rule(dropout, "crew_hr_rest_rise_caution")
+    assert_condition_time(alert, t)
+    assert final_activity(dropout, "crew-3") == "resting"
+    gap = next(e for e in quality_events(dropout) if e["crew_id"] == "crew-2")
+    assert gap["t_min"] <= alert["t_condition"] < gap["until_min"], "uyarı kopma sırasında doğmalı"
+    assert alert["t_latest"] > gap["t_min"]
+    assert dropout["expected_status_end"]["crew-3"] == "caution"
+    assert ("crew-3", "heart_rate") not in {(f["crew_id"], f["metric"]) for f in dropout["forbidden_alerts"]}
+
+
+def test_sensor_dropout_end_status_after_recovery(dropout: Scenario) -> None:
+    end = dropout["expected_status_end"]
+    recovered = {d["crew_id"] or "cabin" for d in dropout["expected_data_status"]}
+    assert all(end[who] == "nominal" for who in recovered), "veri gelince Normal'e dönmeli"
+    assert set(end.values()) <= {"nominal", "caution"} and "unknown" not in end.values()
+
+
+def test_sensor_dropout_cabin_stays_nominal_without_the_fault(dropout: Scenario) -> None:
+    """Kabin gerçekte sağlıklı: yalnızca sensör bozuk. Bu yüzden critical ya da caution beklenmez."""
+    th = dropout["thresholds"]
+    series = cabin_series(dropout)
+    assert all(th["pio2_normoxia_min"] <= pio2 <= th["pio2_normoxia_max"] for _, pio2, _ in series)
+    assert all(co2 < th["ppco2_yellow"] for _, _, co2 in series)
+    assert dropout["expected_status_end"]["cabin"] == "nominal"
