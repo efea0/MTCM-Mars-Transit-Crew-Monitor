@@ -1,0 +1,459 @@
+{
+  "scenario": "sleep_deprivation",
+  "title": "Uyku eksiği",
+  "purpose": "Uyku süresi kişi bazlı değerlendirilir: aynı ortamda Can art arda 2 dönem 5 saatin altında uyuyup Eylem'e, Ece art arda 2 dönem 6 saatin altında (ama 5'in üstünde) uyuyup İzle'ye geçer; Ayşe sağlıklı, Mert'in tek kısa uykusu uyarı çıkarmaz (art arda şartı).",
+  "simulated": true,
+  "seed": 42,
+  "time_unit": "mission_min",
+  "duration_min": 1800,
+  "thresholds_from": "data/reference/ranges.json",
+  "ranges_refs": {
+    "pio2_normoxia_min": "kabin.pio2_normoksi_hedef.min",
+    "pio2_normoxia_max": "kabin.pio2_normoksi_hedef.max",
+    "pio2_red": "kabin.pio2_hafif_hipoksi_alt.deger",
+    "ppco2_red_1h": "kabin.ppco2_limit_1saat_ort.deger",
+    "ppco2_yellow": "kabin.ppco2_sari_esik.deger",
+    "spo2_drop_caution": "vital_karar_parametreleri.spo2_dusus.izle",
+    "spo2_drop_warning": "vital_karar_parametreleri.spo2_dusus.eylem",
+    "hr_rise_caution": "vital_karar_parametreleri.nabiz_artis_dinlenme.izle",
+    "hr_rise_warning": "vital_karar_parametreleri.nabiz_artis_dinlenme.eylem",
+    "rr_rise_caution": "vital_karar_parametreleri.solunum_artis.izle",
+    "rr_rise_warning": "vital_karar_parametreleri.solunum_artis.eylem",
+    "consecutive": "vital_karar_parametreleri.art_arda_olcum.deger",
+    "spe_design_mSv": "radyasyon.spe_tasarim_esigi.deger",
+    "career_limit_mSv": "radyasyon.kariyer_limiti.deger",
+    "yellow_fraction": "vital_karar_parametreleri.sari_kademe_genel.oran"
+  },
+  "thresholds": {
+    "pio2_normoxia_min": 145,
+    "pio2_normoxia_max": 155,
+    "pio2_red": 127,
+    "ppco2_red_1h": 3.0,
+    "ppco2_yellow": 2.5,
+    "spo2_drop_caution": 3,
+    "spo2_drop_warning": 6,
+    "hr_rise_caution": 15,
+    "hr_rise_warning": 30,
+    "rr_rise_caution": 4,
+    "rr_rise_warning": 8,
+    "consecutive": 3,
+    "spe_design_mSv": 250,
+    "career_limit_mSv": 600,
+    "yellow_fraction": 0.8
+  },
+  "sleep_thresholds": {
+    "izle_saat": 6.0,
+    "eylem_saat": 5.0,
+    "art_arda_donem": 2
+  },
+  "sleep_ranges_refs": {
+    "izle_saat": "vital_karar_parametreleri.uyku_suresi.izle",
+    "eylem_saat": "vital_karar_parametreleri.uyku_suresi.eylem",
+    "art_arda_donem": "vital_karar_parametreleri.uyku_suresi.art_arda_donem"
+  },
+  "sleep_note": "Eşikler HİPOTEZ (ekip kararı, ranges.json'da doğrulanmadı). Ölçüm her uyku dönemi sonunda: o dönemde activity = sleep olan sürelerin toplamı; vital ölçüm aralığından bağımsız. Eylem şiddeti sistemde critical olarak yazılır (#14 motoru ve kural motoru warning üretmez). sleep_hours henüz sözleşmede Metric değil.",
+  "baseline_note": "mean değerleri ranges.json vital_karar_parametreleri.baz_cizgi'den. sd yalnızca simülatör gürültüsü (varsayım; karar kuralı sd kullanmaz, sabit fark kullanır). hrv_rmssd ve kan basıncı ranges.json'da yok (varsayım).",
+  "crew": [
+    {
+      "id": "crew-1",
+      "name": "Ayşe",
+      "role": "Commander",
+      "baseline": {
+        "heart_rate": {
+          "mean": 64,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 48,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.6,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 114,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 74,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-2",
+      "name": "Can",
+      "role": "Flight Engineer",
+      "baseline": {
+        "heart_rate": {
+          "mean": 70,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 55,
+          "sd": 9
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 15,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.8,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 118,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 76,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-3",
+      "name": "Ece",
+      "role": "Mission Specialist",
+      "baseline": {
+        "heart_rate": {
+          "mean": 58,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 42,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 13,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.5,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 112,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 72,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-4",
+      "name": "Mert",
+      "role": "Flight Surgeon",
+      "baseline": {
+        "heart_rate": {
+          "mean": 67,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 38,
+          "sd": 7
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 120,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 78,
+          "sd": 5
+        }
+      }
+    }
+  ],
+  "cabin_initial_pio2_mmHg": 149.0,
+  "cabin_initial": {
+    "pp_o2": {
+      "value": 158.8,
+      "unit": "mmHg",
+      "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
+    },
+    "pp_co2": {
+      "value": 2.0,
+      "unit": "mmHg"
+    },
+    "cabin_pressure": {
+      "value": 760,
+      "unit": "mmHg"
+    },
+    "cabin_temp": {
+      "value": 22.0,
+      "unit": "°C"
+    },
+    "rel_humidity": {
+      "value": 45,
+      "unit": "%"
+    },
+    "radiation_dose_rate": {
+      "value": 20,
+      "unit": "µGy/saat",
+      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+    }
+  },
+  "model": {
+    "note": "ranges.json (PR #16 v1.1) değerleri. Zamanlar #14 atmosphere motoruyla birebir hizalıdır: üretim ve giderme arızadan önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün), hacim 75 m³. tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "volume_m3": 75,
+    "crew_count": 4,
+    "total_pressure_mmHg": 760,
+    "temperature_K": 295,
+    "co2_removal_kg_day": 4.0,
+    "o2_generation_kg_day": 3.4,
+    "r_min": 1.0,
+    "r_max": 1.8,
+    "o2_min": 0.49,
+    "o2_max": 1.25,
+    "co2_min": 0.52,
+    "co2_max": 1.5,
+    "measurement_interval_min": 5,
+    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası. ranges.json'daki \"5 saniye (demo)\" ifadesinin birimi netleştirilecek."
+  },
+  "proposed_rules": {
+    "crew_sleep_short_caution": {
+      "condition": "uyku süresi < 6 saat, art arda 2 uyku döneminde",
+      "consecutive_required": 2,
+      "unit": "uyku dönemi",
+      "source": "ranges.json kurallar sleep-short-caution (HİPOTEZ)",
+      "metric": "sleep_hours"
+    },
+    "crew_sleep_short_critical": {
+      "condition": "uyku süresi < 5 saat, art arda 2 uyku döneminde",
+      "consecutive_required": 2,
+      "unit": "uyku dönemi",
+      "source": "ranges.json kurallar sleep-short-warning (HİPOTEZ); Eylem = critical",
+      "metric": "sleep_hours"
+    }
+  },
+  "events": [
+    {
+      "t_min": 30,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "sleep",
+      "note": "Ayşe 7,5 saat uyur."
+    },
+    {
+      "t_min": 30,
+      "type": "activity",
+      "crew_id": "crew-2",
+      "activity": "sleep",
+      "note": "Can yalnızca 4,5 saat uyur (< 5 saat)."
+    },
+    {
+      "t_min": 30,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "sleep",
+      "note": "Ece 5,5 saat uyur (< 6, >= 5 saat)."
+    },
+    {
+      "t_min": 30,
+      "type": "activity",
+      "crew_id": "crew-4",
+      "activity": "sleep",
+      "note": "Mert 4,8 saat uyur (< 5 saat): tek başına uyarı değil."
+    },
+    {
+      "t_min": 300,
+      "type": "activity",
+      "crew_id": "crew-2",
+      "activity": "resting",
+      "note": "Can uyanır; uyku dönemi biter, süre ölçülür."
+    },
+    {
+      "t_min": 318,
+      "type": "activity",
+      "crew_id": "crew-4",
+      "activity": "resting",
+      "note": "Mert uyanır; uyku dönemi biter, süre ölçülür."
+    },
+    {
+      "t_min": 360,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "resting",
+      "note": "Ece uyanır; uyku dönemi biter, süre ölçülür."
+    },
+    {
+      "t_min": 480,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "resting",
+      "note": "Ayşe uyanır; uyku dönemi biter, süre ölçülür."
+    },
+    {
+      "t_min": 1380,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "sleep",
+      "note": "Ayşe 6,5 saat uyur: 6 saatin üstünde."
+    },
+    {
+      "t_min": 1380,
+      "type": "activity",
+      "crew_id": "crew-2",
+      "activity": "sleep",
+      "note": "Can ikinci dönemde 4,2 saat uyur: art arda 2 dönem < 5 saat."
+    },
+    {
+      "t_min": 1380,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "sleep",
+      "note": "Ece ikinci dönemde 5,7 saat uyur: art arda 2 dönem < 6 saat, ama hiçbiri < 5."
+    },
+    {
+      "t_min": 1380,
+      "type": "activity",
+      "crew_id": "crew-4",
+      "activity": "sleep",
+      "note": "Mert 6,5 saat uyur: art arda şartı bozulur, uyarı yok."
+    },
+    {
+      "t_min": 1632,
+      "type": "activity",
+      "crew_id": "crew-2",
+      "activity": "resting",
+      "note": "Can uyanır; uyku dönemi biter, süre ölçülür."
+    },
+    {
+      "t_min": 1722,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "resting",
+      "note": "Ece uyanır; uyku dönemi biter, süre ölçülür."
+    },
+    {
+      "t_min": 1770,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "resting",
+      "note": "Ayşe uyanır; uyku dönemi biter, süre ölçülür."
+    },
+    {
+      "t_min": 1770,
+      "type": "activity",
+      "crew_id": "crew-4",
+      "activity": "resting",
+      "note": "Mert uyanır; uyku dönemi biter, süre ölçülür."
+    }
+  ],
+  "expected_alerts": [
+    {
+      "crew_id": "crew-2",
+      "metric": "sleep_hours",
+      "severity": "caution",
+      "rule_id": "crew_sleep_short_caution",
+      "t_condition": 1632.0,
+      "t_earliest": 1632,
+      "t_latest": 1647,
+      "evidence_metrics": [
+        "sleep_hours"
+      ],
+      "why": "Can'ın son iki uyku dönemi 4,5 ve 4,2 saat: art arda 2 dönem < 6 saat.",
+      "recommendation": "Riskli işleri (EVA, onarım) ertele, ek uyku dönemi planla, izle."
+    },
+    {
+      "crew_id": "crew-2",
+      "metric": "sleep_hours",
+      "severity": "critical",
+      "rule_id": "crew_sleep_short_critical",
+      "t_condition": 1632.0,
+      "t_earliest": 1632,
+      "t_latest": 1647,
+      "evidence_metrics": [
+        "sleep_hours"
+      ],
+      "why": "Can'ın son iki uyku dönemi 4,5 ve 4,2 saat: art arda 2 dönem < 5 saat.",
+      "recommendation": "Riskli işleri (EVA, onarım) ertele, ek uyku dönemi planla, Dünya'ya raporla."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "sleep_hours",
+      "severity": "caution",
+      "rule_id": "crew_sleep_short_caution",
+      "t_condition": 1722.0,
+      "t_earliest": 1722,
+      "t_latest": 1737,
+      "evidence_metrics": [
+        "sleep_hours"
+      ],
+      "why": "Ece'nin son iki uyku dönemi 5,5 ve 5,7 saat: art arda 2 dönem < 6 saat, hiçbiri < 5.",
+      "recommendation": "Riskli işleri (EVA, onarım) ertele, ek uyku dönemi planla, izle."
+    }
+  ],
+  "forbidden_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "sleep_hours",
+      "why": "Ayşe 7,5 ve 6,5 saat uyur, iki dönem de 6 saatin üstünde."
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "sleep_hours",
+      "why": "Mert'in 4,8 saatlik tek kısa uykusunu 6,5 saatlik uyku izler; art arda 2 dönem şartı sağlanmaz."
+    },
+    {
+      "crew_id": "crew-1",
+      "metric": "heart_rate",
+      "why": "Uyku sırasında nabız kanıt sayılmaz; uyarı yok."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "why": "Kabin regüle, sabit."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "why": "Kabin regüle, sabit."
+    }
+  ],
+  "forbidden_rules": [
+    {
+      "crew_id": "crew-3",
+      "rule_id": "crew_sleep_short_critical",
+      "why": "Ece'nin iki dönemi de 5 saatin üstünde (5,5 ve 5,7): Eylem yok, yalnızca İzle."
+    }
+  ],
+  "expected_status_end": {
+    "crew-1": "nominal",
+    "crew-2": "critical",
+    "crew-3": "caution",
+    "crew-4": "nominal",
+    "cabin": "nominal"
+  }
+}

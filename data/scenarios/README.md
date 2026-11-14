@@ -8,18 +8,25 @@ Tüm değerler simüle. Eşikler `data/reference/ranges.json`, kabin dengesi `ba
 | `hypoxia` | Hazır | 1800 |
 | `hypercapnia` | Hazır | 670 |
 | `solar_storm` | Hazır | 780 |
-| `sleep_deprivation` | **Yok**, bu PR'ın kapsamı dışında | - |
+| `sleep_deprivation` | Hazır (eşikler HİPOTEZ) | 1800 |
 | `sensor_dropout` | **Yok**, bu PR'ın kapsamı dışında | - |
 
 Ortak kurallar: her senaryo en fazla 1800 görev dakikasına sığar (testle denetlenir), hacim 75 m³,
 ölçüm aralığı 5 görev dakikası, motorun limit aşımı kademesi `critical`.
 
-## Yazılmayan iki senaryo
+## sleep_deprivation
 
-`models.Scenario` bu iki adı tanımlıyor; dosyaları henüz yok. Eksikliği gizlemek yerine burada açık yazıyoruz.
+Kişi bazlı uyku süresi: her uyku dönemi sonunda ölçülür (`activity = sleep` süreleri toplamı), art arda 2 dönem
+< 6 saat İzle (`caution`), < 5 saat Eylem (`critical`). Eşikler ranges.json `sleep-short-*` kurallarından
+(HİPOTEZ, ekip kararı, doğrulanmadı). Dört kişi dört durum: Can Eylem, Ece İzle, Ayşe sağlıklı, Mert'in tek kısa
+uykusu uyarı çıkarmaz (art arda şartı). Kural ranges.json'da `warning` adıyla duruyor; senaryoda Eylem `critical`
+yazılır (#14 motoru ve kural motoru `warning` üretmez). `sleep_hours` henüz sözleşmede `Metric` değil
+(testlerde xfail, Aydın).
 
-- **`sleep_deprivation`:** Ranges.json'da uykuya özel bir eşik yok (yalnızca CO₂ etkisi notunda "uyku azalması"
-  geçiyor). Eşikler kararlaştırılmadan beklenen karar tablosu yazılamaz. Sözleşmede `Activity.sleep` var (#26).
+## Yazılmayan senaryo
+
+`models.Scenario` `sensor_dropout` adını tanımlıyor; dosyası bu PR'da yok. Eksikliği gizlemek yerine burada yazıyoruz.
+
 - **`sensor_dropout`:** Ölçüm aralığı (5 görev dakikası) kararlaştığı için yazılabilir; ayrı bir PR'da gelecek.
   Beklenen davranış: eksik veri `unknown` olur, asla `nominal` sayılmaz (`Reading` doğrulayıcısı).
 
