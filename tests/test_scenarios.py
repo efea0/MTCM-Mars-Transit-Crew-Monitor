@@ -27,6 +27,8 @@ STATUSES = {s.value for s in m.Status}
 MMHG_PER_KPA = 7.50062
 GAS_CONSTANT = 8.314
 O2_MOLAR_KG = 0.032
+CO2_MOLAR_KG = 0.04401
+REQUIRED_SCENARIOS = {"nominal", "hypoxia", "hypercapnia", "solar_storm"}
 
 
 def load(name: str) -> dict[str, Any]:
@@ -207,3 +209,134 @@ def test_hypoxia_personal_heart_rate_deviation(
     assert ("crew-2", "spo2") in {(f["crew_id"], f["metric"]) for f in hypoxia["forbidden_alerts"]}
     assert hypoxia["expected_status_end"]["crew-2"] == "warning"
     assert hypoxia["expected_status_end"]["crew-4"] == "nominal"
+
+
+# ---------------------------------------------------------------- tüm senaryolar: ortak
+
+
+def by_rule(s: dict[str, Any], rule_id: str) -> dict[str, Any]:
+    return next(a for a in s["expected_alerts"] if a["rule_id"] == rule_id)
+
+
+def test_required_scenarios_exist() -> None:
+    present = {p.stem for p in SCENARIO_FILES}
+    assert present >= REQUIRED_SCENARIOS, f"eksik: {REQUIRED_SCENARIOS - present}"
+
+
+def test_crew_and_cabin_start_are_identical_across_scenarios() -> None:
+    reference = load("hypoxia")
+    for path in SCENARIO_FILES:
+        s = json.loads(path.read_text(encoding="utf-8"))
+        assert s["crew"] == reference["crew"], path.stem
+        assert s["cabin_initial"] == reference["cabin_initial"], path.stem
+
+
+# ---------------------------------------------------------------- nominal
+
+
+def test_nominal_has_no_alerts_even_with_exercise() -> None:
+    s = load("nominal")
+    assert s["expected_alerts"] == []
+    assert s["no_alerts_at_all"] is True
+    assert set(s["expected_status_end"].values()) == {"nominal"}
+    exercise = next(e for e in s["events"] if e.get("activity") == "exercise")
+    forbidden = {(f["crew_id"], f["metric"]) for f in s["forbidden_alerts"]}
+    assert {(exercise["crew_id"], "heart_rate"), (exercise["crew_id"], "resp_rate")} <= forbidden
+
+
+# ---------------------------------------------------------------- hypercapnia
+
+
+def co2_rise_mmhg_per_hour(s: dict[str, Any]) -> float:
+    v = s["assumptions"]
+    fail = next(e for e in s["events"] if e["type"] == "co2_removal_rate")
+    kg_per_hour = v["crew_count"] * v["co2_production_kg_per_person_day"] / 24
+    pa_per_kg = (1 / CO2_MOLAR_KG) * GAS_CONSTANT * v["temperature_K"] / v["free_volume_m3"]
+    return kg_per_hour * pa_per_kg / 1000 * MMHG_PER_KPA * (1 - fail["value"])
+
+
+def test_hypercapnia_timings() -> None:
+    s = load("hypercapnia")
+    rules = s["proposed_rules"]
+    rate = co2_rise_mmhg_per_hour(s)
+    fail_t = next(e for e in s["events"] if e["type"] == "co2_removal_rate")["t_min"]
+    start = s["cabin_initial"]["pp_co2"]["value"]
+
+    def t_at(level: float) -> float:
+        return fail_t + (level - start) / rate * 60
+
+    limit = rules["cabin_pp_co2_warning"]
+    t_limit_avg = t_at(limit["threshold"]) + limit["average_window_min"] / 2  # doğrusal artış
+    assert_in_window(t_at(rules["cabin_pp_co2_caution"]["threshold"]), by_rule(s, "cabin_pp_co2_caution"))
+    assert_in_window(t_limit_avg, by_rule(s, "cabin_pp_co2_warning"))
+
+    countdown = s["expected_countdown"]
+    computed = t_at(limit["threshold"]) - (fail_t + 1)
+    assert computed == pytest.approx(countdown["co2_min_at_t11"], rel=countdown["tolerance_pct"] / 100)
+
+    symptom = next(e for e in s["events"] if e.get("crew_id") == "crew-3")
+    assert symptom["activity"] == "resting"
+    assert (
+        start + rate * (symptom["t_min"] - fail_t) / 60 >= 2.8
+    ), "belirti NASA baş ağrısı aralığında başlamalı"
+
+    base = {c["id"]: c["baseline"] for c in s["crew"]}["crew-3"]
+    t_both = max(
+        ramp_cross_time(symptom, base["resp_rate"], "resp_rate", 2),
+        ramp_cross_time(symptom, base["heart_rate"], "heart_rate", 2),
+    )
+    assert_in_window(t_both, by_rule(s, "crew_co2_effect_caution"))
+    assert by_rule(s, "crew_co2_effect_warning")["t_latest"] >= t_limit_avg
+
+
+def test_hypercapnia_person_decision_only_for_symptomatic_crew() -> None:
+    s = load("hypercapnia")
+    crew_alerts = {a["crew_id"] for a in s["expected_alerts"] if a["crew_id"]}
+    assert crew_alerts == {"crew-3"}
+    for a in s["expected_alerts"]:
+        if a["crew_id"]:
+            assert "pp_co2" in a["evidence_metrics"], "kişi kararı ortamla birleştirilir"
+
+
+# ---------------------------------------------------------------- solar_storm
+
+
+def test_solar_storm_timings_and_totals() -> None:
+    s = load("solar_storm")
+    v = s["assumptions"]
+    ev = {e["type"]: e["t_min"] for e in s["events"]}
+    rate = v["event_effective_dose_mSv_per_h"] / 60
+    rules = s["proposed_rules"]
+
+    assert ev["sep_end"] - ev["sep_onset"] == v["event_duration_min"]
+    assert v["event_absorbed_dose_rate_uGy_per_h"] == pytest.approx(
+        v["event_effective_dose_mSv_per_h"] / v["quality_factor"] * 1000, rel=0.001
+    )
+    assert_in_window(ev["sep_onset"], by_rule(s, "cabin_dose_rate_spe_caution"))
+    for rid in ("event_dose_caution", "event_dose_warning"):
+        t = ev["sep_onset"] + rules[rid]["cumulative_event_dose_mSv"] / rate
+        assert_in_window(t, by_rule(s, rid))
+    t_warning = ev["sep_onset"] + rules["event_dose_warning"]["cumulative_event_dose_mSv"] / rate
+    assert ev["shelter"] >= t_warning, "sığınak uyarıdan sonra tetiklenir"
+
+    total = rate * (ev["shelter"] - ev["sep_onset"]) + rate * v["shelter_factor"] * (
+        ev["sep_end"] - ev["shelter"]
+    )
+    assert total == pytest.approx(s["expected_dose"]["event_total_mSv"], abs=0.2)
+    assert total < v["design_spe_mSv"]
+
+    background = v["gcr_mSv_per_day"] * (v["mission_day"] + s["duration_min"] / 1440)
+    worst = max(v["prior_career_dose_mSv"].values()) + background + total
+    assert worst / v["career_limit_mSv"] == pytest.approx(s["expected_dose"]["max_career_fraction"], abs=0.01)
+    assert worst < 0.9 * v["career_limit_mSv"]
+
+
+def test_solar_storm_matches_saved_donki_event() -> None:
+    s = load("solar_storm")
+    saved_path = SCENARIO_DIR.parent / "donki" / "sep_event.json"
+    if not saved_path.exists():
+        pytest.skip("data/donki/sep_event.json bu dalda yok (feat/qa/donki-sep-event birleşince gelir)")
+    selected = json.loads(saved_path.read_text(encoding="utf-8"))["selected"]
+    assert s["donki"]["sepID"] == selected["sepID"]
+    assert s["donki"]["event_time"] == selected["eventTime"]
+    assert s["donki"]["linked_flare"] in [e["activityID"] for e in selected["linkedEvents"]]

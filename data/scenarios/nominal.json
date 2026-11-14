@@ -1,0 +1,250 @@
+{
+  "scenario": "nominal",
+  "title": "Normal durum",
+  "purpose": "Her şey yolundayken sistemin yanlış alarm üretmediğini göstermek. crew-1'in egzersizdeki yüksek nabzı ve solunumu alarm sayılmaz.",
+  "simulated": true,
+  "seed": 42,
+  "time_unit": "mission_min",
+  "duration_min": 180,
+  "crew": [
+    {
+      "id": "crew-1",
+      "name": "Ayşe",
+      "role": "Commander",
+      "baseline": {
+        "heart_rate": {
+          "mean": 64,
+          "sd": 3.0
+        },
+        "hrv_rmssd": {
+          "mean": 48,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 97.5,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 114,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 74,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-2",
+      "name": "Can",
+      "role": "Flight Engineer",
+      "baseline": {
+        "heart_rate": {
+          "mean": 58,
+          "sd": 3.0
+        },
+        "hrv_rmssd": {
+          "mean": 55,
+          "sd": 9
+        },
+        "spo2": {
+          "mean": 97.8,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 13,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.6,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 118,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 76,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-3",
+      "name": "Ece",
+      "role": "Mission Specialist",
+      "baseline": {
+        "heart_rate": {
+          "mean": 68,
+          "sd": 3.5
+        },
+        "hrv_rmssd": {
+          "mean": 42,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 97.2,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 15,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.8,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 112,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 72,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-4",
+      "name": "Mert",
+      "role": "Flight Surgeon",
+      "baseline": {
+        "heart_rate": {
+          "mean": 74,
+          "sd": 4.0
+        },
+        "hrv_rmssd": {
+          "mean": 38,
+          "sd": 7
+        },
+        "spo2": {
+          "mean": 97.0,
+          "sd": 0.6
+        },
+        "resp_rate": {
+          "mean": 16,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 120,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 78,
+          "sd": 5
+        }
+      }
+    }
+  ],
+  "cabin_initial": {
+    "pp_o2": {
+      "value": 21.17,
+      "unit": "kPa",
+      "note": "PIO2 149 mmHg (normoksi) karşılığı: 149 × 760/713 mmHg ≈ 21,17 kPa"
+    },
+    "pp_co2": {
+      "value": 2.0,
+      "unit": "mmHg"
+    },
+    "cabin_pressure": {
+      "value": 101.3,
+      "unit": "kPa"
+    },
+    "cabin_temp": {
+      "value": 22.0,
+      "unit": "°C"
+    },
+    "rel_humidity": {
+      "value": 45,
+      "unit": "%"
+    },
+    "radiation_dose_rate": {
+      "value": 20,
+      "unit": "µGy/saat",
+      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+    }
+  },
+  "proposed_rules": {},
+  "events": [
+    {
+      "t_min": 60,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "exercise",
+      "end_min": 90,
+      "targets": {
+        "heart_rate": 125,
+        "resp_rate": 24
+      },
+      "ramp_min": 5,
+      "note": "Ayşe günlük egzersizini yapıyor. Nabız ve solunum yükselir, bu beklenen bir durum."
+    }
+  ],
+  "expected_alerts": [],
+  "forbidden_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "heart_rate",
+      "why": "Egzersiz nabzı kalp yükü sayılmaz."
+    },
+    {
+      "crew_id": "crew-1",
+      "metric": "resp_rate",
+      "why": "Egzersiz solunumu alarm sayılmaz."
+    },
+    {
+      "crew_id": "crew-2",
+      "metric": "heart_rate",
+      "why": "Senaryoda hiçbir uyarı çıkmamalı."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "heart_rate",
+      "why": "Senaryoda hiçbir uyarı çıkmamalı."
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "heart_rate",
+      "why": "Senaryoda hiçbir uyarı çıkmamalı."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "why": "CO2 giderme = üretim, seviye sabit."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "why": "O2 üretim = tüketim, seviye sabit."
+    },
+    {
+      "crew_id": null,
+      "metric": "radiation_dose_rate",
+      "why": "Yalnızca taban GCR dozu."
+    }
+  ],
+  "no_alerts_at_all": true,
+  "expected_status_end": {
+    "crew-1": "nominal",
+    "crew-2": "nominal",
+    "crew-3": "nominal",
+    "crew-4": "nominal",
+    "cabin": "nominal"
+  },
+  "expected_countdown": {
+    "o2": "steady",
+    "co2": "steady"
+  }
+}

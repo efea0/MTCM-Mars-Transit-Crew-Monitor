@@ -1,0 +1,349 @@
+{
+  "scenario": "hypercapnia",
+  "title": "CO2 yükselişi: giderme ünitesi kısmi arıza",
+  "purpose": "CO2 giderme ünitesi %40 kapasiteye düşer, kabin pp_co2 yükselir. Önce kabin uyarısı, sonra yalnızca belirti gösteren crew-3 için kişi bazlı karar çıkar.",
+  "simulated": true,
+  "seed": 42,
+  "time_unit": "mission_min",
+  "duration_min": 240,
+  "crew": [
+    {
+      "id": "crew-1",
+      "name": "Ayşe",
+      "role": "Commander",
+      "baseline": {
+        "heart_rate": {
+          "mean": 64,
+          "sd": 3.0
+        },
+        "hrv_rmssd": {
+          "mean": 48,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 97.5,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 114,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 74,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-2",
+      "name": "Can",
+      "role": "Flight Engineer",
+      "baseline": {
+        "heart_rate": {
+          "mean": 58,
+          "sd": 3.0
+        },
+        "hrv_rmssd": {
+          "mean": 55,
+          "sd": 9
+        },
+        "spo2": {
+          "mean": 97.8,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 13,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.6,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 118,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 76,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-3",
+      "name": "Ece",
+      "role": "Mission Specialist",
+      "baseline": {
+        "heart_rate": {
+          "mean": 68,
+          "sd": 3.5
+        },
+        "hrv_rmssd": {
+          "mean": 42,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 97.2,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 15,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.8,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 112,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 72,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-4",
+      "name": "Mert",
+      "role": "Flight Surgeon",
+      "baseline": {
+        "heart_rate": {
+          "mean": 74,
+          "sd": 4.0
+        },
+        "hrv_rmssd": {
+          "mean": 38,
+          "sd": 7
+        },
+        "spo2": {
+          "mean": 97.0,
+          "sd": 0.6
+        },
+        "resp_rate": {
+          "mean": 16,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 120,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 78,
+          "sd": 5
+        }
+      }
+    }
+  ],
+  "cabin_initial": {
+    "pp_o2": {
+      "value": 21.17,
+      "unit": "kPa",
+      "note": "PIO2 149 mmHg (normoksi) karşılığı: 149 × 760/713 mmHg ≈ 21,17 kPa"
+    },
+    "pp_co2": {
+      "value": 2.0,
+      "unit": "mmHg"
+    },
+    "cabin_pressure": {
+      "value": 101.3,
+      "unit": "kPa"
+    },
+    "cabin_temp": {
+      "value": 22.0,
+      "unit": "°C"
+    },
+    "rel_humidity": {
+      "value": 45,
+      "unit": "%"
+    },
+    "radiation_dose_rate": {
+      "value": 20,
+      "unit": "µGy/saat",
+      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+    }
+  },
+  "assumptions": {
+    "free_volume_m3": 100,
+    "temperature_K": 295,
+    "crew_count": 4,
+    "co2_production_kg_per_person_day": 1.0,
+    "nominal_removal": "üretime eşit (pp_co2 2,0 mmHg'de sabit)",
+    "sources": {
+      "co2_production": "NASA-STD-3001 metabolik yük ortalaması (aralık 0,52–1,5 kg/kişi-gün)",
+      "co2_limit": "[V2 6004] kabin ppCO2 ≤ 3 mmHg, 1 saatlik ortalama",
+      "co2_symptoms": "NASA OCHMO-TB-004: baş ağrısı 2,8–4,5 mmHg",
+      "free_volume": "varsayım — doğrulanmadı"
+    },
+    "note": "Net artış ≈ 0,418 mmHg/saat. Test bu değerleri yeniden hesaplar."
+  },
+  "proposed_rules": {
+    "note": "rules.py ve ranges.json için öneri.",
+    "cabin_pp_co2_caution": {
+      "metric": "pp_co2",
+      "comparator": ">=",
+      "threshold": 2.5,
+      "consecutive_required": 3,
+      "source": "varsayım (ekip tanımı: limite yaklaşma)"
+    },
+    "cabin_pp_co2_warning": {
+      "metric": "pp_co2",
+      "comparator": ">",
+      "threshold": 3.0,
+      "consecutive_required": 3,
+      "average_window_min": 60,
+      "source": "[V2 6004] 1 saatlik ortalama"
+    },
+    "crew_co2_effect_caution": {
+      "metric": "resp_rate",
+      "z": 2.0,
+      "also_requires": "heart_rate z ≥ 2 ve kabin pp_co2 ≥ 2,5 mmHg",
+      "consecutive_required": 3,
+      "only_when": "resting",
+      "source": "HİPOTEZ (demo parametresi)"
+    },
+    "crew_co2_effect_warning": {
+      "metric": "resp_rate",
+      "z": 2.0,
+      "also_requires": "heart_rate z ≥ 2 ve kabin 1 saatlik ortalama > 3 mmHg",
+      "consecutive_required": 3,
+      "only_when": "resting",
+      "source": "HİPOTEZ + [V2 6004]"
+    }
+  },
+  "events": [
+    {
+      "t_min": 10,
+      "type": "co2_removal_rate",
+      "value": 0.4,
+      "note": "CO2 giderme %40 kapasiteye düşer."
+    },
+    {
+      "t_min": 130,
+      "type": "vital_ramp",
+      "crew_id": "crew-3",
+      "activity": "resting",
+      "targets": {
+        "resp_rate": 19,
+        "heart_rate": 76
+      },
+      "ramp_min": 30,
+      "note": "Ece'de solunum ve nabız artar. Kabin pp_co2 bu sırada ≈2,84 mmHg, NASA'nın baş ağrısı bildirdiği aralıkta."
+    }
+  ],
+  "expected_alerts": [
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "severity": "caution",
+      "rule_id": "cabin_pp_co2_caution",
+      "t_earliest": 78,
+      "t_latest": 92,
+      "evidence_metrics": [
+        "pp_co2"
+      ],
+      "why": "Kabin pp_co2 2,5 mmHg'yi geçti (ekip tanımı). Hesaplanan an: t≈82.",
+      "recommendation": "CO2 giderme ünitesini kontrol et, egzersizi ertele."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "resp_rate",
+      "severity": "caution",
+      "rule_id": "crew_co2_effect_caution",
+      "t_earliest": 150,
+      "t_latest": 175,
+      "evidence_metrics": [
+        "resp_rate",
+        "heart_rate",
+        "pp_co2"
+      ],
+      "why": "Kabin pp_co2 yükselirken Ece'nin solunumu ve nabzı kendi baz çizgisinin 2 SD üstünde. İkisi birlikte t≈156'da sağlanır.",
+      "recommendation": "Dinlen, CO2 gidermeyi güçlendir, belirtileri izle."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "severity": "warning",
+      "rule_id": "cabin_pp_co2_warning",
+      "t_earliest": 178,
+      "t_latest": 195,
+      "evidence_metrics": [
+        "pp_co2"
+      ],
+      "why": "pp_co2'nin 1 saatlik ortalaması 3 mmHg'yi aştı [V2 6004]. Hesaplanan an: t≈183,5 (anlık değer 3,0'ı t≈153,5'te geçer).",
+      "recommendation": "Yedek CO2 gidermeyi devreye al, eforu en aza indir, Dünya'ya raporla."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "resp_rate",
+      "severity": "warning",
+      "rule_id": "crew_co2_effect_warning",
+      "t_earliest": 178,
+      "t_latest": 195,
+      "evidence_metrics": [
+        "resp_rate",
+        "heart_rate",
+        "pp_co2"
+      ],
+      "why": "Ece'nin belirtileri sürüyor ve kabin 1 saatlik ortalaması sınırın üstünde.",
+      "recommendation": "Egzersizi durdur, seviye 3 mmHg altına inene kadar izle, Dünya'ya raporla."
+    }
+  ],
+  "forbidden_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "resp_rate",
+      "why": "Belirtisi olmayan astronota kişi bazlı karar yok; kabin uyarısı yeterli."
+    },
+    {
+      "crew_id": "crew-2",
+      "metric": "resp_rate",
+      "why": "Aynı neden."
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "resp_rate",
+      "why": "Aynı neden."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "heart_rate",
+      "why": "Nabız, CO2 kararının kanıtı; ayrı kalp yükü uyarısı çift alarm olur."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "spo2",
+      "why": "O2 tarafı normal, hipoksi yok."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "why": "O2 üretimi normal."
+    }
+  ],
+  "expected_status_end": {
+    "crew-1": "nominal",
+    "crew-2": "nominal",
+    "crew-3": "warning",
+    "crew-4": "nominal",
+    "cabin": "warning"
+  },
+  "expected_countdown": {
+    "co2_min_at_t11": 142.5,
+    "tolerance_pct": 10,
+    "o2": "steady"
+  }
+}

@@ -1,0 +1,332 @@
+{
+  "scenario": "solar_storm",
+  "title": "Güneş fırtınası (SEP)",
+  "purpose": "Gerçek DONKI kaydının zamanıyla bir güneş parçacık olayı başlar, simüle doz yükselir, sistem kendiliğinden fırtına sığınağına geçilmesini önerir.",
+  "simulated": true,
+  "seed": 42,
+  "time_unit": "mission_min",
+  "duration_min": 780,
+  "crew": [
+    {
+      "id": "crew-1",
+      "name": "Ayşe",
+      "role": "Commander",
+      "baseline": {
+        "heart_rate": {
+          "mean": 64,
+          "sd": 3.0
+        },
+        "hrv_rmssd": {
+          "mean": 48,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 97.5,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 114,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 74,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-2",
+      "name": "Can",
+      "role": "Flight Engineer",
+      "baseline": {
+        "heart_rate": {
+          "mean": 58,
+          "sd": 3.0
+        },
+        "hrv_rmssd": {
+          "mean": 55,
+          "sd": 9
+        },
+        "spo2": {
+          "mean": 97.8,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 13,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.6,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 118,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 76,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-3",
+      "name": "Ece",
+      "role": "Mission Specialist",
+      "baseline": {
+        "heart_rate": {
+          "mean": 68,
+          "sd": 3.5
+        },
+        "hrv_rmssd": {
+          "mean": 42,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 97.2,
+          "sd": 0.5
+        },
+        "resp_rate": {
+          "mean": 15,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.8,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 112,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 72,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-4",
+      "name": "Mert",
+      "role": "Flight Surgeon",
+      "baseline": {
+        "heart_rate": {
+          "mean": 74,
+          "sd": 4.0
+        },
+        "hrv_rmssd": {
+          "mean": 38,
+          "sd": 7
+        },
+        "spo2": {
+          "mean": 97.0,
+          "sd": 0.6
+        },
+        "resp_rate": {
+          "mean": 16,
+          "sd": 1.5
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.2
+        },
+        "systolic_bp": {
+          "mean": 120,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 78,
+          "sd": 5
+        }
+      }
+    }
+  ],
+  "cabin_initial": {
+    "pp_o2": {
+      "value": 21.17,
+      "unit": "kPa",
+      "note": "PIO2 149 mmHg (normoksi) karşılığı: 149 × 760/713 mmHg ≈ 21,17 kPa"
+    },
+    "pp_co2": {
+      "value": 2.0,
+      "unit": "mmHg"
+    },
+    "cabin_pressure": {
+      "value": 101.3,
+      "unit": "kPa"
+    },
+    "cabin_temp": {
+      "value": 22.0,
+      "unit": "°C"
+    },
+    "rel_humidity": {
+      "value": 45,
+      "unit": "%"
+    },
+    "radiation_dose_rate": {
+      "value": 20,
+      "unit": "µGy/saat",
+      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+    }
+  },
+  "donki": {
+    "file": "data/donki/sep_event.json",
+    "sepID": "2024-05-09T13:59:00-SEP-001",
+    "event_time": "2024-05-09T13:59Z",
+    "linked_flare": "2024-05-09T08:45:00-FLR-001",
+    "notification": "20240509-AL-004 (2024-05-09T14:00Z)",
+    "note": "DONKI yalnızca zamanı ve bağlantıları verir. Doz büyüklüğü demo seçimidir: toplam olay dozu NASA'nın 250 mSv tasarım referans olayının altında kalır. Ekranda 'doz (simüle)'."
+  },
+  "assumptions": {
+    "event_effective_dose_mSv_per_h": 25,
+    "quality_factor": 1.5,
+    "event_absorbed_dose_rate_uGy_per_h": 16667,
+    "shelter_factor": 0.25,
+    "event_duration_min": 720,
+    "career_limit_mSv": 600,
+    "design_spe_mSv": 250,
+    "mission_day": 142,
+    "gcr_mSv_per_day": 1.8,
+    "prior_career_dose_mSv": {
+      "crew-1": 10,
+      "crew-2": 20,
+      "crew-3": 15,
+      "crew-4": 40
+    },
+    "sources": {
+      "career_limit": "[V1 4030] kariyer dozu < 600 mSv",
+      "design_spe": "[V1 4031] tasarım referans SPE < 250 mSv (araç tasarım gereksinimi; astronot kuralı diye sunulmaz)",
+      "gcr": "MSL RAD 1,8 mSv/gün",
+      "event_rate_quality_shelter": "varsayım — demo parametresi"
+    },
+    "note": "Herkes aynı korumada, olay dozu dört kişi için aynı."
+  },
+  "proposed_rules": {
+    "note": "rules.py ve ranges.json için öneri.",
+    "cabin_dose_rate_spe_caution": {
+      "metric": "radiation_dose_rate",
+      "comparator": ">",
+      "threshold": 1000,
+      "consecutive_required": 3,
+      "source": "varsayım (GCR tabanının ≈50 katı = olay başladı)"
+    },
+    "event_dose_caution": {
+      "metric": "radiation_dose_rate",
+      "cumulative_event_dose_mSv": 125,
+      "source": "[V1 4031] 250 mSv'nin %50'si (kademe ekip tanımı)",
+      "requires_contract_field": true
+    },
+    "event_dose_warning": {
+      "metric": "radiation_dose_rate",
+      "cumulative_event_dose_mSv": 200,
+      "source": "[V1 4031] 250 mSv'nin %80'i (kademe ekip tanımı)",
+      "requires_contract_field": true
+    }
+  },
+  "contract_gaps": [
+    "Sözleşmede kişi bazlı kümülatif doz (mSv) alanı yok; yalnızca kabin radiation_dose_rate (µGy/saat) var. PDF'teki 'kişinin kümülatif dozu / 600 mSv' çubuğu ve kişi bazlı radyasyon kararı için CrewMember'a alan gerekir. Bu yüzden olay dozu uyarıları şimdilik kabin uyarısı (crew_id=null) olarak yazıldı.",
+    "ThresholdRule'da ortalama penceresi ve kümülatif toplam yok; bu kurallar rules.py içinde özel mantık ister."
+  ],
+  "events": [
+    {
+      "t_min": 30,
+      "type": "sep_onset",
+      "ref": "2024-05-09T13:59:00-SEP-001",
+      "note": "DONKI kaydı tetiklenir; doz hızı taban GCR'nin (≈20 µGy/saat) üstüne ≈16 667 µGy/saat (25 mSv/saat efektif) eklenir."
+    },
+    {
+      "t_min": 520,
+      "type": "shelter",
+      "crew_id": null,
+      "note": "Demo panelinden tetiklenir: mürettebat sığınağa geçer, olay doz hızı 0,25 ile çarpılır."
+    },
+    {
+      "t_min": 750,
+      "type": "sep_end",
+      "note": "Olay biter, doz hızı tabana döner."
+    }
+  ],
+  "expected_alerts": [
+    {
+      "crew_id": null,
+      "metric": "radiation_dose_rate",
+      "severity": "caution",
+      "rule_id": "cabin_dose_rate_spe_caution",
+      "t_earliest": 30,
+      "t_latest": 36,
+      "evidence_metrics": [
+        "radiation_dose_rate"
+      ],
+      "why": "Doz hızı tabanın çok üstüne çıktı; DONKI kaydına dayanan güneş parçacık olayı başladı.",
+      "recommendation": "Sığınak hazırlığı yap, doz takibini başlat."
+    },
+    {
+      "crew_id": null,
+      "metric": "radiation_dose_rate",
+      "severity": "caution",
+      "rule_id": "event_dose_caution",
+      "t_earliest": 325,
+      "t_latest": 340,
+      "evidence_metrics": [
+        "radiation_dose_rate"
+      ],
+      "why": "Olay dozu 125 mSv'yi geçti (250 mSv tasarım eşiğinin %50'si). Hesaplanan an: t=330.",
+      "recommendation": "Sığınağa geçişe hazırlan, korunaksız işleri bitir."
+    },
+    {
+      "crew_id": null,
+      "metric": "radiation_dose_rate",
+      "severity": "warning",
+      "rule_id": "event_dose_warning",
+      "t_earliest": 505,
+      "t_latest": 520,
+      "evidence_metrics": [
+        "radiation_dose_rate"
+      ],
+      "why": "Olay dozu 200 mSv'yi geçti (250 mSv tasarım eşiğinin %80'i) [V1 4031]. Hesaplanan an: t=510.",
+      "recommendation": "Fırtına sığınağına geç, olay sonrası kişi bazlı doz kaydı yap, Dünya'ya raporla."
+    }
+  ],
+  "forbidden_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "spo2",
+      "why": "Hava tarafı normal."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "spo2",
+      "why": "Hava tarafı normal."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "why": "Hava tarafı normal."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "why": "Hava tarafı normal."
+    }
+  ],
+  "expected_dose": {
+    "event_total_mSv": 228.1,
+    "max_career_fraction": 0.875,
+    "note": "200 (t=30–510) + 4,2 (t=510–520) + 24,0 (t=520–750, sığınakta) ≈ 228,1 mSv < 250. Kariyer: en yüksek crew-4 ≈ 525 mSv (%87); ayrı kariyer uyarısı yok."
+  },
+  "expected_status_end": {
+    "crew-1": "nominal",
+    "crew-2": "nominal",
+    "crew-3": "nominal",
+    "crew-4": "nominal",
+    "cabin": "caution"
+  },
+  "status_note": "Kişi durumları nominal görünüyor çünkü sözleşmede kişi bazlı doz alanı yok (contract_gaps). Alan eklenirse kişi durumları caution olmalı. Olay t=750'de bittiği için kabin warning'den caution'a iner (olay sonrası kayıt ve rapor bekleniyor)."
+}
