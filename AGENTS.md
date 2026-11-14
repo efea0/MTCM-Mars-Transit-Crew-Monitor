@@ -32,7 +32,7 @@ Bu dosyayı Codex doğrudan okur. Claude Code `CLAUDE.md`, Gemini de `GEMINI.md`
 <tür>/<alan>/<kısa-açıklama>
 tür:   feat | fix | refactor | test | docs | chore
 alan:  backend | frontend | comms | qa | reference | delivery | contract | infra
-kısa-açıklama: küçük harf, rakam ve tire; en fazla 40 karakter
+kısa-açıklama: yalnızca ASCII küçük harf (a-z), rakam ve tire; Türkçe karakter yok; en fazla 40 karakter
 ```
 
 Örnekler:
@@ -52,7 +52,9 @@ python -m pytest -q
 python tools/check_paths.py "$(git branch --show-current)" --title "<PR başlığı>"
 ```
 
-- CI'deki zorunlu kontroller: `scope` (branch adı, başlık, alan), `lint` (ruff), `tests` (pytest). Üçü yeşil olmadan birleşmez. PR'ları Aydın birleştirir. `contract` PR'ı Barış veya Enis'ten bir onay almadan birleşmez.
+- CI'deki zorunlu kontroller: `scope` (branch adı, başlık, alan; hedef branch'teki güvenilir script'le çalışır), `lint` (ruff), `tests` (pytest). Üçü yeşil olmadan birleşmez.
+- PR'ları Aydın birleştirir. `contract` PR'ı Barış veya Enis'ten bir onay almadan birleştirilmez.
+- Fork'tan PR kabul edilmez. Branch'i doğrudan bu repoda aç.
 
 ## 5. Kod kalitesi
 **Python**
@@ -61,6 +63,8 @@ python tools/check_paths.py "$(git branch --show-current)" --title "<PR başlı�
 - Tüm dosya işlemlerinde `encoding="utf-8"`.
 - `print` ile hata ayıklama, yorum satırına alınmış kod ve kullanılmayan import bırakma.
 - Yeni davranış = yeni veya güncellenmiş test.
+- Koddan önce yazılan test (Barış'ın akışı) CI'yi kırmamalı: `@pytest.mark.xfail(reason="rules.py henüz yok: #<issue>", strict=False)` ile işaretlenir. Kodu yazan PR işareti kaldırır.
+- `tests/conftest.py` ve pytest ayarları sözleşme alanındadır; testleri atlatan veya seçen bir değişiklik `contract` PR'ı olmadan yapılamaz.
 
 **Backend**
 - Sunucu `127.0.0.1:8000`. SSE döngüsünde `time.sleep` değil `asyncio.sleep` kullanılır.
@@ -75,7 +79,12 @@ python tools/check_paths.py "$(git branch --show-current)" --title "<PR başlı�
 
 **Genel**
 - API anahtarı repoya ve tarayıcı koduna konmaz.
-- Eşik değerleri kaynaksız kesinmiş gibi yazılmaz. Kaynak yoksa `source="HİPOTEZ"`.
+- Eşik değerleri kaynaksız kesinmiş gibi yazılmaz. Doğrulanamayan değer `status: "doğrulanmadı"` ve `source: "varsayım"` taşır.
+
+**Veri dosyaları**
+- Senaryo dosyası adı, kontrattaki `Scenario` enum değeridir: `data/scenarios/<değer>.json`. Dosyanın içindeki `scenario` alanı da aynı değeri taşır. Eşleşmeler: normal → `nominal`, O₂ arızası → `hypoxia`, CO₂ yükselişi → `hypercapnia`, güneş fırtınası → `solar_storm`, uyku eksiği → `sleep_deprivation`, veri kopması → `sensor_dropout`. Her senaryo dosyası beklenen karar tablosunu da içerir.
+- `data/reference/ranges.json`: her satır `ThresholdRule` alanlarını taşır (`id`, `metric`, `severity`, `comparator`, `threshold`, `consecutive_required`, `source`), ek olarak `status` alanı olur: `doğrulandı | kısmen | doğrulanmadı`. `rules.py` eşikleri bu dosyadan okur. Dosya Cmt 19:30'da dondurulur.
+- DONKI ham cevabı `data/donki/sep_event.json` dosyasına çekiliş zamanıyla birlikte kaydedilir. API anahtarı dosyaya yazılmaz.
 
 ## 6. Sözleşme
 - Tek doğruluk kaynağı `backend/models.py` (Pydantic v2).
