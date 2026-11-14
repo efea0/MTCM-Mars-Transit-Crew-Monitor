@@ -1,1 +1,1 @@
-"""4 astronot + kabin için senaryolu simüle veri — sahibi: Barış."""
+"""Sabit seed, baz çizgi, sirkadiyen ritim, senaryo olayları — sahibi: Aydın (backend)."""
