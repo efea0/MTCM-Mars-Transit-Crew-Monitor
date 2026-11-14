@@ -172,6 +172,22 @@ def test_baseline_delta_calculation() -> None:
     assert crew3.vitals.heart_rate.baseline_delta != 999.0
 
 
+def test_missing_baseline_raises_error() -> None:
+    """Tanımsız astronot (örn. crew-9) için baz çizgi yoksa ValueError fırlatılır."""
+    engine = r.RulesEngine()
+    frame = make_frame()
+    c_unknown = CrewMember(
+        id="crew-9",
+        name="Bilinmeyen",
+        role="X",
+        vitals=make_vitals(),
+        activity=Activity.resting,
+    )
+    frame_bad = frame.model_copy(update={"crew": [c_unknown] + list(frame.crew[1:])})
+    with pytest.raises(ValueError, match="crew-9 için baz çizgi yok"):
+        engine.evaluate(frame_bad)
+
+
 # ==============================================================================
 # 2. Art Arda Ölçüm Testi
 # ==============================================================================
@@ -422,6 +438,57 @@ def test_hypoxia_severity_tiers() -> None:
     assert alert_crit.severity == Severity.critical
 
 
+def test_pio2_seamless_caution_to_critical_transition() -> None:
+    """PIO2 150 -> 140 -> 130 -> 126 -> 126 -> 126 ve 140 -> 140 -> 140 -> 126 -> 126 -> 126
+    geçişlerinde kabin O2 uyarısı kesintiye uğramaz; kırmızı açılana kadar sarı aktif kalır.
+    """
+    engine = r.RulesEngine()
+
+    def pp_o2_for_pio2(pio2: float) -> float:
+        return pio2 * 760.0 / 713.0
+
+    # Dizi 1: 150 -> 140 -> 130 -> 126 -> 126 -> 126
+    seq1 = [150.0, 140.0, 130.0, 126.0, 126.0, 126.0]
+    alerts_seq1: list[list[str]] = []
+    for tick, pio2_val in enumerate(seq1, 1):
+        frame = make_frame(
+            tick=tick,
+            cabin=make_cabin(pp_o2=pp_o2_for_pio2(pio2_val), pressure=760.0),
+        )
+        evaluated = engine.evaluate(frame)
+        o2_alerts = [a.rule_id for a in evaluated.alerts if "pio2" in a.rule_id]
+        alerts_seq1.append(o2_alerts)
+
+    assert alerts_seq1[0] == []
+    assert alerts_seq1[1] == []
+    assert alerts_seq1[2] == []
+    # 126'nın ilk iki adımında sarı uyarı açık kalır (kesinti yok!)
+    assert alerts_seq1[3] == ["pio2-normoxia-low"]
+    assert alerts_seq1[4] == ["pio2-normoxia-low"]
+    # 126'nın 3. adımında kırmızı açılır ve sarı bastırılır
+    assert alerts_seq1[5] == ["pio2-hypoxia-low"]
+
+    # Dizi 2: 140 -> 140 -> 140 -> 126 -> 126 -> 126
+    engine.reset()
+    seq2 = [140.0, 140.0, 140.0, 126.0, 126.0, 126.0]
+    alerts_seq2: list[list[str]] = []
+    for tick, pio2_val in enumerate(seq2, 1):
+        frame = make_frame(
+            tick=tick,
+            cabin=make_cabin(pp_o2=pp_o2_for_pio2(pio2_val), pressure=760.0),
+        )
+        evaluated = engine.evaluate(frame)
+        o2_alerts = [a.rule_id for a in evaluated.alerts if "pio2" in a.rule_id]
+        alerts_seq2.append(o2_alerts)
+
+    assert alerts_seq2[0] == []
+    assert alerts_seq2[1] == []
+    assert alerts_seq2[2] == ["pio2-normoxia-low"]
+    assert alerts_seq2[3] == ["pio2-normoxia-low"]
+    assert alerts_seq2[4] == ["pio2-normoxia-low"]
+    assert alerts_seq2[5] == ["pio2-hypoxia-low"]
+
+
 # ==============================================================================
 # 8. Diğer Kararlar ve Radyasyon Testi
 # ==============================================================================
@@ -559,6 +626,8 @@ def test_co2_moving_average_window() -> None:
         )
         e_inst = engine_instant.evaluate(frame)
     assert any(a.rule_id == "ppco2-limit" for a in e_inst.alerts)
+    # co2_window_s=None iken pencere listesine ekleme yapılmamalı (boş kalmalı)
+    assert len(engine_instant._co2_window) == 0
 
 
 # ==============================================================================

@@ -10,7 +10,9 @@ Bu modül, NASA-STD-3001 ve data/reference/ranges.json referanslarına dayanarak
 6. Kişi bazlı kararları (hipoksi, CO2 etkisi, ısı sapması, kalp yükü, radyasyon etkisi) üretir.
 7. ppCO2 için 1 saatlik kayan ortalama penceresini (average_window_s) hesaplar.
 8. Kişi ve kabin genel durumunu (status) ve kişi kararını (decision) belirler.
-9. Tüm sayısal değerleri ranges.json dosyasından dinamik okur; sıfır sihirli sayı.
+9. Tüm tıbbi ve çevresel sayısal eşikleri ranges.json dosyasından çalışma anında okur;
+   yalnızca birim dönüşümü (MMHG_PER_KPA), eksik veri eşiği (MISSING_ALERT_AFTER) ve
+   pencere süresi (CO2_LIMIT_WINDOW_S) modül başında isimli sabit olarak tanımlanmıştır.
 """
 
 from __future__ import annotations
@@ -391,8 +393,8 @@ class RulesEngine:
         if co2_ok:
             assert co2_val is not None
             co2_mmhg = co2_val * MMHG_PER_KPA if cabin.pp_co2.unit.lower() == "kpa" else co2_val
-            self._co2_window.append((frame.mission_elapsed_s, co2_mmhg))
             if self.co2_window_s is not None:
+                self._co2_window.append((frame.mission_elapsed_s, co2_mmhg))
                 cutoff = frame.mission_elapsed_s - self.co2_window_s
                 self._co2_window = [(t, v) for t, v in self._co2_window if t >= cutoff]
                 samples = [v for _, v in self._co2_window]
@@ -504,6 +506,7 @@ class RulesEngine:
             self._active_alerts.pop(limit_id, None)
 
         # pio2-hypoxia-low (< 127, critical)
+        normoxia_low_id = "cabin:pio2-normoxia-low"
         hypoxia_low_id = "cabin:pio2-hypoxia-low"
         hypoxia_low_cond = pio2_mmhg is not None and pio2_mmhg < self.pio2_hafif_hipoksi_alt
         if hypoxia_low_cond:
@@ -543,6 +546,8 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+                # Kırmızı uyarı açılınca sarı uyarıyı kapat/bastır
+                self._active_alerts.pop(normoxia_low_id, None)
         else:
             self._consecutive_counts[hypoxia_low_id] = 0
             self._alert_first_seen.pop(hypoxia_low_id, None)
@@ -550,9 +555,7 @@ class RulesEngine:
 
         # pio2-normoxia-low (< 145, caution)
         normoxia_low_id = "cabin:pio2-normoxia-low"
-        normoxia_low_cond = (
-            pio2_mmhg is not None and pio2_mmhg < self.pio2_normoksi_min and not hypoxia_low_cond
-        )
+        normoxia_low_cond = pio2_mmhg is not None and pio2_mmhg < self.pio2_normoksi_min
         if normoxia_low_cond:
             assert pio2_mmhg is not None
             count = self._consecutive_counts.get(normoxia_low_id, 0) + 1
@@ -560,36 +563,40 @@ class RulesEngine:
             if count == 1:
                 self._alert_first_seen[normoxia_low_id] = frame.ts
             if count >= self.consecutive_required:
-                note = (
-                    f"Kabin PIO2 {pio2_mmhg:.1f} mmHg (normoksi alt sınırı "
-                    f"{self.pio2_normoksi_min} mmHg), {count} ölçümdür"
-                )
-                why = [
-                    Evidence(
-                        metric=Metric.pio2,
-                        value=round(pio2_mmhg, 2),
-                        threshold=self.pio2_normoksi_min,
-                        comparator=Comparator.lt,
-                        ts=frame.ts,
-                        note=note,
+                if hypoxia_low_id in self._active_alerts:
+                    # Kırmızı uyarı aktifse sarı uyarı bastırılır
+                    self._active_alerts.pop(normoxia_low_id, None)
+                else:
+                    note = (
+                        f"Kabin PIO2 {pio2_mmhg:.1f} mmHg (normoksi alt sınırı "
+                        f"{self.pio2_normoksi_min} mmHg), {count} ölçümdür"
                     )
-                ]
-                msg = (
-                    f"Kabin O2 normoksi aralığının altında: PIO2 {pio2_mmhg:.1f} mmHg. "
-                    "O2 üretimini kontrol et."
-                )
-                self._active_alerts[normoxia_low_id] = Alert(
-                    id=normoxia_low_id,
-                    crew_id=None,
-                    metric=Metric.pio2,
-                    severity=Severity.caution,
-                    message=msg,
-                    rule_id="pio2-normoxia-low",
-                    consecutive_count=count,
-                    first_seen=self._alert_first_seen[normoxia_low_id],
-                    last_seen=frame.ts,
-                    why=why,
-                )
+                    why = [
+                        Evidence(
+                            metric=Metric.pio2,
+                            value=round(pio2_mmhg, 2),
+                            threshold=self.pio2_normoksi_min,
+                            comparator=Comparator.lt,
+                            ts=frame.ts,
+                            note=note,
+                        )
+                    ]
+                    msg = (
+                        f"Kabin O2 normoksi aralığının altında: PIO2 {pio2_mmhg:.1f} mmHg. "
+                        "O2 üretimini kontrol et."
+                    )
+                    self._active_alerts[normoxia_low_id] = Alert(
+                        id=normoxia_low_id,
+                        crew_id=None,
+                        metric=Metric.pio2,
+                        severity=Severity.caution,
+                        message=msg,
+                        rule_id="pio2-normoxia-low",
+                        consecutive_count=count,
+                        first_seen=self._alert_first_seen[normoxia_low_id],
+                        last_seen=frame.ts,
+                        why=why,
+                    )
         else:
             self._consecutive_counts[normoxia_low_id] = 0
             self._alert_first_seen.pop(normoxia_low_id, None)
@@ -648,7 +655,12 @@ class RulesEngine:
         sep: SepContext | None,
     ) -> CrewMember:
         cid = crew.id
-        baselines = self.baselines.get(cid, {})
+        if cid not in self.baselines:
+            raise ValueError(f"{cid} için baz çizgi yok")
+        baselines = self.baselines[cid]
+        for m in (Metric.heart_rate, Metric.spo2, Metric.core_temp, Metric.resp_rate):
+            if m not in baselines:
+                raise ValueError(f"{cid} için {m.value} baz çizgisi yok")
 
         # 1. Eksik veri sayaçlarını güncelle
         for field_name in CrewVitals.model_fields:
@@ -768,7 +780,12 @@ class RulesEngine:
     ) -> bool:
         """Kişi kararlarını değerlendirir. Dönüş değeri: SEP verisi eksik mi (bool)."""
         cid = crew.id
-        baselines = self.baselines.get(cid, {})
+        if cid not in self.baselines:
+            raise ValueError(f"{cid} için baz çizgi yok")
+        baselines = self.baselines[cid]
+        for m in (Metric.heart_rate, Metric.spo2, Metric.core_temp, Metric.resp_rate):
+            if m not in baselines:
+                raise ValueError(f"{cid} için {m.value} baz çizgisi yok")
 
         # --- Karar 1: olasi_hipoksi
         hipoksi_id = f"{cid}:karar-olasi_hipoksi"
@@ -826,7 +843,7 @@ class RulesEngine:
             if count == 1:
                 self._alert_first_seen[hipoksi_id] = frame.ts
             if count >= self.consecutive_required:
-                base_spo2 = baselines.get(Metric.spo2, 98.0)
+                base_spo2 = baselines[Metric.spo2]
                 thr_spo2 = base_spo2 - (self.spo2_eylem if sev == Severity.critical else self.spo2_izle)
                 why = [
                     Evidence(
@@ -860,7 +877,7 @@ class RulesEngine:
                             Evidence(
                                 metric=Metric.heart_rate,
                                 value=hr_r.value,
-                                threshold=round(baselines.get(Metric.heart_rate, 60.0) + self.hr_izle, 1),
+                                threshold=round(baselines[Metric.heart_rate] + self.hr_izle, 1),
                                 comparator=Comparator.ge,
                                 ts=hr_r.ts,
                                 note=(
@@ -876,7 +893,7 @@ class RulesEngine:
                             Evidence(
                                 metric=Metric.resp_rate,
                                 value=rr_r.value,
-                                threshold=round(baselines.get(Metric.resp_rate, 14.0) + self.rr_izle, 1),
+                                threshold=round(baselines[Metric.resp_rate] + self.rr_izle, 1),
                                 comparator=Comparator.ge,
                                 ts=rr_r.ts,
                                 note=(
@@ -942,7 +959,7 @@ class RulesEngine:
             if count == 1:
                 self._alert_first_seen[co2_id] = frame.ts
             if count >= self.consecutive_required:
-                base_rr = baselines.get(Metric.resp_rate, 14.0)
+                base_rr = baselines[Metric.resp_rate]
                 why = [
                     Evidence(
                         metric=Metric.pp_co2,
@@ -1008,7 +1025,7 @@ class RulesEngine:
             if count == 1:
                 self._alert_first_seen[temp_id] = frame.ts
             if count >= self.consecutive_required:
-                base_temp = baselines.get(Metric.core_temp, 36.6)
+                base_temp = baselines[Metric.core_temp]
                 thr_temp = base_temp + (self.temp_eylem if sev == Severity.critical else self.temp_izle)
                 why = [
                     Evidence(
@@ -1062,7 +1079,7 @@ class RulesEngine:
             if count == 1:
                 self._alert_first_seen[hr_id] = frame.ts
             if count >= self.consecutive_required:
-                base_hr = baselines.get(Metric.heart_rate, 64.0)
+                base_hr = baselines[Metric.heart_rate]
                 thr_hr = base_hr + (self.hr_eylem if sev == Severity.critical else self.hr_izle)
                 why = [
                     Evidence(
