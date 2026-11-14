@@ -228,7 +228,7 @@
     "co2_min": 0.52,
     "co2_max": 1.5,
     "measurement_interval_min": 5,
-    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası. ranges.json'daki \"5 saniye (demo)\" ifadesinin birimi netleştirilecek."
+    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası."
   },
   "data_quality_rules": {
     "note": "Kural motoru davranışıyla ve sözleşmeyle uyumlu: Reading doğrulayıcısı (value=None iken status yalnızca unknown; kalitesi ok olmayan okuma nominal sayılamaz), Comparator.missing / eksik-veri kanıtı (Evidence.threshold null) ve AGENTS.md §5 (eksik veri asla normal sayılmaz). Eşik sayısı (3 art arda) ranges.json vital_karar_parametreleri.art_arda_olcum'dan gelir.",

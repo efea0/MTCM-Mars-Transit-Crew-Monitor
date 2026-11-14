@@ -228,7 +228,7 @@
     "co2_min": 0.52,
     "co2_max": 1.5,
     "measurement_interval_min": 5,
-    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası. ranges.json'daki \"5 saniye (demo)\" ifadesinin birimi netleştirilecek."
+    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası."
   },
   "proposed_rules": {
     "crew_hr_rest_rise_caution": {
