@@ -18,7 +18,8 @@
     "dondurma_istisnalari": [
       "2026-11-14: vital_karar_parametreleri.kararlar.olasi_hipoksi koşuluna egzersiz istisnası eklendi (Barış'ın isteği, Efe'nin onayı). Hiçbir sayısal değer değişmedi; kalp_yuku kuralıyla ve hypoxia senaryosuyla tutarlılık için.",
       "2026-11-14: Kaynak denetimi (Efe). NASA-STD-3001 Vol 2 Rev F (onay 2026-07-14) Rev E'nin yerini aldı; Tablo 6.2-1, [V2 6003], [V2 6004], [V2 6006] Rev F metninde aynı. Tek sayısal değişiklik: giysi.pico2_limitleri 4,0–7,0 mmHg kademesi 7,0 → 8,0 saat/gün (Rev F Tablo 11.3-1). giyside_toplam_sure_max (14 saat) Rev F'te yok → kısmen. Metabolik oranlar OCHMO-TB-004 Rev D tablosundan %2–4 farklı → kısmen (sayılar aynı). mars_yuzeyi_orani yalnızca emilen doz için → kısmen. Denizaltı CO2 %0,8 NRC 2007 Tablo S-1 ile doğrulandı. Motorun ve kuralların kullandığı hiçbir eşik değişmedi.",
-      "2026-11-14: olcum_araligi birimi saniye (demo) yerine görev dakikası olarak düzeltildi; hiçbir eşik veya karar değişmedi (Efe'nin onayı)."
+      "2026-11-14: olcum_araligi birimi saniye (demo) yerine görev dakikası olarak düzeltildi; hiçbir eşik veya karar değişmedi (Efe'nin onayı).",
+      "2026-11-15: meta.kurallar_notu güncellendi: pio2 artık sözleşme 0.2.0 (#26) ile Metric listesinde. Yalnızca not; hiçbir değer değişmedi (Aydın'ın isteği, Efe'nin onayı)."
     ],
     "kural": "Bu dosya motorun ve uyarıların tek kaynağıdır. Dondurmadan sonra değer değişmez. Her kayıtta 'kaynak' ve 'status' alanı zorunludur. Doğrulanamayan kayıtta kaynak 'varsayım' ile başlar.",
     "status_degerleri": {
@@ -26,7 +27,7 @@
       "kısmen": "Kaynak doğrulandı; yorum veya birim dönüşümü ekibe ait.",
       "doğrulanmadı": "NASA veya resmi kaynakta karşılığı yok; demo parametresi. Tıbbi eşik değildir, sunumda böyle söylenir."
     },
-    "kurallar_notu": "kurallar listesi AGENTS.md §5 ThresholdRule biçimidir; değerler aşağıdaki iç içe kayıtlarla birebir aynıdır. Birim mmHg. metric 'pio2' henüz models.py Metric listesinde yok.",
+    "kurallar_notu": "kurallar listesi AGENTS.md §5 ThresholdRule biçimidir; değerler aşağıdaki iç içe kayıtlarla birebir aynıdır. Birim mmHg. metric 'pio2' sözleşme 0.2.0 (#26) ile models.py Metric listesinde var.",
     "birim_notu": "Basınçlar mmHg. 1 atm = 760 mmHg. ppCO2 (mmHg) = toplam basınç (mmHg) × CO2 oranı."
   },
 
