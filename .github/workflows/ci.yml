@@ -1,0 +1,36 @@
+name: ci
+
+# lint ve tests PR'ın kodunu çalıştırır. Bu dosyayı değiştiren PR yalnızca infra alanından gelebilir
+# (scope kontrolü, hedef branch'teki script'le bunu zorlar).
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "ruff==0.8.6"
+      - run: ruff check .
+      - run: ruff format --check .
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
