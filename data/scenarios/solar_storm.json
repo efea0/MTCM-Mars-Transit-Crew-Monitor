@@ -214,7 +214,7 @@
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Zamanlar #14 atmosphere motoruyla birebir hizalıdır: üretim ve giderme arızadan önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün), hacim 75 m³. tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
