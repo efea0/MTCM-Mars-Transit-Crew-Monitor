@@ -127,6 +127,34 @@
         "status": {
           "$ref": "#/$defs/Status",
           "default": "unknown"
+        },
+        "hours_until_o2_limit": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "O₂ limitine kalan süre (saat); None = limite yaklaşmıyor veya hesaplanamıyor; 0.0 = limit zaten aşıldı.",
+          "title": "Hours Until O2 Limit"
+        },
+        "hours_until_co2_limit": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CO₂ limitine kalan süre (saat); None = limite yaklaşmıyor veya hesaplanamıyor; 0.0 = limit zaten aşıldı.",
+          "title": "Hours Until Co2 Limit"
         }
       },
       "required": [
@@ -193,6 +221,17 @@
       "title": "Comparator",
       "type": "string"
     },
+    "CrewDecision": {
+      "description": "Kişi bazlı karar: normal = Normal, watch = İzle, action = Eylem, unknown = Bilinmiyor.",
+      "enum": [
+        "normal",
+        "watch",
+        "action",
+        "unknown"
+      ],
+      "title": "CrewDecision",
+      "type": "string"
+    },
     "CrewMember": {
       "additionalProperties": false,
       "properties": {
@@ -249,6 +288,11 @@
         "status": {
           "$ref": "#/$defs/Status",
           "default": "unknown"
+        },
+        "decision": {
+          "$ref": "#/$defs/CrewDecision",
+          "default": "unknown",
+          "description": "Kişi bazlı karar; rules.py doldurur. Değerlendirilmemiş veya eksik veride unknown."
         }
       },
       "required": [

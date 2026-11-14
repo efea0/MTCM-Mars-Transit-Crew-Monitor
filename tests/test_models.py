@@ -18,7 +18,9 @@ def crew_member(i):
 
 
 def cabin():
-    return m.CabinAtmosphere(**{f: reading() for f in m.CabinAtmosphere.model_fields if f != "status"})
+    return m.CabinAtmosphere(
+        **{f: reading() for f, field in m.CabinAtmosphere.model_fields.items() if field.is_required()}
+    )
 
 
 def evidence():
@@ -86,6 +88,56 @@ def test_new_crew_fields_have_safe_defaults():
     assert member.event_dose_msv is None
     assert reading().baseline_delta is None
     assert "pio2" in m.Metric.__members__ and "event_dose" in m.Metric.__members__
+
+
+def test_cabin_limit_hours_default_to_none() -> None:
+    atmosphere = cabin()
+    assert atmosphere.hours_until_o2_limit is None
+    assert atmosphere.hours_until_co2_limit is None
+
+
+@pytest.mark.parametrize("field", ["hours_until_o2_limit", "hours_until_co2_limit"])
+@pytest.mark.parametrize("hours", [None, 0.0, 2.5])
+def test_cabin_limit_hours_accept_null_and_nonnegative_values(field: str, hours: float | None) -> None:
+    atmosphere = m.CabinAtmosphere.model_validate({**cabin().model_dump(), field: hours})
+    assert getattr(atmosphere, field) == hours
+    assert atmosphere.model_dump(mode="json")[field] == hours
+
+
+@pytest.mark.parametrize("field", ["hours_until_o2_limit", "hours_until_co2_limit"])
+def test_cabin_limit_hours_reject_negative_values(field: str) -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        m.CabinAtmosphere.model_validate({**cabin().model_dump(), field: -0.1})
+    assert exc_info.value.errors()[0]["loc"] == (field,)
+    assert exc_info.value.errors()[0]["type"] == "greater_than_equal"
+
+
+def test_crew_decision_defaults_to_unknown_with_missing_data() -> None:
+    member = crew_member(1)
+    assert member.decision == m.CrewDecision.unknown
+    payload = member.model_dump(exclude={"decision"})
+    payload["vitals"] = {
+        field: reading(None, quality="missing").model_dump() for field in m.CrewVitals.model_fields
+    }
+    assert m.CrewMember.model_validate(payload).decision == m.CrewDecision.unknown
+    assert member.model_dump(mode="json")["decision"] == "unknown"
+
+
+def test_crew_decision_enum_values() -> None:
+    assert [decision.value for decision in m.CrewDecision] == ["normal", "watch", "action", "unknown"]
+
+
+@pytest.mark.parametrize("decision", ["normal", "watch", "action", "unknown", *m.CrewDecision])
+def test_crew_decision_accepts_enum_values(decision: str) -> None:
+    member = m.CrewMember.model_validate({**crew_member(1).model_dump(), "decision": decision})
+    assert member.decision == decision
+    assert member.model_dump(mode="json")["decision"] == decision
+
+
+@pytest.mark.parametrize("decision", ["nominal", "invalid", None])
+def test_crew_decision_rejects_invalid_values(decision: str | None) -> None:
+    with pytest.raises(ValidationError):
+        m.CrewMember.model_validate({**crew_member(1).model_dump(), "decision": decision})
 
 
 def test_activity_and_doses_are_validated():

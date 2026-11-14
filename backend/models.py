@@ -41,6 +41,15 @@ class Status(str, Enum):
     unknown = "unknown"  # eksik/bozuk veri; asla nominal yerine geçmez
 
 
+class CrewDecision(str, Enum):
+    """Kişi bazlı karar: normal = Normal, watch = İzle, action = Eylem, unknown = Bilinmiyor."""
+
+    normal = "normal"
+    watch = "watch"
+    action = "action"
+    unknown = "unknown"
+
+
 class Severity(str, Enum):
     caution = "caution"
     warning = "warning"
@@ -159,6 +168,18 @@ class CabinAtmosphere(_Model):
     rel_humidity: Reading
     radiation_dose_rate: Reading
     status: Status = Status.unknown
+    hours_until_o2_limit: float | None = Field(
+        default=None,
+        ge=0,
+        description="O₂ limitine kalan süre (saat); None = limite yaklaşmıyor veya hesaplanamıyor; "
+        "0.0 = limit zaten aşıldı.",
+    )
+    hours_until_co2_limit: float | None = Field(
+        default=None,
+        ge=0,
+        description="CO₂ limitine kalan süre (saat); None = limite yaklaşmıyor veya hesaplanamıyor; "
+        "0.0 = limit zaten aşıldı.",
+    )
 
 
 class CrewMember(_Model):
@@ -178,6 +199,10 @@ class CrewMember(_Model):
         description="Aktif güneş parçacık olayında alınan doz (mSv, simüle); olay yoksa null.",
     )
     status: Status = Status.unknown
+    decision: CrewDecision = Field(
+        default=CrewDecision.unknown,
+        description="Kişi bazlı karar; rules.py doldurur. Değerlendirilmemiş veya eksik veride unknown.",
+    )
 
 
 # ---------------------------------------------------------------- uyarı
