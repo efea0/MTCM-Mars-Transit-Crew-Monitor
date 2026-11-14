@@ -24,11 +24,12 @@ Bu dosya bu reponun **bağlayıcı çalışma yasasıdır**. Bu klasörde açıl
 | | | `infra` | `.github/`, `.githooks/`, `.claude/settings.json`, `tools/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `pyproject.toml`, sahipsiz kök dosyalar |
 | `baris` | Barış: Python doğrulayıcı | `qa` | `tests/` (test_models.py ve conftest.py hariç), `data/scenarios/`, `data/donki/` |
 | | | `comms` | `backend/comms.py`, `tests/test_comms.py` |
+| | | `frontend` (GEÇİCİ, teslime kadar) | `frontend/`: Aydın ile ortak alan. Yük dengesi için Barış yazar, Aydın inceler ve birleştirir |
 | `enis` | Enis: doğrulama ve teslim | `reference` | `data/reference/` |
 | | | `delivery` | `docs/` (contract.json hariç), `README.md`, `reports/`, `research_notes/` |
 
 - Ajan yalnızca kendi rolünün alanlarında branch açar ve dosya değiştirir.
-- Barış'ın ajanı `backend/comms.py` dışında ürün koduna dokunmaz. Bulduğu hatayı test (gerekirse xfail) veya issue olarak bildirir, kodu kendisi düzeltmez.
+- Barış'ın ajanı `backend/comms.py` ve (geçici istisna, teslime kadar) `frontend/` dışında ürün koduna dokunmaz. Bulduğu hatayı test (gerekirse xfail) veya issue olarak bildirir, kodu kendisi düzeltmez.
 - Enis'in ajanı kod yazmaz; veri, kaynak ve metin üretir.
 - Başka alana dokunmak gerekiyorsa dosyayı değiştirme. Sahibine bir issue taslağı hazırla: başlıkta `[alan]` olsun, gövdede beklenen ve gözlenen davranış yazsın.
 

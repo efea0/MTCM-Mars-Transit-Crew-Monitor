@@ -181,6 +181,12 @@ def test_role_limits_areas(monkeypatch):
     assert cp.check("feat/backend/x", "develop", None, "x", role="nobody")
 
 
+def test_baris_may_use_frontend_area(monkeypatch):
+    monkeypatch.setattr(cp, "changed_files", lambda *_: ["frontend/app.js"])
+    assert cp.check("feat/frontend/cards", "develop", None, "x", role="baris") == []
+    assert cp.check("feat/frontend/cards", "develop", None, "x", role="enis")
+
+
 def test_read_role(tmp_path):
     f = tmp_path / ".agent-role"
     assert cp.read_role(str(f)) is None
