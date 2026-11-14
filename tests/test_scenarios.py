@@ -94,7 +94,8 @@ def metabolic_kg_day(s: Scenario, t: float) -> tuple[float, float]:
 
 
 def cabin_series(s: Scenario) -> list[tuple[float, float, float]]:
-    """(t, PIO2 mmHg, ppCO2 mmHg). Arızadan önce yaşam destek regüle (net 0)."""
+    """(t, PIO2 mmHg, ppCO2 mmHg). #14 atmosphere motoruyla aynı denge: üretim ve giderme arızadan
+    önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün); tükenen gaz sıfırda tutulur."""
     md = s["model"]
     total = md["total_pressure_mmHg"]
 
@@ -110,11 +111,14 @@ def cabin_series(s: Scenario) -> list[tuple[float, float, float]]:
         t = i * STEP_MIN
         out.append((t, pp_o2 * (total - WATER_VAPOR_MMHG) / total, pp_co2))
         o2_use, co2_make = metabolic_kg_day(s, t)
-        if o2_fail is not None and t >= o2_fail:
-            pp_o2 -= o2_use * mmhg_per_kg(O2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY
-        if co2_fail and t >= co2_fail["t_min"]:
-            net = max(0.0, co2_make - co2_fail["value"] * md["co2_removal_kg_day"])
-            pp_co2 += net * mmhg_per_kg(CO2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY
+        o2_supply = 0.0 if o2_fail is not None and t >= o2_fail else md["o2_generation_kg_day"]
+        removal = md["co2_removal_kg_day"] * (
+            co2_fail["value"] if co2_fail and t >= co2_fail["t_min"] else 1.0
+        )
+        pp_o2 = max(0.0, pp_o2 + (o2_supply - o2_use) * mmhg_per_kg(O2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY)
+        pp_co2 = max(
+            0.0, pp_co2 + (co2_make - removal) * mmhg_per_kg(CO2_MOLAR_G) * STEP_MIN / MINUTES_PER_DAY
+        )
     return out
 
 
@@ -122,6 +126,50 @@ def assert_condition_time(alert: dict[str, Any], computed: float | None) -> None
     assert computed is not None, f"{alert['rule_id']}: koşul hiç sağlanmadı"
     assert computed == pytest.approx(alert["t_condition"], abs=TOLERANCE_MIN), alert["rule_id"]
     assert alert["t_earliest"] <= computed <= alert["t_latest"], alert["rule_id"]
+
+
+# ---------------------------------------------------------------- motor uyumu ve süre sınırı
+
+MAX_DURATION_MIN = 1800
+
+
+def test_scenarios_fit_in_max_duration() -> None:
+    for s in all_scenarios():
+        assert s["duration_min"] <= MAX_DURATION_MIN, s["scenario"]
+
+
+@pytest.mark.parametrize("name", ["hypoxia", "hypercapnia"])
+def test_cabin_series_matches_atmosphere_engine(name: str) -> None:
+    """Bağımsız kütle dengesi, birleşen backend/atmosphere.py motoruyla aynı kabin serisini verir."""
+    from dataclasses import replace
+
+    from backend.atmosphere import CabinState, load_profile, step
+
+    s = load(name)
+    profile = load_profile(ROOT / "data" / "reference" / "ranges.json", "mars_transit")
+    assert profile.volume_m3 == s["model"]["volume_m3"] == 75
+    total = profile.total_pressure_mmhg
+    state = CabinState(
+        s["cabin_initial_pio2_mmHg"] * total / (total - profile.ranges.water_vapour_mmhg),
+        s["cabin_initial"]["pp_co2"]["value"],
+    )
+    o2_fail = next((e["t_min"] for e in s["events"] if e["type"] == "o2_generation_rate"), None)
+    co2_fail = next((e for e in s["events"] if e["type"] == "co2_removal_rate"), None)
+    for t, pio2, pp_co2 in cabin_series(s):
+        engine_pio2 = state.pp_o2_mmhg * (total - profile.ranges.water_vapour_mmhg) / total
+        assert engine_pio2 == pytest.approx(pio2, abs=1e-6), (name, t)
+        assert state.pp_co2_mmhg == pytest.approx(pp_co2, abs=1e-6), (name, t)
+        active = profile
+        if co2_fail and t >= co2_fail["t_min"]:
+            active = replace(
+                profile, co2_removal_kg_per_day=co2_fail["value"] * profile.co2_removal_kg_per_day
+            )
+        rates = tuple(
+            (vital(s, c["id"], "heart_rate", t), c["baseline"]["heart_rate"]["mean"]) for c in s["crew"]
+        )
+        state = step(
+            state, active, rates, STEP_MIN * 60, o2_supply_failed=o2_fail is not None and t >= o2_fail
+        ).state
 
 
 # ---------------------------------------------------------------- tüm senaryolar

@@ -5,7 +5,7 @@
   "simulated": true,
   "seed": 42,
   "time_unit": "mission_min",
-  "duration_min": 2300,
+  "duration_min": 1800,
   "thresholds_from": "data/reference/ranges.json",
   "ranges_refs": {
     "pio2_normoxia_min": "kabin.pio2_normoksi_hedef.min",
@@ -214,7 +214,7 @@
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Arızadan önce yaşam destek regüle (net 0) varsayılır. Zamanlar #14 motoruyla doğrulandı (nabız hedefleriyle adım adım çalıştırıldı).",
+    "note": "ranges.json (PR #16 v1.1) değerleri. Zamanlar #14 atmosphere motoruyla birebir hizalıdır: üretim ve giderme arızadan önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün), hacim 75 m³. tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -363,9 +363,9 @@
       "metric": "pp_o2",
       "severity": "caution",
       "rule_id": "cabin_pio2_low_caution",
-      "t_condition": 366.0,
-      "t_earliest": 366,
-      "t_latest": 401,
+      "t_condition": 372.0,
+      "t_earliest": 372,
+      "t_latest": 407,
       "evidence_metrics": [
         "pp_o2"
       ],
@@ -407,9 +407,9 @@
       "metric": "pp_o2",
       "severity": "critical",
       "rule_id": "cabin_pio2_low_critical",
-      "t_condition": 1766.0,
-      "t_earliest": 1766,
-      "t_latest": 1801,
+      "t_condition": 1771.5,
+      "t_earliest": 1771,
+      "t_latest": 1800,
       "evidence_metrics": [
         "pp_o2"
       ],

@@ -214,7 +214,7 @@
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Arızadan önce yaşam destek regüle (net 0) varsayılır. Zamanlar #14 motoruyla doğrulandı (nabız hedefleriyle adım adım çalıştırıldı).",
+    "note": "ranges.json (PR #16 v1.1) değerleri. Zamanlar #14 atmosphere motoruyla birebir hizalıdır: üretim ve giderme arızadan önce de işler (O2 üretimi 3,4 kg/gün, CO2 giderme 4,0 kg/gün), hacim 75 m³. tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -285,7 +285,7 @@
       "note": "CO2 giderme kapasitesi %40'a düşer (4,0 → 1,6 kg/gün)."
     },
     {
-      "t_min": 450,
+      "t_min": 481,
       "type": "vital_ramp",
       "crew_id": "crew-3",
       "activity": "resting",
@@ -303,9 +303,9 @@
       "metric": "pp_co2",
       "severity": "caution",
       "rule_id": "cabin_pp_co2_caution",
-      "t_condition": 279.25,
-      "t_earliest": 279,
-      "t_latest": 315,
+      "t_condition": 319.25,
+      "t_earliest": 319,
+      "t_latest": 355,
       "evidence_metrics": [
         "pp_co2"
       ],
@@ -317,9 +317,9 @@
       "metric": "resp_rate",
       "severity": "caution",
       "rule_id": "crew_co2_effect_caution",
-      "t_condition": 474.0,
-      "t_earliest": 474,
-      "t_latest": 499,
+      "t_condition": 505.0,
+      "t_earliest": 505,
+      "t_latest": 530,
       "evidence_metrics": [
         "resp_rate",
         "pp_co2"
@@ -332,9 +332,9 @@
       "metric": "pp_co2",
       "severity": "critical",
       "rule_id": "cabin_pp_co2_critical",
-      "t_condition": 553.0,
-      "t_earliest": 553,
-      "t_latest": 588,
+      "t_condition": 590.25,
+      "t_earliest": 590,
+      "t_latest": 626,
       "evidence_metrics": [
         "pp_co2"
       ],
@@ -346,9 +346,9 @@
       "metric": "resp_rate",
       "severity": "critical",
       "rule_id": "crew_co2_effect_critical",
-      "t_condition": 553.0,
-      "t_earliest": 553,
-      "t_latest": 588,
+      "t_condition": 590.25,
+      "t_earliest": 590,
+      "t_latest": 626,
       "evidence_metrics": [
         "resp_rate",
         "pp_co2"
