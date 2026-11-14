@@ -181,6 +181,15 @@ class _Scenario(_Input):
 
 
 @dataclass(frozen=True)
+class SepState:
+    """Son üretilen karenin kişi başı SEP olay bağlamı."""
+
+    active: bool
+    event_dose_rate_msv_per_h: float | None
+    remaining_event_h: float | None
+
+
+@dataclass(frozen=True)
 class _Ramp:
     start_min: float
     duration_min: float
@@ -198,6 +207,7 @@ class Simulator:
     Olaylar ilk uygun ölçüm anında etkinleşir. Gaz ve doz integrasyonu önceki
     karenin akışlarıyla [önceki an, şimdiki an) aralığında yapılır. Sirkadiyen
     dalga ve gürültü yalnızca okumaya eklenir; sensör kalitesi fiziği etkilemez.
+    sep_state, rules.SepContext'i beslemek içindir; simülatör rules'u import etmez.
     """
 
     def __init__(
@@ -229,6 +239,22 @@ class Simulator:
     def finished(self) -> bool:
         """Sıradaki ölçüm anı senaryonun süresini aştı mı?"""
         return self._tick * self._spec.model.measurement_interval_min > self._spec.duration_min
+
+    @property
+    def sep_state(self) -> SepState:
+        """Son karenin SEP durumu; bitiş zamanı yoksa kalan süre bilinmez."""
+        if not self._sep_active:
+            return SepState(False, None, None)
+        rate = SEP_EFFECTIVE_MSV_PER_HOUR
+        if self._sheltered:
+            rate *= SHELTER_FACTOR
+        end_minute = next(
+            (event.t_min for event in self._events[self._event_index :] if event.type == "sep_end"),
+            None,
+        )
+        minute = (self._tick - 1) * self._spec.model.measurement_interval_min
+        remaining = None if end_minute is None else max(0.0, end_minute - minute) / MINUTES_PER_HOUR
+        return SepState(True, rate, remaining)
 
     def reset(self) -> None:
         """Dosyaları tekrar okumadan tüm durum ve kişi RNG'lerini başa alır."""
