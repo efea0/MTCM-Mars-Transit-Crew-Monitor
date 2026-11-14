@@ -201,6 +201,20 @@ class CabinAtmosphere(_Model):
         "0.0 = limit zaten aşıldı.",
     )
 
+    @model_validator(mode="after")
+    def _cabin_has_no_baseline_delta(self) -> CabinAtmosphere:
+        for field in (
+            "pp_co2",
+            "pp_o2",
+            "cabin_pressure",
+            "cabin_temp",
+            "rel_humidity",
+            "radiation_dose_rate",
+        ):
+            if getattr(self, field).baseline_delta is not None:
+                raise ValueError(f"{field}: kabin okumasında baseline_delta null olmalı")
+        return self
+
 
 class CrewMember(_Model):
     id: str = Field(pattern=r"^crew-[1-9]$", description="Örn. 'crew-1'.")
@@ -223,6 +237,17 @@ class CrewMember(_Model):
         default=CrewDecision.unknown,
         description="Kişi bazlı karar; rules.py doldurur. Değerlendirilmemiş veya eksik veride unknown.",
     )
+
+    @model_validator(mode="after")
+    def _missing_vitals_require_unknown_decision(self) -> CrewMember:
+        if (
+            all(getattr(self.vitals, field).value is None for field in CrewVitals.model_fields)
+            and self.decision != CrewDecision.unknown
+        ):
+            raise ValueError(
+                "eksik veri asla normal sayılmaz; tüm vitaller eksikken decision yalnızca unknown olabilir"
+            )
+        return self
 
 
 # ---------------------------------------------------------------- uyarı

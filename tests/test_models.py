@@ -123,6 +123,58 @@ def test_crew_decision_defaults_to_unknown_with_missing_data() -> None:
     assert member.model_dump(mode="json")["decision"] == "unknown"
 
 
+@pytest.mark.parametrize("decision", ["normal", "watch", "action"])
+def test_all_missing_vitals_reject_known_decisions(decision: str) -> None:
+    payload = crew_member(1).model_dump()
+    payload["vitals"] = {
+        field: reading(None, quality="missing").model_dump() for field in m.CrewVitals.model_fields
+    }
+    payload["decision"] = decision
+    with pytest.raises(ValidationError, match="eksik veri asla normal sayılmaz"):
+        m.CrewMember.model_validate(payload)
+
+
+def test_all_missing_vitals_accept_explicit_unknown_decision() -> None:
+    payload = crew_member(1).model_dump()
+    payload["vitals"] = {
+        field: reading(None, quality="missing").model_dump() for field in m.CrewVitals.model_fields
+    }
+    payload["decision"] = "unknown"
+    assert m.CrewMember.model_validate(payload).decision == m.CrewDecision.unknown
+
+
+@pytest.mark.parametrize("decision", list(m.CrewDecision))
+@pytest.mark.parametrize("field", list(m.CrewVitals.model_fields))
+def test_one_present_vital_allows_any_decision(field: str, decision: m.CrewDecision) -> None:
+    payload = crew_member(1).model_dump()
+    payload["vitals"] = {
+        name: reading(None, quality="missing").model_dump() for name in m.CrewVitals.model_fields
+    }
+    payload["vitals"][field] = reading(0.0).model_dump()
+    payload["decision"] = decision
+    assert m.CrewMember.model_validate(payload).decision == decision
+
+
+@pytest.mark.parametrize(
+    "field", ["pp_co2", "pp_o2", "cabin_pressure", "cabin_temp", "rel_humidity", "radiation_dose_rate"]
+)
+@pytest.mark.parametrize("delta", [-1.0, 0.0, 1.0])
+def test_cabin_readings_reject_baseline_delta(field: str, delta: float) -> None:
+    payload = cabin().model_dump()
+    payload[field]["baseline_delta"] = delta
+    with pytest.raises(ValidationError, match=rf"{field}: .*baseline_delta"):
+        m.CabinAtmosphere.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "field", ["pp_co2", "pp_o2", "cabin_pressure", "cabin_temp", "rel_humidity", "radiation_dose_rate"]
+)
+def test_cabin_readings_accept_null_baseline_delta(field: str) -> None:
+    payload = cabin().model_dump()
+    payload[field]["baseline_delta"] = None
+    assert getattr(m.CabinAtmosphere.model_validate(payload), field).baseline_delta is None
+
+
 def test_crew_decision_enum_values() -> None:
     assert [decision.value for decision in m.CrewDecision] == ["normal", "watch", "action", "unknown"]
 
