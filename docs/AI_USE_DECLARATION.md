@@ -41,12 +41,10 @@ All data shown in the app is simulated. The app is decision support, not medical
   **[TODO before submitting]** Alert rules (`backend/rules.py`) are not written yet. List rule tests here only after
   they exist (for example: consecutive readings, exercise not flagged as cardiac load,
   radiation warning before the dose is received).
-- Text: live values and most thresholds in alert texts are placeholders filled from `ranges.json` at runtime.
-  Some fixed reference numbers are written directly in the text, for example the 600 mSv career limit,
-  the 250 mSv solar-event design value, suit CO₂ 15 mmHg, 14 h suit time, ppCO₂ 2.5 mmHg and 2.8–4.5 mmHg,
-  and the 3–22 min Mars–Earth delay. Each text lists its source next to it.
-  **[TODO]** Confirm every fixed number against its source, or turn it into a placeholder
-  (`data/reference/messages.json`).
+- Text: in `data/reference/messages.json`, live values and every alert threshold and limit are placeholders
+  filled from `ranges.json` at runtime, so the limits on screen come from the same table the rules use.
+  A few context words stay fixed in the text: averaging periods (1-hour, 7-day), "headache risk under 1%",
+  and the submarine profile note (0.8% CO₂ for 90-day exposure). Each text lists its source next to it.
 - Sources: every source link in the slides was opened and checked by hand **[TODO: confirm done]**.
 
 ## Images, video and voice

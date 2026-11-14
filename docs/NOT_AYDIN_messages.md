@@ -1,13 +1,9 @@
 # Aydın'a not: data/reference/messages.json (14 Kasım)
 
-`data/reference/messages.json` hazır (branch `docs/reference/alert-message-texts`).
+`data/reference/messages.json` develop'ta (PR #29). Sözleşme 0.2.0'a uyarlanmış hâli branch
+`docs/reference/messages-contract-0-2`'de.
 Ekranda görünen tüm metinler (uyarı mesajı, "Neden?" notu, öneri, EVA, Dünya paneli) burada.
 Kodda uyarı metni sabit yazılmasın, buradan okunsun. **Sözleşmeye dokunulmadı.**
-
-> **PR #29'u "Squash and merge" ile birleştir.** Branch geçmişinde test kalıntısı bir `base` commit'i var
-> (yazar `t@example.com`, 42 dosyayı siliyor, sonraki commit geri alıyor). Toplam fark temiz, ama merge commit ile
-> birleşirse bu commit develop geçmişine girer.
-
 ## Sözleşme ile ilgili noktalar (karar senin, `contract` alanı)
 
 1. **Öneri alanı yok (açık).** `Alert` modelinde `recommendation` yok. Şimdilik öneri,
@@ -17,9 +13,9 @@ Kodda uyarı metni sabit yazılmasın, buradan okunsun. **Sözleşmeye dokunulma
    ve `Metric` listesine `pio2` ekliyor. #26 birleşince bu nokta kapanır, senden iş beklemez.
 3. **warning seviyesi (açık).** Metinler yalnızca `caution` (İzle) ve `critical` (Eylem) için yazıldı.
    rules.py `warning` üretirse `critical` metni kullanılsın ya da haber ver, ayrı metin yazarım.
-4. **Etkinlik `unknown` iken hipoksi notu (açık, metin bende).** Sözleşmeye göre etkinlik bilinmiyorsa
-   "dinleniyor" varsayılmaz. Bu durum için ayrı bir "Neden?" metni yazacağım; gelene kadar nabız ve solunumu
-   kanıt olarak yazma.
+4. **Etkinlik `unknown` iken hipoksi notu (metin hazır).** Sözleşmeye göre etkinlik bilinmiyorsa
+   "dinleniyor" varsayılmaz. Bunun için `olasi_hipoksi.why_note_unknown` eklendi
+   (branch `docs/reference/messages-contract-0-2`); nabız ve solunum kanıt olarak yazılmaz.
 
 ## Oturumuna yapıştırabileceğin prompt
 
@@ -33,9 +29,9 @@ data/reference/messages.json eklendi (reference alanı). Kurallar:
      anahtarıyla seçilir (caution | critical; warning gelirse critical).
    - Alert.why[].note = ilgili why_note. olasi_hipoksi'de CrewMember.activity (sözleşme 0.2.0, PR #26)
      "resting" veya "sleep" ise why_note_rest, "exercise" ise why_note_exercise
-     (#21: egzersizde nabız/solunum kanıt olarak yazılmaz). "unknown" ise nabız/solunum kanıt
-     yazılmaz; metni Enis ekleyecek (açık nokta 4).
-     radyasyon_etkisi: olay kaynaklıysa why_note_event, kariyer kaynaklıysa why_note_career.
+     (#21: egzersizde nabız/solunum kanıt olarak yazılmaz), "unknown" ise why_note_unknown.
+     radyasyon_etkisi: olay kaynaklıysa why_note_event ve metric (event_dose), kariyer kaynaklıysa
+     why_note_career ve metric_career (radiation_dose_rate).
    - Kabin uyarıları: cabin_alerts anahtarları ranges.json "kurallar" rule id'leriyle aynı
      (ppco2-caution, ppco2-limit, pio2-normoxia-low, pio2-hypoxia-low, pio2-normoxia-high).
    - Kişi kararları: health_decisions anahtarları (olasi_hipoksi, olasi_co2_etkisi, isi_sapmasi,
