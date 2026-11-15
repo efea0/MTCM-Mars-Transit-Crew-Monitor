@@ -49,6 +49,20 @@ def test_pipeline_hypoxia_alerts_and_messages() -> None:
     assert found_alerts, "Hypoxia senaryosunda 50 adımda uyarı üretilmedi"
 
 
+def test_pipeline_solar_storm_warns_before_dose_is_received() -> None:
+    """SEP bağlamı simülatörden gelir: radyasyon uyarısı 200 mSv alınmadan önce, beklenen pencerede çıkar."""
+    pipeline = Pipeline(Scenario.solar_storm)
+    first_minute: float | None = None
+    while first_minute is None:
+        frame = pipeline.step()
+        if any("radyasyon" in alert.rule_id for alert in frame.alerts):
+            first_minute = frame.mission_elapsed_s / 60
+            doses = [crew.event_dose_msv or 0.0 for crew in frame.crew]
+            assert max(doses) < 200.0
+            assert {crew.decision for crew in frame.crew} == {"action"}
+    assert 30 <= first_minute <= 45
+
+
 def test_pipeline_alert_deduplication() -> None:
     pipeline = Pipeline(Scenario.hypoxia)
     while not pipeline.step().alerts:

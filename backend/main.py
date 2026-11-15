@@ -88,9 +88,16 @@ class Pipeline:
     def step(self) -> TelemetryFrame:
         frame = self.sim.tick()
 
-        # simulator sep durumunu ayrica acacak
-        has_event_dose = any(crew.event_dose_msv is not None for crew in frame.crew)
-        sep_context = SepContext(sep_active=True) if has_event_dose else None
+        sep = self.sim.sep_state
+        sep_context = (
+            SepContext(
+                sep_active=True,
+                event_dose_rate_msv_per_h=sep.event_dose_rate_msv_per_h,
+                remaining_event_h=sep.remaining_event_h,
+            )
+            if sep.active
+            else None
+        )
         frame = self.rules.evaluate(frame, sep=sep_context)
 
         current_keys: set[tuple[str, ...]] = set()
