@@ -82,7 +82,7 @@ class Metric(str, Enum):
     cabin_pressure = "cabin_pressure"  # mmHg
     cabin_temp = "cabin_temp"  # °C
     rel_humidity = "rel_humidity"  # %
-    radiation_dose_rate = "radiation_dose_rate"  # µGy/hour
+    radiation_dose_rate = "radiation_dose_rate"  # µGy/h
     pio2 = "pio2"  # mmHg, inspired O₂ partial pressure (derived from cabin pp_o2)
     event_dose = "event_dose"  # mSv, dose received during an active solar particle event
 
@@ -91,7 +91,7 @@ METRIC_UNITS: dict[Metric, str] = {
     Metric.heart_rate: "bpm",
     Metric.hrv_rmssd: "ms",
     Metric.spo2: "%",
-    Metric.resp_rate: "nefes/dk",
+    Metric.resp_rate: "breaths/min",
     Metric.core_temp: "°C",
     Metric.systolic_bp: "mmHg",
     Metric.diastolic_bp: "mmHg",
@@ -100,7 +100,7 @@ METRIC_UNITS: dict[Metric, str] = {
     Metric.cabin_pressure: "mmHg",
     Metric.cabin_temp: "°C",
     Metric.rel_humidity: "%",
-    Metric.radiation_dose_rate: "µGy/saat",
+    Metric.radiation_dose_rate: "µGy/h",
     Metric.pio2: "mmHg",
     Metric.event_dose: "mSv",
 }

@@ -249,3 +249,10 @@ def test_every_metric_has_a_unit() -> None:
 @pytest.mark.parametrize("metric", ["pp_o2", "pp_co2", "cabin_pressure", "pio2"])
 def test_pressure_metrics_are_mmhg(metric: str) -> None:
     assert m.METRIC_UNITS[m.Metric(metric)] == "mmHg"
+
+
+def test_units_are_english() -> None:
+    # Contract constants only. The simulator still emits the old Turkish units in a separate PR (#90).
+    assert m.METRIC_UNITS[m.Metric.resp_rate] == "breaths/min"
+    assert m.METRIC_UNITS[m.Metric.radiation_dose_rate] == "µGy/h"
+    assert not {"nefes/dk", "µGy/saat", "atım/dk"} & set(m.METRIC_UNITS.values())
