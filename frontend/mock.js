@@ -134,9 +134,18 @@ function makeFrame(tick, clock) {
     simulated: true, crew, cabin, alerts, comms_one_way_delay_s: MOCK_ONE_WAY_DELAY_S,
     messages: mockMessages(tick, phase, at) };
 }
+const MOCK_CLOCK = Date.now();
+const MOCK_START_TICK = 17;
+
+export function mockHistory(limit = 120) {
+  const last = makeFrame(MOCK_START_TICK - 1, MOCK_CLOCK);
+  const frames = Array.from({ length: MOCK_START_TICK }, (_, tick) => makeFrame(tick, MOCK_CLOCK))
+    .filter(frame => frame.scenario === last.scenario).slice(-Math.max(1, Math.min(400, limit)));
+  return { scenario: last.scenario, frames };
+}
 export function startMock(onFrame) {
-  const clock = Date.now();
-  let tick = 0;
+  const clock = MOCK_CLOCK;
+  let tick = MOCK_START_TICK;
   let stopped = false;
   let timer = null;
   function emit() {
@@ -148,4 +157,35 @@ export function startMock(onFrame) {
   }
   emit();
   return () => { stopped = true; window.clearTimeout(timer); };
+}
+
+// Isolated response fixtures. These never replace real API failures outside ?mock=1.
+export function mockNasaResponse(path) {
+  const url = new URL(path, "http://mock.local");
+  if (url.pathname === "/api/limits") return {
+    version: "LOCAL MOCK", items: [
+      { id: "pio2-hypoxia-low", group: "cabin", label: "MOCK inspired oxygen limit", metric: "pio2", severity: "critical", comparator: "<", threshold: 127, unit: "mmHg", consecutive_required: 3, source: "MOCK fixture · not a verified NASA limit", status: "verified" },
+      { id: "ppco2-caution", group: "cabin", label: "MOCK carbon dioxide watch level", metric: "pp_co2", severity: "caution", comparator: ">", threshold: 2.5, unit: "mmHg", consecutive_required: 3, source: "MOCK fixture · interpretation example", status: "partial" },
+      { id: "spo2-drop-watch", group: "vitals", label: "MOCK SpO2 deviation", metric: "spo2", severity: "caution", comparator: "<=", threshold: -3, unit: "% points", consecutive_required: 3, source: "MOCK team demo parameter", status: "unverified" },
+      { id: "radiation-spe-limit", group: "radiation", label: "MOCK event dose limit", metric: null, severity: "critical", comparator: ">=", threshold: 250, unit: "mSv", consecutive_required: null, source: "MOCK fixture · not a verified NASA limit", status: "verified" },
+    ],
+  };
+  if (url.pathname === "/api/sep-event") return {
+    sep_id: "2024-05-10T13:35:00-SEP-001", event_time: "2024-05-10T13:35Z",
+    instruments: ["MOCK instrument · GOES-P SEISS >10 MeV"], link: "https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1",
+    source: "https://api.nasa.gov/DONKI/SEP", fetched_at: "2026-11-14T17:19:33Z",
+    linked_events: [
+      { activity_id: "2024-05-08T04:20:00-FLR-001", type: "FLR", time: "2024-05-08T04:20Z" },
+      { activity_id: "2024-05-08T05:36:00-CME-001", type: "CME", time: "2024-05-08T05:36Z" },
+    ], note: "LOCAL MOCK · Recorded-event fixture. Dose is simulated.",
+  };
+  if (url.pathname === "/api/history") {
+    const count = Math.max(1, Math.min(400, Number(url.searchParams.get("limit")) || 120));
+    const clock = Date.now();
+    const frames = Array.from({ length: count }, (_, tick) => makeFrame(tick, clock));
+    let start = frames.length - 1;
+    while (start > 0 && frames[start - 1].scenario === frames.at(-1).scenario) start -= 1;
+    return { scenario: frames.at(-1).scenario, frames: frames.slice(start) };
+  }
+  throw new Error("Unknown mock reference endpoint");
 }

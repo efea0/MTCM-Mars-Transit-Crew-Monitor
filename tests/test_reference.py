@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from backend import main
 from backend.main import RANGES_PATH, SEP_EVENT_PATH, app
+from backend.models import CrewMember, CrewVitals
 from backend.reference import map_status, normalize_source
 
 SEP_ID = "2024-05-10T13:35:00-SEP-001"
@@ -74,6 +75,31 @@ def test_limits_cabin_matches_ranges(client: TestClient, ranges: dict[str, Any])
     assert "Table 6.2-1" in cabin[0]["source"]
 
 
+def test_limits_metrics_identify_existing_telemetry_fields(client: TestClient) -> None:
+    items = client.get("/api/limits").json()["items"]
+    expected = {
+        "spo2-drop-watch": "spo2",
+        "spo2-drop-action": "spo2",
+        "hr-rise-watch": "heart_rate",
+        "hr-rise-action": "heart_rate",
+        "rr-rise-watch": "resp_rate",
+        "rr-rise-action": "resp_rate",
+        "temp-rise-watch": "core_temp",
+        "temp-rise-action": "core_temp",
+        "radiation-spe-limit": "event_dose_msv",
+        "radiation-spe-watch": "event_dose_msv",
+        "radiation-career-limit": "cumulative_dose_msv",
+        "radiation-career-watch": "cumulative_dose_msv",
+    }
+    assert {item["id"]: item["metric"] for item in items if item["group"] != "cabin"} == expected
+    assert all(item["metric"] for item in items)
+    for item in items:
+        if item["group"] == "vitals":
+            assert item["metric"] in CrewVitals.model_fields
+        elif item["group"] == "radiation":
+            assert item["metric"] in CrewMember.model_fields
+
+
 def test_limits_status_mapping(client: TestClient) -> None:
     items = {item["id"]: item for item in client.get("/api/limits").json()["items"]}
     assert items["pio2-normoxia-low"]["status"] == "verified"
@@ -110,6 +136,7 @@ def test_limits_vitals_match_ranges(client: TestClient, ranges: dict[str, Any]) 
             assert item["severity"] == severity
             assert item["consecutive_required"] == params["art_arda_olcum"]["deger"]
             assert item["status"] == map_status(params[key]["status"])
+            assert item["source"] == normalize_source(params[key]["kaynak"])
     assert vitals["spo2-drop-watch"]["threshold"] < 0
 
 
@@ -127,6 +154,15 @@ def test_limits_radiation_thresholds_derived_from_ranges(client: TestClient, ran
     assert all(item["unit"] == "mSv" for item in items.values())
     assert items["radiation-spe-watch"]["severity"] == "caution"
     assert items["radiation-spe-limit"]["severity"] == "critical"
+    for prefix, key in (("radiation-spe", "spe_tasarim_esigi"), ("radiation-career", "kariyer_limiti")):
+        limit = items[f"{prefix}-limit"]
+        watch = items[f"{prefix}-watch"]
+        assert limit["source"] == normalize_source(ranges["radyasyon"][key]["kaynak"])
+        assert limit["status"] == map_status(ranges["radyasyon"][key]["status"])
+        assert watch["source"] == normalize_source(
+            ranges["vital_karar_parametreleri"]["sari_kademe_genel"]["kaynak"]
+        )
+        assert watch["status"] == "unverified"
 
 
 def test_limits_skips_missing_keys_without_error(
@@ -144,6 +180,7 @@ def test_limits_skips_missing_keys_without_error(
     assert body["version"] is None
     assert [item["id"] for item in body["items"]] == ["radiation-career-limit"]
     assert body["items"][0]["status"] == "unverified"
+    assert body["items"][0]["source"] == "assumption (team decision)"
 
 
 def test_limits_missing_file_is_not_a_server_error(

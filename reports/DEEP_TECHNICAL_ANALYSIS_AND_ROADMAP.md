@@ -1,5 +1,7 @@
 # Deep Technical Analysis & Roadmap: Astronaut Health Monitoring System
-**Target Repository:** `c:\Users\efea3\Documents\Health Monitorring NASA`  
+> **Day-0 research note (14 Nov 2026), kept for the record.** It was written before any code existed. The architecture it proposes (React, databases, OSDR samples) was **not** built; the final design is in the [README](../README.md).
+
+**Target Repository:** `efea0/space-apps-2026-health-monitoring`  
 **Remote Git Target:** `https://github.com/efea0/space-apps-2026-health-monitoring`  
 **Challenge Context:** NASA International Space Apps Challenge — *Create Health Monitoring Software for Astronauts on Space Missions*  
 **Date:** November 14, 2026  
@@ -11,7 +13,7 @@
 
 This repository is set up to address the **NASA Space Apps Challenge: "Create Health Monitoring Software for Astronauts on Space Missions"**. 
 An exhaustive scan of the local filesystem and associated GitHub remotes revealed:
-- **Local Workspace:** Greenfield state containing directory scaffolds (`.claude/`, `reports/`, and `research_notes/Space Apps astronot sağlık izleme planı/`). No source code, build scripts, or documentation existed prior to this report.
+- **Local Workspace:** Greenfield state containing directory scaffolds (`.claude/`, `reports/` and a `research_notes/` working notes folder). No source code, build scripts, or documentation existed prior to this report.
 - **Git State:** Not yet initialized locally (`.git` missing).
 - **Remote GitHub Target:** `efea0/space-apps-2026-health-monitoring` was created on GitHub on `2026-11-13 22:17:58Z` as a private repository, currently empty (HTTP 409 / 0 branches).
 - **Domain Mission:** Deep-space exploration (Artemis Lunar missions, crewed Mars transits) introduces severe communication latencies (up to 22 minutes one-way) and the NASA Human Research Program's **5 Hazards of Spaceflight** (Radiation, Isolation/Confinement, Distance from Earth, Gravity Fields, Hostile Closed Environments). This necessitates an **autonomous, offline-first, edge-computed Clinical Decision Support System (CDSS)** for astronauts.
@@ -22,12 +24,12 @@ An exhaustive scan of the local filesystem and associated GitHub remotes reveale
 
 ### 2.1 File & Directory Inventory
 ```text
-C:\Users\efea3\Documents\Health Monitorring NASA\
+<team workspace>/
 ├── .claude/
 │   └── settings.local.json     # Permissions for gh CLI and repo queries
 ├── reports/                    # Target folder for architecture & audit reports
 └── research_notes/
-    └── Space Apps astronot sağlık izleme planı/  # Working notes directory
+    └── astronaut-health-monitoring-plan/       # Working notes directory
 ```
 
 ### 2.2 Git & Version Control Audit

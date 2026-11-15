@@ -1,8 +1,10 @@
 # NASA Astronaut Health Monitoring — Datasets, APIs, and Data Sources Guide
+> **Day-0 research note (14 Nov 2026), kept for the record.** It was written before any code existed. The datasets it lists were a starting list; the data the app actually uses is listed in the [README](../README.md).
+
 
 ## 1. Executive Summary & Project Focus Identification
-An inspection of the workspace repository (`c:\Users\efea3\Documents\Health Monitorring NASA`) revealed research directories targeting:
-> **"Space Apps astronot sağlık izleme planı"** *(Space Apps Astronaut Health Monitoring Plan)*
+An inspection of the team workspace revealed research notes titled:
+> **"Space Apps Astronaut Health Monitoring Plan"**
 
 This confirms that the primary project focus is **Astronaut & Biomedical Health Monitoring** for space missions (specifically aligned with the **NASA Space Apps Challenge: "Create Health Monitoring Software for Astronauts on Space Missions"**).
 
