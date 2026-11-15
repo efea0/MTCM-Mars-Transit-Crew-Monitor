@@ -60,6 +60,7 @@ AREAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
             ".gitignore",
             ".gitattributes",
             "render.yaml",
+            "components.json",
         ),
         (),
     ),
