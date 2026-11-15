@@ -16,6 +16,7 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 | Live demo | **[TODO: add after first deploy]** (Render free tier) |
 | Project demo (≤ 30 s video or ≤ 7 slides) | **[TODO]** |
 | Space Apps project page | **[TODO]** |
+| Source code | <https://github.com/efea0/space-apps-2026-health-monitoring> |
 
 > **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
 > without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
@@ -193,10 +194,17 @@ Where it is marked:
 
 The Space Apps **demo video is AI-assisted**: its motion graphics are written as code with HyperFrames and scripted with Claude Code,
 and the video carries a visible SI watermark. It uses no NASA logos, flags or mission identifiers. The screen recording in it is the real app.
-No other AI-generated images are used. AI-generated audio: **[TODO: confirm before submission]**.
+No other AI-generated images are used. The video has no audio, so no AI-generated audio is used.
 
 ## Team
 
 **Los Galacticos** · Aydın (backend & frontend), Barış (validation & Earth link), Efe (reference data & delivery)
 
-Team working rules and branch model: [AGENTS.md](AGENTS.md). Some internal planning documents in `docs/` and `reports/` are in Turkish.
+Team working rules and branch model: [AGENTS.md](AGENTS.md).
+`reports/` holds two day-0 research notes written before any code existed; the app as built is described in this README.
+
+## License
+
+Code and documents: [MIT License](LICENSE).
+Bundled fonts (IBM Plex Sans, IBM Plex Mono): SIL Open Font License 1.1, see `frontend/fonts/`.
+NASA DONKI data and NASA-STD-3001 values are public NASA information; this project is not endorsed by NASA.
