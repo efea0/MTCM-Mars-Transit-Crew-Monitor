@@ -51,7 +51,7 @@
         <section class="panel cabin-panel" aria-labelledby="cabin-title">
           <div class="panel-heading"><h2 id="cabin-title">Cabin atmosphere</h2><span id="cabin-status" class="badge tone-unknown">? Unknown</span></div>
           <div id="cabin-readings" class="cabin-readings"></div>
-          <div id="cabin-trends" class="cabin-trends"></div>
+          <div id="cabin-trends" class="cabin-trends" hidden></div>
           <time id="cabin-time" class="reading-time">Reading: no data</time>
           <div class="countdowns">
             <div id="hours_until_o2_limit" class="countdown tone-unknown">
@@ -82,6 +82,29 @@
     </section>
   </main>
   <footer><span>Decision support only, not a medical diagnosis. All health data is simulated.</span><span>NASA SPACE APPS 2026 · P1 HABITAT</span></footer>
+  <dialog id="crew-detail" class="crew-detail" aria-labelledby="detail-title" aria-describedby="detail-disclaimer">
+    <header class="detail-header">
+      <div><p class="detail-kicker">CREW / PERSONAL HISTORY</p><h2 id="detail-title">Crew member</h2><p id="detail-subtitle" class="muted"></p></div>
+      <div class="detail-actions"><span class="sim-badge">SIMULATED DATA</span><span id="detail-decision" class="badge" data-tone="unknown">? Unknown</span><button id="detail-close" class="detail-control" type="button" aria-label="Close crew detail">Close ✕</button></div>
+    </header>
+    <div class="detail-toolbar">
+      <p id="detail-count" class="muted"></p>
+      <button id="download-session" class="detail-control detail-download" type="button" disabled>Download session CSV ↓</button>
+    </div>
+    <p id="detail-notice" class="detail-notice" role="status">Loading recent history…</p>
+    <div class="detail-layout">
+      <section aria-label="Seven vital charts">
+        <p class="detail-legend"><span class="legend-measurement">━ Measurement</span><span class="legend-baseline">┄ Personal baseline</span><span class="legend-alert">┆ Alert onset</span><span class="legend-activity">┆ Activity change</span></p>
+        <p class="detail-explanation">Time: UTC · Baseline = value − baseline_delta for each reading. Its shaded stroke is a visual guide, not a safe range. Gaps mean missing, invalid or unreceived readings.</p>
+        <div id="detail-charts" class="detail-charts"></div>
+      </section>
+      <aside class="detail-sidebar">
+        <section class="detail-evidence-panel"><h3>Decision evidence</h3><div id="detail-evidence"></div></section>
+        <section class="detail-evidence-panel"><h3>Events in chart window</h3><ol id="detail-events" class="detail-event-list"></ol></section>
+        <p id="detail-disclaimer" class="detail-explanation">Decision support only, not a medical diagnosis. All health readings are simulated. CSV includes all seven vitals for all crew and all scenarios received during this page session, including loaded recent history.</p>
+      </aside>
+    </div>
+  </dialog>
   <noscript>Enable JavaScript to use the panel. NO DATA.</noscript>
   <script type="module" src="app.js"></script>
 </body>
