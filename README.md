@@ -30,12 +30,15 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 - **Body + cabin in one model.** O₂ use is estimated from each person's heart rate, and that feeds the cabin O₂/CO₂ mass balance.
   Example: *"Katherine: stop exercising, SpO₂ is dropping and cabin PIO₂ is below normoxia."*
 - **Two countdowns.** Hours until O₂ reaches its lower limit and until CO₂ reaches its upper limit.
-- **"Why?" for every alert.** The evidence (values, baseline, threshold) and the source of the threshold.
+- **"Why?" for every alert.** The evidence behind the decision: the measured value, the threshold and a short note
+  (for example how far a vital sign is from that person's baseline, and for how many readings). The source of every
+  threshold is listed in `ranges.json` and under "NASA data and sources" below.
 - **Exercise does not cause false alarms.** A higher heart rate during exercise is expected and is not flagged as cardiac load.
 - **Missing data is never "normal".** A missing sensor shows **NO DATA**.
 - **Radiation warning before the dose.** During a solar particle event the system projects the end-of-event dose and
   sends the crew to the storm shelter *before* it is received.
-- **Delayed Earth link.** Reports go to Earth through a 3–22 min one-way delay queue (shortened in the demo, and labeled).
+- **Delayed Earth link.** Reports go to Earth with a one-way light delay of 3–22 min in mission time. On the ×600 demo
+  clock that is about 0.3–2.2 s.
   The Earth link panel shows each message and the light delay.
 
 **Planned, not built yet:**
@@ -50,7 +53,10 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 This is the live presentation flow, about 3 minutes. The Space Apps "Project Demo" link is a separate video of 30 seconds or less, or a deck of 7 slides or fewer.
 The step-by-step script with timings is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
-Scenarios are started from a hidden demo panel. Randomness uses a fixed seed, and the demo needs neither the internet nor voice. The simulation clock runs at ×600, and the screen says so. A measurement is taken every 5 mission minutes, which is 0.5 s in the demo.
+Scenarios are started from the demo panel. It is hidden until the page is opened with `?demo=1` (for example
+<http://127.0.0.1:8000/?demo=1>), and on the live demo it asks for the demo key. Randomness uses a fixed seed, and the
+demo needs neither the internet nor voice. The simulation clock runs at ×600; the screen shows the mission elapsed
+time, not the speed. A measurement is taken every 5 mission minutes, which is 0.5 s in the demo.
 
 The five scenarios run in this order: **nominal → hypoxia → hypercapnia → solar_storm → sensor_dropout**.
 
@@ -83,10 +89,11 @@ backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  ba
 - **Frontend:** plain HTML, CSS and JavaScript with no build step. Trend charts are drawn as inline SVG and the fonts are stored locally,
   so the demo does not need the internet.
 - **API:** `/api/stream` (SSE telemetry), `/api/state`, `/api/history`, `/api/limits`, `/api/sep-event`, `/api/scenarios`
-  and `/api/health`. Demo controls (`/api/scenario/{name}`, `/api/control`, `/api/speed`) need the `X-Demo-Key` header.
+  and `/api/health`. Demo controls (`/api/scenario/{name}`, `/api/control`, `/api/speed`) need the `X-Demo-Key` header
+  when `DEMO_CONTROL_KEY` is set on the server.
 - **Data contract:** Pydantic models in `backend/models.py`, exported to `docs/contract.json`.
-- **Texts on screen:** `data/reference/messages.json`. Thresholds in the texts are placeholders filled from `ranges.json`,
-  so the screen and the rules always use the same numbers.
+- **Alert texts:** the texts on screen are written in `backend/rules.py`, and the thresholds in them come from `ranges.json`.
+  `data/reference/messages.json` holds the reviewed text drafts with their sources; the code does not read it yet.
 
 ### Status (2026-11-15)
 
@@ -94,7 +101,8 @@ backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  ba
 |---|---|
 | Data contract (`models.py`, `contract.json`) | done, tested |
 | O₂/CO₂ mass balance and countdowns (`atmosphere.py`) | done, tested |
-| Reference limits and alert texts (`ranges.json`, `messages.json`) | done |
+| Reference limits (`ranges.json`) | done, read by the engine |
+| Alert text drafts (`messages.json`) | done; not read by the code yet (texts are in `rules.py`) |
 | DONKI event record (`data/donki/`) | done |
 | Simulator, rules engine, API (SSE), Habitat panel | done, tested |
 | Earth link delay queue (`backend/comms.py`) and Earth link panel | done, tested |
@@ -108,7 +116,8 @@ python -m pytest -q
 uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Then open <http://127.0.0.1:8000>.
+Then open <http://127.0.0.1:8000>. Add `?demo=1` to show the demo panel. Locally no demo key is needed unless you set
+`DEMO_CONTROL_KEY` before starting the server.
 
 Refresh the DONKI record (optional, needs the internet; uses `DEMO_KEY` unless `NASA_API_KEY` is set; the key is never saved):
 
