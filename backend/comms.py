@@ -1,23 +1,24 @@
-"""Dünya-Mars ışık gecikmeli mesajlaşma (3-22 dk) — sahibi: Barış (comms).
+"""Earth-Mars light-delay messaging (3-22 min) - owner: Barış (comms).
 
-Mars aracından Dünya'ya giden raporları ve yer kontrolünün cevaplarını ışık gecikmesiyle modelleyen
-saf Python modülü. FastAPI'ye, dosyaya, ağa ya da saate bağlı değildir: zaman her çağrıda görev
-saniyesi (`now_s`, TelemetryFrame.mission_elapsed_s ile aynı saat) olarak verilir. Böylece demo
-duraklatma / ileri sarma panel ile birlikte çalışır ve testler beklemeden sonuç verir.
+Pure-Python module that models reports going from the Mars craft to Earth, and ground control's
+replies, with light delay. It does not depend on FastAPI, files, the network or the clock: time is
+passed on every call as mission seconds (`now_s`, the same clock as TelemetryFrame.mission_elapsed_s).
+So demo pause / fast-forward works with the panel, and tests return results without waiting.
 
-Kurallar:
-- K1  Tek yön gecikme sınırları data/reference/ranges.json iletisim.mars_tek_yon_gecikme alanından okunur
-      (kodda sabit yazılmaz); varsayılan 600 s. Aralık dışı değer ValueError.
-- K2  Gecikme gönderim anında mesaja sabitlenir; sonradan değişirse yoldaki mesaj etkilenmez.
-- K3  Varış = gönderim + gecikme. Cevap = varış + yer işleme süresi + gecikme (varsayılan işleme 120 s).
-      Bu yüzden cevap en erken gönderim + 2 x gecikme sonra gelir.
-- K4  Durum sırası: queued -> in_transit -> delivered -> replied. Atlanmaz, geri gitmez.
-- K5  Sırayla teslim (FIFO): gecikme kısaltılsa bile sonraki mesaj öncekinden önce ulaşmaz, cevabı da
-      önce gelmez.
-- K6  Aynı uyarı ikinci kez kuyruğa girmez. Anahtar (crew_id veya "cabin", metric/karar, severity).
-      Uyarı bitince `release(key)` çağrılır; ancak o zaman aynı anahtar yeniden gönderilir.
-- K7  Saat yok, veritabanı yok: mesajlar bellekte. Dosya yalnızca gecikme sınırlarını okumak için açılır.
-- K8  Cevap metni karara göre `replies` sözlüğünden seçilir, yoksa varsayılan metin. Cevaplar simüledir.
+Rules:
+- K1  One-way delay bounds are read from data/reference/ranges.json iletisim.mars_tek_yon_gecikme
+      (not hard-coded); default 600 s. A value outside the range raises ValueError.
+- K2  The delay is fixed on the message at send time; a later change does not affect messages in flight.
+- K3  Arrival = send + delay. Reply = arrival + ground processing time + delay (default processing 120 s).
+      So the reply arrives at the earliest at send + 2 x delay.
+- K4  State order: queued -> in_transit -> delivered -> replied. No skipping, no going back.
+- K5  In-order delivery (FIFO): even if the delay is shortened, a later message does not arrive before
+      an earlier one, and its reply does not arrive first.
+- K6  The same alert is not queued twice. Key (crew_id or "cabin", metric/decision, severity).
+      When the alert ends, `release(key)` is called; only then can the same key be sent again.
+- K7  No clock, no database: messages live in memory. The file is read only for the delay bounds.
+- K8  The reply text is chosen from the `replies` dict by decision, else the default text.
+      Replies are simulated.
 """
 
 from __future__ import annotations
@@ -31,10 +32,10 @@ from pathlib import Path
 from backend.models import CommsMessage, Sender
 
 RANGES_PATH = Path(__file__).resolve().parent.parent / "data" / "reference" / "ranges.json"
-DEFAULT_ONE_WAY_DELAY_S = 600.0  # 10 dk, demo varsayılanı
-DEFAULT_GROUND_PROCESSING_S = 120.0  # HİPOTEZ: yer kontrolünün cevap hazırlama süresi
-DEFAULT_REPLY = "Rapor alındı, değerlendiriliyor."
-PENDING_REPLY = "(cevap yolda)"
+DEFAULT_ONE_WAY_DELAY_S = 600.0
+DEFAULT_GROUND_PROCESSING_S = 120.0
+DEFAULT_REPLY = "Report received, under review."
+PENDING_REPLY = "(reply in transit)"
 REPLY_ID_SUFFIX = "-reply"
 
 AlertKey = tuple[str, ...]
@@ -43,19 +44,17 @@ _SECONDS_PER_UNIT = {"saniye": 1.0, "dakika": 60.0}
 
 
 def _check_delay_bounds_s(low: float, high: float) -> None:
-    """K1: tek yön gecikme sınırları pozitif ve sıralı olmalı (0 < min <= max)."""
     if not 0 < low <= high:
-        raise ValueError(f"tek yön gecikme aralığı geçersiz: {low}-{high} s (0 < min <= max olmalı)")
+        raise ValueError(f"invalid one-way delay range: {low}-{high} s (need 0 < min <= max)")
 
 
 def load_delay_bounds_s(path: Path | str = RANGES_PATH) -> tuple[float, float]:
-    """Tek yön gecikme sınırlarını (min, max; saniye) ranges.json iletisim.mars_tek_yon_gecikme'den okur."""
     try:
         record = json.loads(Path(path).read_text(encoding="utf-8"))["iletisim"]["mars_tek_yon_gecikme"]
         scale = _SECONDS_PER_UNIT[record["birim"]]
         low, high = float(record["min"]) * scale, float(record["max"]) * scale
     except (OSError, KeyError, TypeError, ValueError) as error:
-        raise ValueError(f"{path}: iletisim.mars_tek_yon_gecikme okunamadı ({error!r})") from error
+        raise ValueError(f"{path}: could not read iletisim.mars_tek_yon_gecikme ({error!r})") from error
     try:
         _check_delay_bounds_s(low, high)
     except ValueError as error:
@@ -64,16 +63,14 @@ def load_delay_bounds_s(path: Path | str = RANGES_PATH) -> tuple[float, float]:
 
 
 class MessageState(str, Enum):
-    queued = "queued"  # oluşturuldu, henüz gönderilmedi
-    in_transit = "in_transit"  # Dünya'ya doğru yolda
-    delivered = "delivered"  # Dünya'ya ulaştı, cevap bekleniyor
-    replied = "replied"  # cevap araca ulaştı
+    queued = "queued"
+    in_transit = "in_transit"
+    delivered = "delivered"
+    replied = "replied"
 
 
 @dataclass(eq=False)
 class Message:
-    """Kuyruktaki tek rapor ve onun cevabı. Zamanlar görev saniyesidir."""
-
     seq: int
     key: AlertKey
     body: str
@@ -92,11 +89,9 @@ class Message:
 
     @property
     def reply_sent_s(self) -> float:
-        """Cevabın Dünya'dan çıktığı an."""
         return self.reply_s - self.one_way_delay_s
 
     def remaining_s(self, now_s: float) -> float:
-        """Bir sonraki durum geçişine kalan görev saniyesi; cevap geldiyse 0."""
         target = {
             MessageState.queued: self.sent_s,
             MessageState.in_transit: self.deliver_s,
@@ -105,7 +100,6 @@ class Message:
         return 0.0 if target is None else max(0.0, target - now_s)
 
     def to_contract(self, epoch: datetime, now_s: float) -> list[CommsMessage]:
-        """Sözleşmedeki CommsMessage listesi: giden rapor ve, Dünya'dan çıktıysa, cevabı."""
         out = [
             CommsMessage(
                 id=self.id,
@@ -131,8 +125,6 @@ class Message:
 
 
 class DelayedLink:
-    """Dünya bağlantısı: gecikmeli, sıralı, tekrarsız mesaj kuyruğu."""
-
     def __init__(
         self,
         one_way_delay_s: float = DEFAULT_ONE_WAY_DELAY_S,
@@ -141,7 +133,7 @@ class DelayedLink:
         delay_bounds_s: tuple[float, float] | None = None,
     ) -> None:
         if ground_processing_s < 0:
-            raise ValueError("ground_processing_s negatif olamaz")
+            raise ValueError("ground_processing_s must not be negative")
         self.min_delay_s, self.max_delay_s = delay_bounds_s or load_delay_bounds_s()
         _check_delay_bounds_s(self.min_delay_s, self.max_delay_s)
         self.set_delay(one_way_delay_s)
@@ -155,15 +147,13 @@ class DelayedLink:
         return self._delay_s
 
     def set_delay(self, seconds: float) -> None:
-        """K1, K2: yalnızca bundan sonra gönderilen mesajları etkiler."""
         if not self.min_delay_s <= seconds <= self.max_delay_s:
             raise ValueError(
-                f"tek yön gecikme {self.min_delay_s:.0f}-{self.max_delay_s:.0f} s olmalı: {seconds}"
+                f"one-way delay must be {self.min_delay_s:.0f}-{self.max_delay_s:.0f} s: {seconds}"
             )
         self._delay_s = float(seconds)
 
     def send(self, key: AlertKey, body: str, now_s: float, sender: Sender = Sender.system) -> Message | None:
-        """Yeni mesaj 'queued' döner. Anahtar zaten aktifse None (K6)."""
         if key in self._active:
             return None
         self._active.add(key)
@@ -188,11 +178,9 @@ class DelayedLink:
         return message
 
     def release(self, key: AlertKey) -> None:
-        """Uyarı bitti: aynı anahtar yeniden gönderilebilir. Bilinmeyen anahtar sessizce geçilir."""
         self._active.discard(key)
 
     def update(self, now_s: float) -> list[Message]:
-        """Süresi dolan geçişleri uygular; durumu değişen mesajları sırayla döndürür (K4)."""
         changed: list[Message] = []
         for message in self._messages:
             before = message.state
@@ -208,11 +196,9 @@ class DelayedLink:
         return changed
 
     def messages(self) -> list[Message]:
-        """Gönderim sırasıyla tüm mesajlar (kopya liste)."""
         return list(self._messages)
 
     def contract_messages(self, epoch: datetime, now_s: float) -> list[CommsMessage]:
-        """TelemetryFrame.messages için hazır liste."""
         return [cm for m in self._messages for cm in m.to_contract(epoch, now_s)]
 
     def _reply_for(self, key: AlertKey) -> str:
@@ -221,7 +207,6 @@ class DelayedLink:
 
 
 def real_seconds(mission_s: float, time_scale: float) -> float:
-    """Ekran için: görev saniyesini gerçek saniyeye çevirir. time_scale=60 ise 1 görev dk = 1 s."""
     if time_scale <= 0:
-        raise ValueError("time_scale pozitif olmalı")
+        raise ValueError("time_scale must be positive")
     return mission_s / time_scale

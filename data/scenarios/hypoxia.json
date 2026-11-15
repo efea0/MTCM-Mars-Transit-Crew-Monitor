@@ -1,7 +1,7 @@
 {
   "scenario": "hypoxia",
-  "title": "O2 ünitesi arızası: Astronot 3 egzersizde",
-  "purpose": "O2 üretimi durur, kabin PIO2 normoksiden (145) çıkar. Ece egzersizdeyken SpO2'si düşer ve kişi bazlı hipoksi kararı çıkar; egzersiz nabzı kanıt sayılmaz. Aynı senaryoda kişi bazlı nabız sapması: Ayşe ve Mert'in nabzı ikisi de 80; Ayşe baz 64 → +16 İzle, Mert baz 67 → +13 normal. Aynı nabız, farklı baz çizgisi, farklı karar. Kabin PIO2 127'nin altına inince kırmızı.",
+  "title": "O2 unit failure: Astronaut 3 exercising",
+  "purpose": "O2 production stops and cabin PIO2 leaves normoxia (145). While Katherine exercises her SpO2 drops and a personal hypoxia decision is raised; exercise pulse does not count as evidence. Personal pulse deviation in the same scenario: Neil's and John's pulse are both 80; Neil baseline 64 → +16 Watch, John baseline 67 → +13 normal. Same pulse, different baseline, different decision. Red when cabin PIO2 falls below 127.",
   "simulated": true,
   "seed": 42,
   "time_unit": "mission_min",
@@ -41,11 +41,11 @@
     "career_limit_mSv": 600,
     "yellow_fraction": 0.8
   },
-  "baseline_note": "mean değerleri ranges.json vital_karar_parametreleri.baz_cizgi'den. sd yalnızca simülatör gürültüsü (varsayım; karar kuralı sd kullanmaz, sabit fark kullanır). hrv_rmssd ve kan basıncı ranges.json'da yok (varsayım).",
+  "baseline_note": "mean values come from ranges.json vital_karar_parametreleri.baz_cizgi. sd is simulator noise only (assumption; the decision rule does not use sd, it uses a fixed difference). hrv_rmssd and blood pressure are not in ranges.json (assumption).",
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -189,7 +189,7 @@
     "pp_o2": {
       "value": 158.8,
       "unit": "mmHg",
-      "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
+      "note": "equivalent of PIO2 149 mmHg (middle of normoxia 145–155): 149 × 760/713 mmHg"
     },
     "pp_co2": {
       "value": 2.0,
@@ -210,11 +210,11 @@
     "radiation_dose_rate": {
       "value": 20,
       "unit": "µGy/saat",
-      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+      "note": "MSL RAD transit ≈ 0.48 mGy/day (≈1.8 mSv/day)"
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "note": "ranges.json (PR #16 v1.1) values. Before the failure, life support is regulated (net 0): production covers consumption, removal covers production, cabin values stay constant; only the failing gas moves. Volume 75 m³. Times are aligned with the #14 atmosphere engine in the same model (regulated profile); tests/test_scenarios.py compares the cabin series with the engine.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -228,61 +228,61 @@
     "co2_min": 0.52,
     "co2_max": 1.5,
     "measurement_interval_min": 5,
-    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası."
+    "measurement_note": "Measurement interval is 5 mission minutes (demo: 0.5 real seconds, time multiplier 600); 3 consecutive measurements = 15 mission minutes."
   },
   "proposed_rules": {
     "crew_hr_rest_rise_caution": {
-      "condition": "aktivite = dinlenme VE nabız − baz ≥ 15",
+      "condition": "activity = resting AND pulse − baseline ≥ 15",
       "consecutive_required": 3,
-      "source": "ranges.json kalp_yuku (varsayım)",
+      "source": "ranges.json kalp_yuku (assumption)",
       "metric": "heart_rate",
       "skip_when": [
         "exercise"
       ]
     },
     "crew_hr_rest_rise_critical": {
-      "condition": "aktivite = dinlenme VE nabız − baz ≥ 30",
+      "condition": "activity = resting AND pulse − baseline ≥ 30",
       "consecutive_required": 3,
-      "source": "ranges.json kalp_yuku (varsayım)",
+      "source": "ranges.json kalp_yuku (assumption)",
       "metric": "heart_rate",
       "skip_when": [
         "exercise"
       ]
     },
     "cabin_pio2_low_caution": {
-      "condition": "kabin PIO2 < 145 (normoksi alt sınırı)",
+      "condition": "cabin PIO2 < 145 (lower limit of normoxia)",
       "consecutive_required": 3,
-      "source": "ranges.json kabin.pio2_normoksi_hedef (Tablo 6.2-1, doğrulandı)",
+      "source": "ranges.json kabin.pio2_normoksi_hedef (Table 6.2-1, verified)",
       "metric": "pp_o2"
     },
     "cabin_pio2_low_critical": {
-      "condition": "kabin PIO2 < 127 (hafif hipoksi alt sınırı)",
+      "condition": "cabin PIO2 < 127 (lower limit of mild hypoxia)",
       "consecutive_required": 3,
-      "source": "ranges.json kabin.pio2_hafif_hipoksi_alt (Tablo 6.2-1, doğrulandı)",
+      "source": "ranges.json kabin.pio2_hafif_hipoksi_alt (Table 6.2-1, verified)",
       "metric": "pp_o2"
     },
     "crew_hypoxia_caution": {
-      "condition": "SpO2 düşüşü ≥ 3 VE kabin PIO2 < 145; dinlenirken ek olarak nabız veya solunum artışı ≥ izle",
+      "condition": "SpO2 drop ≥ 3 AND cabin PIO2 < 145; when resting, additionally pulse or respiration rise ≥ watch",
       "consecutive_required": 3,
-      "source": "ranges.json vital_karar_parametreleri.kararlar.olasi_hipoksi (egzersiz istisnası dahil, #21)",
+      "source": "ranges.json vital_karar_parametreleri.kararlar.olasi_hipoksi (including the exercise exception, #21)",
       "metric": "spo2",
       "also_requires": "cabin PIO2 < 145"
     },
     "crew_hypoxia_critical": {
-      "condition": "SpO2 düşüşü ≥ 6 VE kabin PIO2 < 145",
+      "condition": "SpO2 drop ≥ 6 AND cabin PIO2 < 145",
       "consecutive_required": 3,
-      "source": "ranges.json spo2_dusus.eylem (varsayım)",
+      "source": "ranges.json spo2_dusus.eylem (assumption)",
       "metric": "spo2",
       "also_requires": "cabin PIO2 < 145"
     },
-    "exercise_rule": "Egzersizde nabız ve solunum artışı alarm ve hipoksi kanıtı sayılmaz (kullanıcı kuralı). ranges.json olasi_hipoksi koşulu bu istisnayı içerir (#21): nabız/solunum artışı yalnızca dinlenen kişide aranır."
+    "exercise_rule": "During exercise, pulse and respiration rises count neither as an alarm nor as hypoxia evidence (user rule). The ranges.json olasi_hipoksi condition includes this exception (#21): pulse/respiration rise is only looked for in a resting person."
   },
   "events": [
     {
       "t_min": 10,
       "type": "o2_generation_rate",
       "value": 0.0,
-      "note": "O2 üretim ünitesi durur; tüketim nabza göre sürer."
+      "note": "The O2 production unit stops; consumption continues according to pulse."
     },
     {
       "t_min": 60,
@@ -293,7 +293,7 @@
         "heart_rate": 80
       },
       "ramp_min": 120,
-      "note": "Ayşe dinlenirken nabzı kendi bazı 64'ten 80'e çıkar (+16): kalp yükü İzle. Mert'le aynı nabız (80); baz farkı kararı değiştirir. O2 ile ilgisi yok, SpO2 normal."
+      "note": "While Neil rests, his pulse rises from his own baseline of 64 to 80 (+16): cardiac load Watch. Same pulse as John (80); the baseline difference changes the decision. Unrelated to O2, SpO2 is normal."
     },
     {
       "t_min": 60,
@@ -304,7 +304,7 @@
         "heart_rate": 80
       },
       "ramp_min": 120,
-      "note": "Mert'in nabzı da 80'e çıkar ama bazı 67: +13, eşiğin (+15) altında → normal. Ayşe ile aynı nabız, farklı karar."
+      "note": "John's pulse also rises to 80 but his baseline is 67: +13, below the threshold (+15) → normal. Same pulse as Neil, different decision."
     },
     {
       "t_min": 600,
@@ -316,7 +316,7 @@
         "resp_rate": 26
       },
       "ramp_min": 5,
-      "note": "Ece egzersize başlar (kabin PIO2 zaten 145'in altında). Nabız/solunum artışı egzersizden; alarm ve kanıt değil."
+      "note": "Katherine starts exercising (cabin PIO2 is already below 145). The pulse/respiration rise comes from exercise; it is neither an alarm nor evidence."
     },
     {
       "t_min": 605,
@@ -327,7 +327,7 @@
         "spo2": 91.5
       },
       "ramp_min": 30,
-      "note": "Egzersizde SpO2 98'den 91,5'e düşer (−6,5). Demo için abartılı; ekranda SİMÜLE."
+      "note": "During exercise SpO2 drops from 98 to 91.5 (−6.5). Exaggerated for the demo; shown as SIMULATED on screen."
     },
     {
       "t_min": 660,
@@ -340,7 +340,7 @@
         "spo2": 94.0
       },
       "ramp_min": 10,
-      "note": "Egzersiz biter; dinlenmeye 10 dakikada geçer (3. dinlenme ölçümünde nabız eşiğin altında). Nabız +11 kalp yükü eşiğinin (+15) altında. Solunum dinlenmede +6 kalır: düşük kabin PIO2'sinde hipoksi belirtisi; SpO2 −4 ile birlikte İzle sürer (dinlenme koşulu: SpO2 VE solunum/nabız artışı). Solunum kuralı bu senaryoda yok, ayrı solunum uyarısı çıkmaz."
+      "note": "Exercise ends; she moves to rest over 10 minutes (at the 3rd resting measurement the pulse is below the threshold). Pulse +11 is below the cardiac load threshold (+15). Respiration stays +6 at rest: a hypoxia symptom at low cabin PIO2; together with SpO2 −4, Watch continues (resting condition: SpO2 AND respiration/pulse rise). There is no respiration rule in this scenario, so no separate respiration alert is raised."
     }
   ],
   "expected_alerts": [
@@ -355,7 +355,7 @@
       "evidence_metrics": [
         "heart_rate"
       ],
-      "why": "Ayşe dinlenirken nabzı kendi bazının (64) 15 üstünde (art arda 3 ölçüm).",
+      "why": "While Neil rests, his pulse is 15 above his own baseline (64) (3 consecutive measurements).",
       "recommendation": "Eforu azalt, izle.",
       "engine_metric": "heart_rate",
       "engine_rule_id": "karar-kalp_yuku"
@@ -371,8 +371,8 @@
       "evidence_metrics": [
         "pp_o2"
       ],
-      "why": "Kabin PIO2 normoksi aralığının (145–155 mmHg) altına indi.",
-      "recommendation": "O2 ünitesini kontrol et, yedek O2'yi hazırla, eforu azalt.",
+      "why": "Cabin PIO2 fell below the normoxia range (145–155 mmHg).",
+      "recommendation": "Check the O2 unit, prepare backup O2, reduce exertion.",
       "engine_metric": "pio2",
       "engine_rule_id": "pio2-normoxia-low"
     },
@@ -388,8 +388,8 @@
         "spo2",
         "pp_o2"
       ],
-      "why": "Ece egzersizdeyken SpO2'si kendi bazından (98) 3 puan düştü; kabin PIO2 145'in altında. Egzersiz nabzı kanıt sayılmadı.",
-      "recommendation": "Egzersizi durdur, O2 kaynağını ve kabin PIO2'yi kontrol et.",
+      "why": "While Katherine exercises, her SpO2 dropped 3 points below her own baseline (98); cabin PIO2 is below 145. Exercise pulse was not counted as evidence.",
+      "recommendation": "Stop exercise, check the O2 source and cabin PIO2.",
       "engine_metric": "spo2",
       "engine_rule_id": "karar-olasi_hipoksi"
     },
@@ -405,8 +405,8 @@
         "spo2",
         "pp_o2"
       ],
-      "why": "Ece'nin SpO2'si bazından 6 puan düştü; kabin PIO2 normoksinin altında.",
-      "recommendation": "Egzersizi durdur, yedek O2'ye geç, Dünya'ya raporla.",
+      "why": "Katherine's SpO2 dropped 6 points below her baseline; cabin PIO2 is below normoxia.",
+      "recommendation": "Stop exercise, switch to backup O2, report to Earth.",
       "engine_metric": "spo2",
       "engine_rule_id": "karar-olasi_hipoksi"
     },
@@ -421,8 +421,8 @@
       "evidence_metrics": [
         "pp_o2"
       ],
-      "why": "Kabin PIO2 127 mmHg'nin (hafif hipoksi alt sınırı, Tablo 6.2-1) altına indi.",
-      "recommendation": "Yedek O2'ye geç, Dünya'ya raporla.",
+      "why": "Cabin PIO2 fell below 127 mmHg (lower limit of mild hypoxia, Table 6.2-1).",
+      "recommendation": "Switch to backup O2, report to Earth.",
       "engine_metric": "pio2",
       "engine_rule_id": "pio2-hypoxia-low"
     }
@@ -431,32 +431,32 @@
     {
       "crew_id": "crew-3",
       "metric": "heart_rate",
-      "why": "Egzersiz nabzı (130) kalp yükü sayılmaz; 10 dk rampayla dinlenmeye geçilir, 3. dinlenme ölçümünde (670) baz +10,6: eşiğin altında."
+      "why": "Exercise pulse (130) does not count as cardiac load; rest is reached with a 10 min ramp, and at the 3rd resting measurement (670) the baseline difference is +10.6: below the threshold."
     },
     {
       "crew_id": "crew-3",
       "metric": "resp_rate",
-      "why": "Egzersiz solunumu alarm sayılmaz. Dinlenmedeki +6 yalnızca hipoksi kanıtıdır; bu senaryoda solunum için ayrı kural yok."
+      "why": "Exercise respiration does not count as an alarm. The +6 at rest is hypoxia evidence only; there is no separate respiration rule in this scenario."
     },
     {
       "crew_id": "crew-4",
       "metric": "heart_rate",
-      "why": "Mert'in nabzı 80 = bazı 67 + 13; eşiğin (+15) altında. Ayşe ile aynı nabız (80), farklı karar."
+      "why": "John's pulse 80 = his baseline 67 + 13; below the threshold (+15). Same pulse as Neil (80), different decision."
     },
     {
       "crew_id": "crew-1",
       "metric": "spo2",
-      "why": "Ayşe'nin nabız artışı hipoksi değil; SpO2 normal."
+      "why": "Neil's pulse rise is not hypoxia; SpO2 is normal."
     },
     {
       "crew_id": "crew-2",
       "metric": "spo2",
-      "why": "Belirtisi olmayana kişi bazlı hipoksi yok."
+      "why": "No personal hypoxia decision for someone without symptoms."
     },
     {
       "crew_id": "crew-4",
       "metric": "spo2",
-      "why": "Aynı neden."
+      "why": "Same reason."
     },
     {
       "crew_id": null,
@@ -479,7 +479,7 @@
         "heart_rate",
         "resp_rate"
       ],
-      "why": "Egzersizdeyken nabız/solunum hipoksi kanıtı yazılmaz."
+      "why": "Pulse/respiration is not written as hypoxia evidence during exercise."
     },
     {
       "crew_id": "crew-3",
@@ -488,12 +488,12 @@
         "heart_rate",
         "resp_rate"
       ],
-      "why": "Aynı neden."
+      "why": "Same reason."
     }
   ],
   "demo_notes": [
-    "Ayşe ve Mert'in nabzı ikisi de 80: Ayşe sarı (baz 64 → +16), Mert yeşil (baz 67 → +13). Aynı nabız, farklı baz çizgisi: kişisel baz çizgisi farkı veriyle gösterir. Seed 42 sabit, sonuç her çalıştırmada aynı.",
-    "Ece'nin nabzı 130 iken sistem susar, SpO2 düşünce konuşur: egzersizi ayırt eder.",
-    "Ece'nin kişi uyarısı kabin kırmızıya dönmeden çok önce gelir: erken uyarı."
+    "Neil's and John's pulse are both 80: Neil yellow (baseline 64 → +16), John green (baseline 67 → +13). Same pulse, different baseline: the data shows why a personal baseline matters. Seed 42 is fixed, the result is the same on every run.",
+    "While Katherine's pulse is 130 the system stays quiet and speaks when SpO2 drops: it tells exercise apart.",
+    "Katherine's personal alert comes long before the cabin turns red: early warning."
   ]
 }
