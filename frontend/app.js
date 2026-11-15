@@ -396,6 +396,7 @@ function collectThresholdMarks(alerts) {
   }
 }
 function updateCabinTrends(stale) {
+  if (document.getElementById("cabin-trends").hidden) return;
   for (const [metric, view] of cabinTrendViews) {
     const marks = [...(thresholdMarks.get(metric) ?? [])].sort((a, b) => a - b);
     drawTrend(view.svg, histories.get(`cabin:${metric}`) ?? [], stale, { name: LABELS.metric[metric], marks });
@@ -511,6 +512,7 @@ function updateEarthRow(view, message, now) {
   view.meta.textContent = `Sent ${formatClock(message.sent_at)} · Arrives ${formatClock(message.deliver_at)}`;
 }
 function updateEarth(stale) {
+  if (document.getElementById("earth-messages").closest("section").hidden) return;
   const list = document.getElementById("earth-messages");
   const notice = document.getElementById("earth-notice");
   const delay = frame?.comms_one_way_delay_s;
