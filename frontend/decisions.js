@@ -72,7 +72,8 @@ export function createDecisionBand({ list, note, helpers }) {
 
   function createView() {
     const root = document.createElement("article");
-    root.className = "decision-item";
+    root.className = "decision-item is-new";
+    root.addEventListener("animationend", () => root.classList.remove("is-new"), { once: true });
     const head = document.createElement("div");
     head.className = "decision-item-head";
     const owner = document.createElement("strong");
@@ -118,15 +119,17 @@ export function createDecisionBand({ list, note, helpers }) {
   }
 
   // The empty state is a single reused view: it must never linger behind real decisions.
-  function showEmpty(text, tone) {
+  function showEmpty(text, tone, message = "", meta = "") {
     if (!emptyView) {
       emptyView = createView();
       emptyView.badge.hidden = true;
-      emptyView.message.hidden = true;
-      emptyView.meta.hidden = true;
       emptyView.why.hidden = true;
     }
     emptyView.owner.textContent = text;
+    setText(emptyView.message, message);
+    emptyView.message.hidden = !message;
+    setText(emptyView.meta, meta);
+    emptyView.meta.hidden = !meta;
     helpers.setTone(emptyView.root, tone);
     if (list.firstChild !== emptyView.root || list.children.length !== 1) {
       list.replaceChildren(emptyView.root);
@@ -156,7 +159,10 @@ export function createDecisionBand({ list, note, helpers }) {
       for (const view of views.values()) view.root.remove();
       views.clear();
       note.textContent = "No decisions require attention";
-      showEmpty("All crew nominal", "nominal");
+      const crew = (frame?.crew ?? []).filter(Boolean);
+      showEmpty("All crew nominal", "nominal",
+        `${crew.length} crew · every decision Normal · 0 active alerts.`,
+        `Last packet ${helpers.formatClock(frame?.ts)}`);
       return;
     }
     clearEmpty();

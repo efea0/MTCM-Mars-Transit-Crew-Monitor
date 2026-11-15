@@ -1,11 +1,13 @@
 import { createNasaData } from "./nasa-data.js";
 import { setText, svgRenderer, chartRange, resetChartRange } from "./ui.js";
+import { createFinishCard } from "./scenario-queue.js";
 import { createDecisionBand } from "./decisions.js";
 import { createSession, validFrame } from "./session.js";
 import { createCrewDetail } from "./crew-detail.js";
 
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
+const CONTROL_URL = "/api/control";
 const HEALTH_URL = "/api/health";
 const HEALTH_CHECK_AFTER_MS = 2000;
 const WAKE_AFTER_MS = 3000;
@@ -83,6 +85,11 @@ function el(tag, className = "", text = "") {
   const node = document.createElement(tag);
   node.className = className;
   node.textContent = text;
+  return node;
+}
+function markNew(node) {
+  node.classList.add("is-new");
+  node.addEventListener("animationend", () => node.classList.remove("is-new"), { once: true });
   return node;
 }
 function tone(node, value) {
@@ -453,7 +460,7 @@ function updateAlerts(stale) {
   alerts.forEach((alert, index) => {
     let view = alertViews.get(alert.id);
     if (!view) {
-      const root = el("details", "alert-row");
+      const root = markNew(el("details", "alert-row"));
       const summary = el("summary");
       const heading = el("span", "alert-heading");
       const owner = el("strong", "alert-owner");
@@ -504,7 +511,7 @@ function uniqueMessages(messages) {
   return [...byId.values()].sort((a, b) => Date.parse(a.sent_at) - Date.parse(b.sent_at));
 }
 function createEarthRow() {
-  const root = el("li", "earth-row");
+  const root = markNew(el("li", "earth-row"));
   const head = el("div", "earth-row-head");
   const sender = el("strong", "earth-sender");
   const status = el("span", "badge earth-status");
@@ -570,6 +577,13 @@ const decisionBand = createDecisionBand({
     setTone: tone,
   },
 });
+const finishCard = createFinishCard({
+  root: document.getElementById("finish-card"),
+  order: Object.keys(LABELS.scenario),
+  labels: LABELS.scenario,
+  start: requestScenario,
+  restart: requestRestart,
+});
 const crewDetail = createCrewDetail({
   session, labels: LABELS, format: number, evidenceList, sourceNode: ruleId => nasaData.sourceNode(ruleId),
   decisionTone: decision => DECISION_TONE[decision] ?? "unknown",
@@ -590,9 +604,10 @@ function updateClock() {
     : connected ? "● Connected" : transportState === "open" ? "◌ Waiting for telemetry" : "◌ Reconnecting";
   tone(connection, connected ? "nominal" : "unknown");
   const notice = document.getElementById("data-notice");
-  notice.hidden = !stale && !scenarioFinished;
-  notice.textContent = scenarioFinished && !stale ? "Simulation finished · Showing the final packet. Waiting for the next scenario."
-    : invalidPacket ? "NO DATA · Could not read telemetry packet; waiting for a valid packet."
+  const finished = scenarioFinished && !stale && !mockMode && frame !== null;
+  if (finished) finishCard.show(frame.scenario); else finishCard.hide();
+  notice.hidden = !stale;
+  notice.textContent = invalidPacket ? "NO DATA · Could not read telemetry packet; waiting for a valid packet."
     : "NO DATA · Waiting for current telemetry. Old readings are not treated as normal.";
 }
 function recordHistory(key, incoming, reading, interrupted) {
@@ -645,6 +660,37 @@ function acceptFrame(incoming) {
   connectingSince = null;
   render();
 }
+async function demoRequest(url, body, subject) {
+  try {
+    const headers = {};
+    const demoKey = document.getElementById("demo-key").value || params.get("key");
+    if (demoKey) headers["X-Demo-Key"] = demoKey;
+    if (body) headers["Content-Type"] = "application/json";
+    const response = await fetch(url, {
+      method: "POST", headers, body,
+      signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
+    });
+    if (response.status === 401) return { ok: false, status: 401, message: "Demo key is required or incorrect (401). Open the page with ?demo=1 and enter the key." };
+    if (!response.ok) {
+      const reason = response.status === 404 ? "Endpoint or scenario not found"
+        : response.status === 405 ? "Endpoint does not allow POST"
+        : response.status >= 500 ? "Server error" : "Request rejected";
+      return { ok: false, message: `Could not ${subject} (${response.status}): ${reason}.` };
+    }
+    return { ok: true, message: "Requested; waiting for telemetry." };
+  } catch (error) {
+    return { ok: false, message: error.name === "TimeoutError" || error.name === "AbortError"
+      ? `Could not ${subject}: request timed out. The server may be waking up; try again.`
+      : `Could not ${subject}: network error. Check your connection and try again.` };
+  }
+}
+function requestScenario(scenario) {
+  return demoRequest(`${SCENARIO_URL}/${encodeURIComponent(scenario)}`, null, "start scenario");
+}
+// Restart replays the current scenario from its first tick; the backend guards it with the same demo key.
+function requestRestart() {
+  return demoRequest(CONTROL_URL, JSON.stringify({ action: "restart" }), "restart scenario");
+}
 function configureDemo() {
   if (params.get("demo") !== "1") return;
   document.getElementById("demo-panel").hidden = false;
@@ -656,29 +702,10 @@ function configureDemo() {
       const result = document.getElementById("demo-result");
       button.disabled = true;
       result.textContent = "Requesting scenario…";
-      try {
-        const headers = {};
-        const demoKey = document.getElementById("demo-key").value || params.get("key");
-        if (demoKey) headers["X-Demo-Key"] = demoKey;
-        const response = await fetch(`${SCENARIO_URL}/${encodeURIComponent(scenario)}`, {
-          method: "POST", headers,
-          signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
-        });
-        if (response.status === 401) { result.textContent = "Demo key is required or incorrect (401)."; return; }
-        if (!response.ok) {
-          const reason = response.status === 404 ? "Scenario endpoint or scenario not found"
-            : response.status === 405 ? "Scenario endpoint does not allow POST"
-            : response.status >= 500 ? "Server error" : "Request rejected";
-          result.textContent = `Could not start scenario (${response.status}): ${reason}.`;
-          return;
-        }
-        result.textContent = mockMode ? "Request sent. The local mock stream continues its own sequence." : "Scenario requested; waiting for telemetry.";
-      } catch (error) {
-        result.textContent = error.name === "TimeoutError" || error.name === "AbortError"
-          ? "Could not start scenario: request timed out. The server may be waking up; try again."
-          : "Could not start scenario: network error. Check your connection and try again.";
-      }
-      finally { button.disabled = false; }
+      const outcome = await requestScenario(scenario);
+      result.textContent = outcome.ok && mockMode
+        ? "Request sent. The local mock stream continues its own sequence." : outcome.message;
+      button.disabled = false;
     });
     buttons.append(button);
   }
