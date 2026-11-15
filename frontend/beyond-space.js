@@ -1,3 +1,4 @@
+import { closeOnBackdrop } from "./ui.js";
 // "Beyond space": the same design applied to other sealed, air-limited environments.
 // Information only. It never reads telemetry, never calls the API and never changes what the live
 // dashboard shows (the live engine runs the Mars transit profile only). The numbers below mirror
@@ -121,6 +122,7 @@ export function createBeyondSpace({ trigger }) {
     dialog.scrollTop = 0;
   });
   close.addEventListener("click", () => dialog.close());
+  closeOnBackdrop(dialog);
   dialog.addEventListener("close", () => lastFocus?.isConnected && lastFocus.focus({ preventScroll: true }));
   return { dialog };
 }

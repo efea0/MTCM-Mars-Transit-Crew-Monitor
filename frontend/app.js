@@ -28,7 +28,6 @@ const TREND_LEFT = 34;
 const TREND_RIGHT = 4;
 const TREND_TOP = 8;
 const TREND_BOTTOM = 16;
-const THEME_KEY = "theme";
 const ALERT_HIGHLIGHT_MS = 1600;
 const LABELS = {
   metric: {
@@ -58,7 +57,6 @@ const mockMode = params.get("mock") === "1";
 createBeyondSpace({ trigger: document.getElementById("beyond-trigger") });
 const nasaData = createNasaData({ trigger: document.getElementById("nasa-trigger"), banner: document.getElementById("nasa-storm-banner"), mock: mockMode });
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
 const crewViews = new Map();
 const alertViews = new Map();
 const histories = new Map();
@@ -105,21 +103,6 @@ function formatClock(iso) {
 }
 function showValue(node, value) {
   setText(node, numeric(value) ? readingFormat.format(value) : "no data");
-}
-function currentTheme() {
-  return document.documentElement.dataset.theme ?? (lightQuery.matches ? "light" : "dark");
-}
-function configureTheme() {
-  const button = document.getElementById("theme-toggle");
-  const sync = () => { button.textContent = currentTheme() === "light" ? "◐ Theme: Light" : "◐ Theme: Dark"; };
-  button.addEventListener("click", () => {
-    const next = currentTheme() === "light" ? "dark" : "light";
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem(THEME_KEY, next); } catch {}
-    sync();
-  });
-  lightQuery.addEventListener("change", sync);
-  sync();
 }
 function packetStale() {
   if (lastReceived === null || invalidPacket || (!mockMode && transportState !== "open")) return true;
@@ -745,7 +728,7 @@ async function start() {
     cabinTrendViews.set(metric, view);
     document.getElementById("cabin-trends").append(view.root);
   }
-  configureTheme(); configureDemo(); render();
+  configureDemo(); render();
   clockTimer = window.setInterval(updateClock, CLOCK_INTERVAL_MS);
   if (mockMode) {
     document.getElementById("source-label").textContent = "LOCAL MOCK · Decisions are fixed demo examples";

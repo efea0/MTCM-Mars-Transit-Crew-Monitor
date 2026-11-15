@@ -1,4 +1,4 @@
-import { setText, svgRenderer, chartRange, resetChartRange } from "./ui.js";
+import { setText, svgRenderer, chartRange, resetChartRange, closeOnBackdrop } from "./ui.js";
 import { VITAL_METRICS, finite, usable, metricSeries, chartEvents, sessionCsv } from "./session.js";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -216,6 +216,7 @@ export function createCrewDetail({ session, labels, format, evidenceList, decisi
     document.getElementById("detail-close").focus();
   }
   document.getElementById("detail-close").addEventListener("click", () => dialog.close());
+  closeOnBackdrop(dialog);
   dialog.addEventListener("close", () => {
     document.body.classList.remove("detail-open");
     if (animation !== null) cancelAnimationFrame(animation);
