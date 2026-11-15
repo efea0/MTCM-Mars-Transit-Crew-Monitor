@@ -1,0 +1,497 @@
+{
+  "scenario": "sleep_deprivation",
+  "title": "Sleep deficit",
+  "purpose": "Sleep length is judged per person: in the same cabin Sally sleeps below 5 hours two periods in a row and reaches Action, Katherine sleeps below 6 hours (not below 5) and reaches Watch, Neil is healthy, and one short sleep by John raises no alert (the 'in a row' condition).",
+  "simulated": true,
+  "seed": 42,
+  "time_unit": "mission_min",
+  "duration_min": 1800,
+  "thresholds_from": "data/reference/ranges.json",
+  "ranges_refs": {
+    "pio2_normoxia_min": "kabin.pio2_normoksi_hedef.min",
+    "pio2_normoxia_max": "kabin.pio2_normoksi_hedef.max",
+    "pio2_red": "kabin.pio2_hafif_hipoksi_alt.deger",
+    "ppco2_red_1h": "kabin.ppco2_limit_1saat_ort.deger",
+    "ppco2_yellow": "kabin.ppco2_sari_esik.deger",
+    "spo2_drop_caution": "vital_karar_parametreleri.spo2_dusus.izle",
+    "spo2_drop_warning": "vital_karar_parametreleri.spo2_dusus.eylem",
+    "hr_rise_caution": "vital_karar_parametreleri.nabiz_artis_dinlenme.izle",
+    "hr_rise_warning": "vital_karar_parametreleri.nabiz_artis_dinlenme.eylem",
+    "rr_rise_caution": "vital_karar_parametreleri.solunum_artis.izle",
+    "rr_rise_warning": "vital_karar_parametreleri.solunum_artis.eylem",
+    "consecutive": "vital_karar_parametreleri.art_arda_olcum.deger",
+    "spe_design_mSv": "radyasyon.spe_tasarim_esigi.deger",
+    "career_limit_mSv": "radyasyon.kariyer_limiti.deger",
+    "yellow_fraction": "vital_karar_parametreleri.sari_kademe_genel.oran"
+  },
+  "thresholds": {
+    "pio2_normoxia_min": 145,
+    "pio2_normoxia_max": 155,
+    "pio2_red": 127,
+    "ppco2_red_1h": 3.0,
+    "ppco2_yellow": 2.5,
+    "spo2_drop_caution": 3,
+    "spo2_drop_warning": 6,
+    "hr_rise_caution": 15,
+    "hr_rise_warning": 30,
+    "rr_rise_caution": 4,
+    "rr_rise_warning": 8,
+    "consecutive": 3,
+    "spe_design_mSv": 250,
+    "career_limit_mSv": 600,
+    "yellow_fraction": 0.8
+  },
+  "sleep_thresholds": {
+    "izle_saat": 6.0,
+    "eylem_saat": 5.0,
+    "art_arda_donem": 2
+  },
+  "sleep_ranges_refs": {
+    "izle_saat": "uyku_kurallari.kurallar[id=sleep-short-caution].threshold",
+    "eylem_saat": "uyku_kurallari.kurallar[id=sleep-short-critical].threshold",
+    "art_arda_donem": "uyku_kurallari.kurallar[id=sleep-short-caution].consecutive_required"
+  },
+  "sleep_note": "Thresholds are a HYPOTHESIS (team decision, unverified in ranges.json uyku_kurallari). The value is measured at the end of each sleep period: the sum of durations with activity = sleep, independent of the vital measurement interval. Action is written as critical (the engine and the rules engine never emit warning). ranges.json names the metric uyku_suresi; the contract name sleep_hours is not in Metric yet (xfail test, Aydın).",
+  "baseline_note": "mean values come from ranges.json vital_karar_parametreleri.baz_cizgi. sd is simulator noise only (assumption; the decision rule does not use sd, it uses a fixed difference). hrv_rmssd and blood pressure are not in ranges.json (assumption).",
+  "crew": [
+    {
+      "id": "crew-1",
+      "name": "Neil Armsted",
+      "role": "Commander",
+      "baseline": {
+        "heart_rate": {
+          "mean": 64,
+          "sd": 0.5
+        },
+        "hrv_rmssd": {
+          "mean": 48,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.6,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 114,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 74,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-2",
+      "name": "Sally Ryder",
+      "role": "Flight Engineer",
+      "baseline": {
+        "heart_rate": {
+          "mean": 70,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 55,
+          "sd": 9
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 15,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.8,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 118,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 76,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-3",
+      "name": "Katherine Johnston",
+      "role": "Mission Specialist",
+      "baseline": {
+        "heart_rate": {
+          "mean": 58,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 42,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 13,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.5,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 112,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 72,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-4",
+      "name": "John Glennard",
+      "role": "Flight Surgeon",
+      "baseline": {
+        "heart_rate": {
+          "mean": 67,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 38,
+          "sd": 7
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 120,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 78,
+          "sd": 5
+        }
+      }
+    }
+  ],
+  "cabin_initial_pio2_mmHg": 149.0,
+  "cabin_initial": {
+    "pp_o2": {
+      "value": 158.8,
+      "unit": "mmHg",
+      "note": "equivalent of PIO2 149 mmHg (middle of normoxia 145–155): 149 × 760/713 mmHg"
+    },
+    "pp_co2": {
+      "value": 2.0,
+      "unit": "mmHg"
+    },
+    "cabin_pressure": {
+      "value": 760,
+      "unit": "mmHg"
+    },
+    "cabin_temp": {
+      "value": 22.0,
+      "unit": "°C"
+    },
+    "rel_humidity": {
+      "value": 45,
+      "unit": "%"
+    },
+    "radiation_dose_rate": {
+      "value": 20,
+      "unit": "µGy/h",
+      "note": "MSL RAD transit ≈ 0.48 mGy/day (≈1.8 mSv/day)"
+    }
+  },
+  "model": {
+    "note": "ranges.json (PR #16 v1.1) values. Before the failure, life support is regulated (net 0): production covers consumption, removal covers production, cabin values stay constant; only the failing gas moves. Volume 75 m³. Times are aligned with the #14 atmosphere engine in the same model (regulated profile); tests/test_scenarios.py compares the cabin series with the engine.",
+    "volume_m3": 75,
+    "crew_count": 4,
+    "total_pressure_mmHg": 760,
+    "temperature_K": 295,
+    "co2_removal_kg_day": 4.0,
+    "o2_generation_kg_day": 3.4,
+    "r_min": 1.0,
+    "r_max": 1.8,
+    "o2_min": 0.49,
+    "o2_max": 1.25,
+    "co2_min": 0.52,
+    "co2_max": 1.5,
+    "measurement_interval_min": 5,
+    "measurement_note": "Measurement interval is 5 mission minutes (demo: 0.5 real seconds, time multiplier 600); 3 consecutive measurements = 15 mission minutes."
+  },
+  "proposed_rules": {
+    "crew_sleep_short_caution": {
+      "condition": "sleep length < 6 hours in 2 sleep periods in a row",
+      "consecutive_required": 2,
+      "unit": "sleep period",
+      "source": "ranges.json uyku_kurallari sleep-short-caution (HYPOTHESIS)",
+      "metric": "sleep_hours"
+    },
+    "crew_sleep_short_critical": {
+      "condition": "sleep length < 5 hours in 2 sleep periods in a row",
+      "consecutive_required": 2,
+      "unit": "sleep period",
+      "source": "ranges.json uyku_kurallari sleep-short-critical (HYPOTHESIS)",
+      "metric": "sleep_hours"
+    }
+  },
+  "events": [
+    {
+      "t_min": 30,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "sleep",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Neil sleeps 7.5 hours."
+    },
+    {
+      "t_min": 30,
+      "type": "activity",
+      "crew_id": "crew-2",
+      "activity": "sleep",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Sally sleeps only 4.5 hours (below 5)."
+    },
+    {
+      "t_min": 30,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "sleep",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Katherine sleeps 5.5 hours (below 6, not below 5)."
+    },
+    {
+      "t_min": 30,
+      "type": "activity",
+      "crew_id": "crew-4",
+      "activity": "sleep",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "John sleeps 4.8 hours (below 5): not an alert on its own."
+    },
+    {
+      "t_min": 300,
+      "type": "activity",
+      "crew_id": "crew-2",
+      "activity": "resting",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Sally wakes up; the sleep period ends and its length is measured."
+    },
+    {
+      "t_min": 318,
+      "type": "activity",
+      "crew_id": "crew-4",
+      "activity": "resting",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "John wakes up; the sleep period ends and its length is measured."
+    },
+    {
+      "t_min": 360,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "resting",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Katherine wakes up; the sleep period ends and its length is measured."
+    },
+    {
+      "t_min": 480,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "resting",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Neil wakes up; the sleep period ends and its length is measured."
+    },
+    {
+      "t_min": 1380,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "sleep",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Neil sleeps 6.5 hours: above 6 hours."
+    },
+    {
+      "t_min": 1380,
+      "type": "activity",
+      "crew_id": "crew-2",
+      "activity": "sleep",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Sally sleeps 4.2 hours in the second period: two periods in a row below 5 hours."
+    },
+    {
+      "t_min": 1380,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "sleep",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Katherine sleeps 5.7 hours in the second period: two periods in a row below 6 hours, none below 5."
+    },
+    {
+      "t_min": 1380,
+      "type": "activity",
+      "crew_id": "crew-4",
+      "activity": "sleep",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "John sleeps 6.5 hours: the 'in a row' condition breaks, no alert."
+    },
+    {
+      "t_min": 1632,
+      "type": "activity",
+      "crew_id": "crew-2",
+      "activity": "resting",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Sally wakes up; the sleep period ends and its length is measured."
+    },
+    {
+      "t_min": 1722,
+      "type": "activity",
+      "crew_id": "crew-3",
+      "activity": "resting",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Katherine wakes up; the sleep period ends and its length is measured."
+    },
+    {
+      "t_min": 1770,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "resting",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "Neil wakes up; the sleep period ends and its length is measured."
+    },
+    {
+      "t_min": 1770,
+      "type": "activity",
+      "crew_id": "crew-4",
+      "activity": "resting",
+      "targets": {},
+      "ramp_min": 0,
+      "note": "John wakes up; the sleep period ends and its length is measured."
+    }
+  ],
+  "expected_alerts": [
+    {
+      "crew_id": "crew-2",
+      "metric": "sleep_hours",
+      "severity": "caution",
+      "rule_id": "crew_sleep_short_caution",
+      "t_condition": 1632.0,
+      "t_earliest": 1632,
+      "t_latest": 1647,
+      "evidence_metrics": [
+        "sleep_hours"
+      ],
+      "why": "Sally's last two sleep periods were 4.5 and 4.2 hours: two periods in a row below 6 hours.",
+      "recommendation": "Postpone risky work (EVA, repairs), plan an extra sleep period, keep watching.",
+      "engine_metric": "sleep_hours",
+      "engine_rule_id": "sleep-short-caution"
+    },
+    {
+      "crew_id": "crew-2",
+      "metric": "sleep_hours",
+      "severity": "critical",
+      "rule_id": "crew_sleep_short_critical",
+      "t_condition": 1632.0,
+      "t_earliest": 1632,
+      "t_latest": 1647,
+      "evidence_metrics": [
+        "sleep_hours"
+      ],
+      "why": "Sally's last two sleep periods were 4.5 and 4.2 hours: two periods in a row below 5 hours.",
+      "recommendation": "Postpone risky work (EVA, repairs), plan an extra sleep period, report to Earth.",
+      "engine_metric": "sleep_hours",
+      "engine_rule_id": "sleep-short-critical"
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "sleep_hours",
+      "severity": "caution",
+      "rule_id": "crew_sleep_short_caution",
+      "t_condition": 1722.0,
+      "t_earliest": 1722,
+      "t_latest": 1737,
+      "evidence_metrics": [
+        "sleep_hours"
+      ],
+      "why": "Katherine's last two sleep periods were 5.5 and 5.7 hours: two periods in a row below 6 hours, none below 5.",
+      "recommendation": "Postpone risky work (EVA, repairs), plan an extra sleep period, keep watching.",
+      "engine_metric": "sleep_hours",
+      "engine_rule_id": "sleep-short-caution"
+    }
+  ],
+  "forbidden_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "sleep_hours",
+      "why": "Neil sleeps 7.5 and 6.5 hours: both periods above 6 hours."
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "sleep_hours",
+      "why": "John's one 4.8-hour sleep is followed by 6.5 hours; two periods in a row is not met."
+    },
+    {
+      "crew_id": "crew-1",
+      "metric": "heart_rate",
+      "why": "Heart rate during sleep is not evidence; no alert."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "why": "Cabin is regulated and constant."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "why": "Cabin is regulated and constant."
+    }
+  ],
+  "forbidden_rules": [
+    {
+      "crew_id": "crew-3",
+      "rule_id": "crew_sleep_short_critical",
+      "why": "Both of Katherine's periods are above 5 hours (5.5 and 5.7): Watch only, no Action."
+    }
+  ],
+  "expected_status_end": {
+    "crew-1": "nominal",
+    "crew-2": "critical",
+    "crew-3": "caution",
+    "crew-4": "nominal",
+    "cabin": "nominal"
+  }
+}
