@@ -10,6 +10,7 @@ const fixture = mockNasaResponse("/api/limits");
 const event = mockNasaResponse("/api/sep-event");
 await check("Mock endpoints retain the real envelopes", () => {
   assert(validateLimits(fixture).items.length === 4, "Missing fixture rows");
+  assert(fixture.items.every(item => item.metric && item.source), "Mock metric/source metadata missing");
   assert(validateSep(event).linked_events.length === 2, "Missing linked records");
   const history = mockNasaResponse("/api/history?limit=12");
   assert(history.frames.length <= 12 && history.frames.every(frame => frame.scenario === history.scenario), "History shape/scenario mismatch");
