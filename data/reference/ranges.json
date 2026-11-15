@@ -19,7 +19,8 @@
       "2026-11-14: vital_karar_parametreleri.kararlar.olasi_hipoksi koşuluna egzersiz istisnası eklendi (Barış'ın isteği, Efe'nin onayı). Hiçbir sayısal değer değişmedi; kalp_yuku kuralıyla ve hypoxia senaryosuyla tutarlılık için.",
       "2026-11-14: Kaynak denetimi (Efe). NASA-STD-3001 Vol 2 Rev F (onay 2026-07-14) Rev E'nin yerini aldı; Tablo 6.2-1, [V2 6003], [V2 6004], [V2 6006] Rev F metninde aynı. Tek sayısal değişiklik: giysi.pico2_limitleri 4,0–7,0 mmHg kademesi 7,0 → 8,0 saat/gün (Rev F Tablo 11.3-1). giyside_toplam_sure_max (14 saat) Rev F'te yok → kısmen. Metabolik oranlar OCHMO-TB-004 Rev D tablosundan %2–4 farklı → kısmen (sayılar aynı). mars_yuzeyi_orani yalnızca emilen doz için → kısmen. Denizaltı CO2 %0,8 NRC 2007 Tablo S-1 ile doğrulandı. Motorun ve kuralların kullandığı hiçbir eşik değişmedi.",
       "2026-11-14: olcum_araligi birimi saniye (demo) yerine görev dakikası olarak düzeltildi; hiçbir eşik veya karar değişmedi (Efe'nin onayı).",
-      "2026-11-15: meta.kurallar_notu güncellendi: pio2 artık sözleşme 0.2.0 (#26) ile Metric listesinde. Yalnızca not; hiçbir değer değişmedi (Aydın'ın isteği, Efe'nin onayı)."
+      "2026-11-15: meta.kurallar_notu güncellendi: pio2 artık sözleşme 0.2.0 (#26) ile Metric listesinde. Yalnızca not; hiçbir değer değişmedi (Aydın'ın isteği, Efe'nin onayı).",
+      "2026-11-15: kabin.ppco2_sari_esik açıklaması ppco2-caution kuralıyla hizalandı: NASA'nın 2,5 mmHg değeri 7 günlük ortalamadır, uygulama ise art arda 3 anlık ölçümle (15 görev dakikası) erken uyarı verir. Yalnızca açıklama; hiçbir eşik, kural veya status değişmedi (Aydın'ın onayı)."
     ],
     "kural": "Bu dosya motorun ve uyarıların tek kaynağıdır. Dondurmadan sonra değer değişmez. Her kayıtta 'kaynak' ve 'status' alanı zorunludur. Doğrulanamayan kayıtta kaynak 'varsayım' ile başlar.",
     "status_degerleri": {
@@ -40,7 +41,7 @@
     },
     "ppco2_sari_esik": {
       "deger": 2.5, "birim": "mmHg",
-      "aciklama": "Sarı kademe. NASA: baş ağrısı riskini %1'in altında tutmak için 7 günlük ortalama 2,5 mmHg altında olmalı. Genel %80 sarı kuralının (3 × 0,8 = 2,4) istisnasıdır; kabin CO2 için bu değer kullanılır.",
+      "aciklama": "Sarı kademe (erken uyarı). NASA 2,5 mmHg'yi 7 günlük ortalama sınırı olarak verir (baş ağrısı riskini %1'in altında tutmak için). Uygulama 7 günlük ortalama hesaplamaz: anlık ppCO2 art arda 3 ölçüm (15 görev dakikası) 2,5 mmHg'nin üstündeyse İzle verir (kurallar: ppco2-caution, consecutive_required 3); bu yüzden status 'kısmen'. Genel %80 sarı kuralının (3 × 0,8 = 2,4) istisnasıdır; kabin CO2 için bu değer kullanılır.",
       "kaynak": "NASA OCHMO-TB-004",
       "status": "kısmen"
     },
