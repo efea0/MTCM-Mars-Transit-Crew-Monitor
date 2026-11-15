@@ -1,4 +1,4 @@
-"""backend/comms.py kabul testleri — sahibi: Barış (comms). Zaman görev saniyesidir; testler beklemez."""
+"""Acceptance tests for backend/comms.py, owner: Barış (comms). Time is mission seconds; tests never wait."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def link(**kw: float) -> DelayedLink:
 # K1
 def test_default_delay_and_bounds() -> None:
     q = link(ground_processing_s=0)
-    m = q.send(CABIN_CO2, "CO2 limiti aşıldı", 0)
+    m = q.send(CABIN_CO2, "CO2 limit exceeded", 0)
     assert m is not None
     assert m.one_way_delay_s == 10 * MIN
     for ok in (3 * MIN, 22 * MIN):
@@ -38,7 +38,7 @@ def test_default_delay_and_bounds() -> None:
         DelayedLink(ground_processing_s=-1)
 
 
-# K1: sınırlar ranges.json'dan gelir, kodda sabit yok
+# K1: the bounds come from ranges.json, nothing is hard-coded
 def test_delay_bounds_come_from_ranges_json(tmp_path) -> None:
     assert comms.load_delay_bounds_s() == (3 * MIN, 22 * MIN)
     assert not hasattr(comms, "MIN_ONE_WAY_DELAY_S") and not hasattr(comms, "MAX_ONE_WAY_DELAY_S")
@@ -63,7 +63,7 @@ def test_delay_bounds_reject_bad_reference(tmp_path) -> None:
         comms.load_delay_bounds_s(tmp_path / "yok.json")
 
 
-# K1 regresyonu: doğrudan verilen delay_bounds_s de doğrulanır; sıfır/negatif gecikme sızmaz
+# K1 regression: delay_bounds_s passed directly is validated too; a zero or negative delay cannot leak in
 def test_delay_bounds_argument_is_validated() -> None:
     for bad_bounds in ((0, 100), (-10, 100), (100, 5), (-5, -1)):
         with pytest.raises(ValueError):
@@ -72,7 +72,7 @@ def test_delay_bounds_argument_is_validated() -> None:
     assert (q.min_delay_s, q.max_delay_s) == (3 * MIN, 22 * MIN)
 
 
-# kenar: boş kuyrukta tüm işlemler güvenli ve boş döner
+# edge: on an empty queue every operation is safe and returns empty
 def test_empty_queue_operations_are_safe() -> None:
     q = link()
     assert q.update(0) == []
@@ -83,7 +83,7 @@ def test_empty_queue_operations_are_safe() -> None:
     assert q.messages() == []
 
 
-# kenar: aynı anda gönderilen mesajlar eşit zamanlarla sıraya girer, FIFO bozulmaz (K5)
+# edge: messages sent at the same moment queue with equal times, FIFO is kept (K5)
 def test_simultaneous_sends_share_fifo_times() -> None:
     q = link(one_way_delay_s=10 * MIN, ground_processing_s=2 * MIN)
     keys = (CABIN_CO2, CREW2_HR, ("crew-3", "spo2", "warning"))
@@ -98,7 +98,7 @@ def test_simultaneous_sends_share_fifo_times() -> None:
 # K3, K4
 def test_state_sequence_and_times() -> None:
     q = link(one_way_delay_s=10 * MIN, ground_processing_s=2 * MIN)
-    m = q.send(CABIN_CO2, "CO2 limiti aşıldı", 100 * MIN)
+    m = q.send(CABIN_CO2, "CO2 limit exceeded", 100 * MIN)
     assert m is not None
     assert (m.state, m.id) == (MessageState.queued, "msg-1")
 
@@ -122,7 +122,7 @@ def test_state_sequence_and_times() -> None:
     assert m.remaining_s(130 * MIN) == 0
 
 
-# K3: Mistral'ın kuralı alt sınırdır
+# K3: the lower bound is the rule
 @pytest.mark.parametrize("processing", [0, 2 * MIN, 5 * MIN])
 def test_reply_lower_bound_is_two_one_way_delays(processing: float) -> None:
     q = link(one_way_delay_s=7 * MIN, ground_processing_s=processing)
@@ -157,7 +157,7 @@ def test_fifo_even_when_delay_shortened() -> None:
     assert m2.reply_s >= m1.reply_s
 
     q.update(10 * MIN)
-    assert m2.state is MessageState.in_transit, "m1 ulaşmadan m2 ulaşmamalı"
+    assert m2.state is MessageState.in_transit, "m2 must not arrive before m1"
     q.update(20 * MIN)
     assert [m.state for m in q.messages()] == [MessageState.delivered, MessageState.delivered]
     assert [m.id for m in q.messages()] == ["msg-1", "msg-2"]
@@ -177,7 +177,9 @@ def test_same_alert_stays_blocked_after_reply_until_released() -> None:
     q = link(one_way_delay_s=3 * MIN, ground_processing_s=0)
     q.send(CABIN_CO2, "x", 0)
     q.update(100 * MIN)
-    assert q.send(CABIN_CO2, "x", 100 * MIN) is None, "uyarı sürüyorsa cevaptan sonra da gitmez"
+    assert (
+        q.send(CABIN_CO2, "x", 100 * MIN) is None
+    ), "while the alert is active it is not sent again, even after the reply"
     q.release(CABIN_CO2)
     assert q.send(CABIN_CO2, "x", 101 * MIN) is not None
     assert len(q.messages()) == 2
@@ -187,7 +189,7 @@ def test_escalation_and_other_crew_are_new_messages() -> None:
     q = link()
     assert q.send(("crew-3", "spo2", "caution"), "caution", 0) is not None
     assert q.send(("crew-3", "spo2", "warning"), "warning", 1) is not None
-    assert q.send(("crew-4", "spo2", "warning"), "başka kişi", 1) is not None
+    assert q.send(("crew-4", "spo2", "warning"), "another person", 1) is not None
     assert len(q.messages()) == 3
 
 
@@ -195,7 +197,7 @@ def test_release_of_unknown_key_is_harmless() -> None:
     link().release(("yok", "yok", "yok"))
 
 
-# K4: büyük adım ara durumları atlamadan sona götürür
+# K4: a big step reaches the end without skipping intermediate states
 def test_large_step_reaches_final_state_and_reports_change() -> None:
     q = link(one_way_delay_s=10 * MIN, ground_processing_s=2 * MIN)
     m = q.send(CABIN_CO2, "x", 0)
@@ -203,25 +205,25 @@ def test_large_step_reaches_final_state_and_reports_change() -> None:
     assert m is not None and m.state is MessageState.replied
     assert m in changed
     assert (m.sent_s, m.deliver_s, m.reply_s) == (0, 10 * MIN, 22 * MIN)
-    assert q.update(1001 * MIN) == [], "değişiklik yoksa boş liste"
+    assert q.update(1001 * MIN) == [], "an empty list when nothing changed"
 
 
 # K8
 def test_reply_text_by_decision_with_default() -> None:
     q = link(one_way_delay_s=3 * MIN, ground_processing_s=0)
-    q.replies["pp_co2"] = "Yedek CO2 giderme onaylandı."
+    q.replies["pp_co2"] = "Backup CO2 scrubbing approved."
     m1 = q.send(CABIN_CO2, "x", 0)
     m2 = q.send(CREW2_HR, "y", 0)
     q.update(100 * MIN)
     assert m1 is not None and m2 is not None
-    assert m1.reply_body == "Yedek CO2 giderme onaylandı."
+    assert m1.reply_body == "Backup CO2 scrubbing approved."
     assert m2.reply_body == comms.DEFAULT_REPLY
 
 
-# sözleşme
+# contract
 def test_contract_messages_validate_and_match_times() -> None:
     q = link(one_way_delay_s=10 * MIN, ground_processing_s=2 * MIN)
-    q.send(CABIN_CO2, "CO2 limiti aşıldı", 0)
+    q.send(CABIN_CO2, "CO2 limit exceeded", 0)
 
     q.update(5 * MIN)
     (out,) = q.contract_messages(EPOCH, 5 * MIN)
@@ -229,7 +231,7 @@ def test_contract_messages_validate_and_match_times() -> None:
     assert out.sender == Sender.system.value
     assert (out.deliver_at - out.sent_at).total_seconds() == out.one_way_delay_s == 10 * MIN
 
-    q.update(13 * MIN)  # cevap Dünya'dan 12. dakikada çıktı, yolda
+    q.update(13 * MIN)  # the reply left Earth at minute 12 and is in transit
     out, reply = q.contract_messages(EPOCH, 13 * MIN)
     assert reply.sender == Sender.mission_control.value
     assert reply.id == out.id + comms.REPLY_ID_SUFFIX
@@ -247,7 +249,7 @@ def test_real_seconds_helper() -> None:
 def test_module_has_no_clock_or_disk_access() -> None:
     src = inspect.getsource(comms)
     for forbidden in ("import time", "from time", "datetime.now", "utcnow", "open(", "write_text", "sqlite"):
-        assert forbidden not in src, f"comms.py içinde '{forbidden}' olmamalı"
+        assert forbidden not in src, f"'{forbidden}' must not appear in comms.py"
 
 
 def test_deterministic() -> None:
