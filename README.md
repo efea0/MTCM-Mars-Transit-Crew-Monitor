@@ -13,14 +13,16 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 
 | What | Link |
 |---|---|
-| Live demo | **[TODO: add after first deploy]** (Render free tier) |
-| Project demo (≤ 30 s video or ≤ 7 slides) | [Watch 30 s Demo Video on YouTube](https://youtu.be/JIceT53aJFk) |
-| Space Apps project page | **[TODO]** |
+| Live demo | <https://mars-transit-crew-monitor.onrender.com> (Render free tier; first load may take a moment) |
+| Project demo (≤ 30 s video or ≤ 7 slides) | [Watch 30 s Demo Video on YouTube](https://youtu.be/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP) |
+| Space Apps project page | <https://www.spaceappschallenge.org/2026/find-a-team/los_-_galacticos/?tab=details> |
 | Source code | <https://github.com/efea0/space-apps-2026-health-monitoring> |
 
 ### 30-Second Project Demo
 
-[![Mars Transit Crew Monitor — 30s Demo Video](https://img.youtube.com/vi/JIceT53aJFk/maxresdefault.jpg)](https://www.youtube.com/watch?v=JIceT53aJFk)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+[Watch 30 s Demo Video on YouTube](https://youtu.be/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP)
 
 > **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
 > without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
@@ -63,7 +65,7 @@ Scenarios are started from the demo panel. It is hidden until the page is opened
 demo needs neither the internet nor voice. The simulation clock runs at ×600; the screen shows the mission elapsed
 time, not the speed. A measurement is taken every 5 mission minutes, which is 0.5 s in the demo.
 
-The five scenarios run in this order: **nominal → hypoxia → hypercapnia → solar_storm → sensor_dropout**.
+The six scenarios run in this order: **nominal → hypoxia → hypercapnia → solar_storm → sleep_deprivation → sensor_dropout**.
 
 1. **nominal.** The Habitat panel shows four astronauts (Neil, Sally, Katherine, John), cabin O₂ and CO₂, and two countdowns.
    Neil exercises and his heart rate rises to 125, but his card stays **Normal**: exercise is not an alarm.
@@ -71,8 +73,9 @@ The five scenarios run in this order: **nominal → hypoxia → hypercapnia → 
    - **Same heart rate, different decision.** Neil and John both reach a heart rate of 80. Neil is +16 over his baseline and turns **Watch** (cardiac load). John is +13 over his and stays **Normal**.
    - Katherine exercises: heart rate 130, breathing 26/min. Neither is counted as an alarm or as hypoxia evidence. When her SpO₂ is 3 points below her own baseline she turns **Watch**, and at 6 points she turns **Action**. The evidence shown is SpO₂ plus cabin PIO₂, and the advice is *"stop exercise, switch to backup O₂"*. This personal alert comes long before the cabin alert turns red.
 3. **hypercapnia.** CO₂ removal drops to 40%. First the cabin turns **Watch** (ppCO₂ above 2.5 mmHg). Then only the person with symptoms, Katherine (breathing +6 over her baseline), turns **Watch**. When the 1-hour average passes 3 mmHg, the cabin and Katherine turn **Action**.
-4. **solar_storm.** The real NASA DONKI event (10 May 2024) is replayed. The system projects the end-of-event dose, and when it will pass 200 mSv (80% of the 250 mSv threshold) it says *"go to the storm shelter"* before the dose is received.
-5. **sensor_dropout.** Sally's heart-rate sensor stops and Sally's card shows **NO DATA**, not Normal. John's SpO₂ sensor repeats an old value (**stale**), which is not counted. An impossible cabin CO₂ value is marked as a sensor fault and does not trigger a CO₂ alarm.
+4. **solar_storm.** The real NASA DONKI event (10 May 2024) is replayed. The system projects the end-of-event dose, and when it will pass 200 mSv (80% of the 250 mSv threshold) it says *"Move to storm shelter!"* before the dose is received.
+5. **sleep_deprivation.** Sleep length is judged per person across consecutive periods: Sally sleeps below 5 hours twice in a row and turns **Action**, Katherine sleeps below 6 hours twice and turns **Watch**, while a single short sleep by John raises no alert.
+6. **sensor_dropout.** Sally's heart-rate sensor stops and Sally's card shows **NO DATA**, not Normal. John's SpO₂ sensor repeats an old value (**stale**), which is not counted. An impossible cabin CO₂ value is marked as a sensor fault and does not trigger a CO₂ alarm.
 
 Planned, not built yet (so not in this demo): the EVA view, the environment (profile) selector and the voice interface.
 
@@ -138,14 +141,14 @@ Every limit in `data/reference/ranges.json` carries its source and one of three 
 - **partially verified**: the source is verified, but a unit conversion or interpretation is ours;
 - **unverified**: a demo parameter or team model with no official source. These are not medical thresholds.
 
-The sources were checked again on 2026-11-14 against NASA-STD-3001 Volume 2 **Revision F** (approved 2026-07-14).
+The sources were checked again on 2026-11-14 against NASA-STD-3001 Volume 2 **Revision F** (approved 2026-07-14); `ranges.json` also cites **Revision B** Table 1 (presentation `NTRS 20220019130`) for the `PIO₂ = (PB - 47) × FIO₂` formula.
 
 **NASA data and standards used**
 
 - **NASA DONKI** (Space Weather Database Of Notifications, Knowledge, Information), SEP endpoint via [NASA Open APIs](https://api.nasa.gov/).
   Demo event: [2024-05-10T13:35:00-SEP-001](https://ccmc.gsfc.nasa.gov/DONKI/view/SEP/30677/-1) (GOES-P: SEISS >10 MeV).
   DONKI gives the event time and type, **not** dose. The dose on screen is simulated and labeled.
-- **NASA-STD-3001 Volume 2, Rev F**: [PDF](https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf).
+- **NASA-STD-3001 Volume 2, Rev F** ([PDF](https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf)) and **Rev B Table 1** (`NTRS 20220019130` for the `PIO₂` formula).
   Used here:
   - inspired O₂ (PIO₂), Table 6.2-1: normoxia 145–155 mmHg, mild hypoxia lower limit 127 mmHg [V2 6003];
   - cabin ppCO₂ ≤ 3 mmHg, 1-hour average [V2 6004];
@@ -206,13 +209,13 @@ Where it is marked:
 - `Co-Authored-By: Claude` lines in commits.
 
 The Space Apps **demo video is AI-assisted**: its motion graphics are written as code with HyperFrames and scripted with Claude Code,
-and the video carries a visible SI watermark. It uses no NASA logos, flags or mission identifiers. The crew panels in it are motion graphics drawn after the app's
+and the video carries a visible SI watermark in the bottom-right corner. It uses no NASA logos, flags or mission identifiers. The crew panels in it are motion graphics drawn after the app's
 screens and scenarios (labeled "SIMULATED DATA"); it is not a screen recording.
 No other AI-generated images are used. The video has no audio, so no AI-generated audio is used.
 
 ## Team
 
-**Los Galacticos** · Aydın (backend & frontend), Barış (validation & Earth link), Efe (reference data & delivery)
+**Los Galacticos** · Aydın (backend & frontend), Barış (validation & Earth link), Enis / Efe (reference data & delivery)
 
 Team working rules and branch model: [AGENTS.md](AGENTS.md).
 `reports/` holds two day-0 research notes written before any code existed; the app as built is described in this README.

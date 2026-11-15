@@ -857,3 +857,138 @@ def test_reproducibility_and_reset() -> None:
     outputs_2 = [engine.evaluate(f).model_dump(mode="json") for f in frames]
 
     assert outputs_1 == outputs_2
+
+
+def test_unknown_activity_vital_status_is_unknown() -> None:
+    engine = r.RulesEngine()
+    c1 = CrewMember(
+        id="crew-1",
+        name="Alper",
+        role="CDR",
+        vitals=make_vitals(hr=70.0, rr=14.0),
+        activity=Activity.unknown,
+    )
+    frame = make_frame(tick=1, crew_list=[c1] + [c for c in make_frame().crew if c.id != "crew-1"])
+    evaluated = engine.evaluate(frame)
+    alper = next(c for c in evaluated.crew if c.id == "crew-1")
+    assert alper.vitals.heart_rate.status == Status.unknown
+    assert alper.vitals.resp_rate.status == Status.unknown
+    assert alper.vitals.spo2.status == Status.nominal
+
+
+def test_cabin_status_reflects_abnormal_reading_before_alert_triggers() -> None:
+    engine = r.RulesEngine()
+    # At tick 1, consecutive count is 1 so no active alert is formed yet,
+    # but pp_co2 is critical (>3.0) and cabin status must not be nominal!
+    f1 = make_frame(tick=1, cabin=make_cabin(pp_co2=3.5))
+    e1 = engine.evaluate(f1)
+    assert not any(a.rule_id == "ppco2-limit" for a in e1.alerts)
+    assert e1.cabin.pp_co2.status == Status.critical
+    assert e1.cabin.status == Status.critical
+
+
+def test_radiation_alert_cannot_hold_without_valid_dose() -> None:
+    engine = r.RulesEngine()
+    c1 = CrewMember(
+        id="crew-1",
+        name="Alper",
+        role="CDR",
+        vitals=make_vitals(),
+        cumulative_dose_msv=1100.0,  # exceeds career limit
+    )
+    # Tick 1 to 3 to trigger career radiation alert
+    for tick in range(1, 4):
+        f = make_frame(
+            tick=tick,
+            crew_list=[c1.model_copy(update={"cumulative_dose_msv": 1100.0})]
+            + [c for c in make_frame().crew if c.id != "crew-1"],
+        )
+        e = engine.evaluate(f)
+    rad_alert = next((a for a in e.alerts if a.id == "crew-1:karar-radyasyon_etkisi"), None)
+    assert rad_alert is not None
+
+    # Next frame, cumulative_dose_msv is None (missing/invalid)
+    f_missing = make_frame(
+        tick=4,
+        crew_list=[c1.model_copy(update={"cumulative_dose_msv": None})]
+        + [c for c in make_frame().crew if c.id != "crew-1"],
+    )
+    e_missing = engine.evaluate(f_missing)
+    # Alert should NOT be held when dose data is missing
+    assert not any(a.id == "crew-1:karar-radyasyon_etkisi" for a in e_missing.alerts)
+
+
+def test_all_vitals_missing_stays_unknown_even_after_missing_alert() -> None:
+    engine = r.RulesEngine()
+    missing_vitals = CrewVitals(
+        heart_rate=Reading(value=None, unit="bpm", ts=BASE_TIME, quality=Quality.missing),
+        hrv_rmssd=Reading(value=None, unit="ms", ts=BASE_TIME, quality=Quality.missing),
+        spo2=Reading(value=None, unit="%", ts=BASE_TIME, quality=Quality.missing),
+        resp_rate=Reading(value=None, unit="breaths/min", ts=BASE_TIME, quality=Quality.missing),
+        core_temp=Reading(value=None, unit="°C", ts=BASE_TIME, quality=Quality.missing),
+        systolic_bp=Reading(value=None, unit="mmHg", ts=BASE_TIME, quality=Quality.missing),
+        diastolic_bp=Reading(value=None, unit="mmHg", ts=BASE_TIME, quality=Quality.missing),
+    )
+    for tick in range(1, r.MISSING_ALERT_AFTER + 2):
+        c1 = CrewMember(id="crew-1", name="Alper", role="CDR", vitals=missing_vitals)
+        frame = make_frame(
+            tick=tick,
+            crew_list=[c1] + [c for c in make_frame().crew if c.id != "crew-1"],
+        )
+        evaluated = engine.evaluate(frame)
+        alper = next(c for c in evaluated.crew if c.id == "crew-1")
+        assert alper.status == Status.unknown
+        assert alper.decision == CrewDecision.unknown
+    assert any(a.crew_id == "crew-1" and a.rule_id.startswith("missing-") for a in evaluated.alerts)
+
+
+def test_all_cabin_sensors_missing_stays_unknown_even_after_missing_alert() -> None:
+    engine = r.RulesEngine()
+    missing_cabin = CabinAtmosphere(
+        pp_co2=Reading(value=None, unit="mmHg", ts=BASE_TIME, quality=Quality.missing),
+        pp_o2=Reading(value=None, unit="mmHg", ts=BASE_TIME, quality=Quality.missing),
+        cabin_pressure=Reading(value=None, unit="mmHg", ts=BASE_TIME, quality=Quality.missing),
+        cabin_temp=Reading(value=None, unit="°C", ts=BASE_TIME, quality=Quality.missing),
+        rel_humidity=Reading(value=None, unit="%", ts=BASE_TIME, quality=Quality.missing),
+        radiation_dose_rate=Reading(value=None, unit="uGy/h", ts=BASE_TIME, quality=Quality.missing),
+    )
+    for tick in range(1, r.MISSING_ALERT_AFTER + 2):
+        evaluated = engine.evaluate(make_frame(tick=tick, cabin=missing_cabin))
+        assert evaluated.cabin.status == Status.unknown
+    assert any(a.crew_id is None and a.rule_id.startswith("missing-") for a in evaluated.alerts)
+
+
+def test_co2_window_full_vs_early_projection_notes() -> None:
+    engine = r.RulesEngine(co2_window_s=3600.0)
+    # Before 1 hour has elapsed, early projection still alerts if average > 3.0 mmHg
+    for tick in range(1, 4):
+        e_early = engine.evaluate(make_frame(tick=tick, elapsed_s=tick * 60.0, cabin=make_cabin(pp_co2=3.5)))
+    early_alert = next(a for a in e_early.alerts if a.id == "cabin:ppco2-limit")
+    assert "1-hour window not yet full" in early_alert.why[0].note
+
+    # Once >= 3600s has elapsed in the window, the note reports the full 1-hour average
+    for minute in range(4, 62):
+        e_full = engine.evaluate(
+            make_frame(tick=minute, elapsed_s=minute * 60.0, cabin=make_cabin(pp_co2=3.5))
+        )
+    full_alert = next(a for a in e_full.alerts if a.id == "cabin:ppco2-limit")
+    assert "1-hour average ppCO2" in full_alert.why[0].note
+
+
+def test_rule_for_drives_consecutive_required_from_ranges(tmp_path: Path) -> None:
+    with open(r.DEFAULT_RANGES, encoding="utf-8") as f:
+        data: dict[str, Any] = json.load(f)
+    for row in data["kurallar"]:
+        if row["id"] == "ppco2-caution":
+            row["consecutive_required"] = 5
+
+    custom_path = tmp_path / "custom_consec_ranges.json"
+    custom_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+    engine = r.RulesEngine(ranges_path=custom_path, co2_window_s=None)
+    assert engine._rule_for("ppco2-caution").consecutive_required == 5
+    for tick in range(1, 5):
+        e = engine.evaluate(make_frame(tick=tick, cabin=make_cabin(pp_co2=2.8)))
+        assert not any(a.rule_id == "ppco2-caution" for a in e.alerts)
+    e5 = engine.evaluate(make_frame(tick=5, cabin=make_cabin(pp_co2=2.8)))
+    assert any(a.rule_id == "ppco2-caution" for a in e5.alerts)

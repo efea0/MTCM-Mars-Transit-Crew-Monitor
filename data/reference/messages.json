@@ -167,7 +167,7 @@
       "title": "Radiation exposure",
       "message": {
         "caution": "{name}: projected solar storm dose approaching threshold",
-        "critical": "{name}: go to storm shelter now"
+        "critical": "{name}: Move to storm shelter!"
       },
       "why_note_event": "Solar particle event ({event_type}, {event_time}, NASA DONKI). {name}'s projected dose by event end is {projected_mSv} mSv (event dose so far {event_mSv} mSv), reaching {yellow_ratio}×{spe_threshold} mSv. The warning comes before the dose is received. Dose is simulated.",
       "why_note_career": "{name}'s cumulative dose {cum_mSv} mSv is at or above {yellow_ratio}× the {career_limit} mSv career limit. Dose is simulated.",
@@ -175,7 +175,7 @@
       "career_label": "{career_limit} mSv: NASA career limit for each astronaut",
       "recommendation": {
         "caution": "Prepare to move to the storm shelter and follow the dose bar",
-        "critical": "Move to the storm shelter now; after the event, log each person's dose and report to Earth"
+        "critical": "Move to storm shelter! After the event, log each person's dose and report to Earth"
       },
       "sources": [
         { "ref": "NASA-STD-3001 Vol 1, [V1 4030] (600 mSv career limit)", "status": "doğrulandı" },

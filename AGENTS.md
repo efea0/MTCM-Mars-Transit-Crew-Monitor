@@ -20,9 +20,9 @@ Bu dosya bu reponun **bağlayıcı çalışma yasasıdır**. Bu klasörde açıl
 |---|---|---|---|
 | `aydin` | Aydın: ürün kodunun tek üreticisi, PR birleştirici | `backend` | `backend/` (models.py ve comms.py hariç), `tests/`, `requirements.txt` |
 | | | `frontend` | `frontend/` |
-| | | `contract` | `backend/models.py`, `docs/contract.json`, `tests/test_models.py`, `tests/conftest.py` |
+| | | `contract` | `backend/models.py`, `docs/contract.json`, `tests/test_models.py` |
 | | | `infra` | `.github/`, `.githooks/`, `.claude/settings.json`, `tools/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `pyproject.toml`, sahipsiz kök dosyalar |
-| `baris` | Barış: Python doğrulayıcı | `qa` | `tests/` (test_models.py ve conftest.py hariç), `data/scenarios/`, `data/donki/` |
+| `baris` | Barış: Python doğrulayıcı | `qa` | `tests/` (test_models.py hariç), `data/scenarios/`, `data/donki/` |
 | | | `comms` | `backend/comms.py`, `tests/test_comms.py` |
 | | | `frontend` (GEÇİCİ, teslime kadar) | `frontend/`: Aydın ile ortak alan. Yük dengesi için Barış yazar, Aydın inceler ve birleştirir |
 | `enis` | Enis: doğrulama ve teslim | `reference` | `data/reference/` |
@@ -76,7 +76,7 @@ git switch -c <tür>/<alan>/<kısa-açıklama>
 - Uyarılar art arda ölçümle tetiklenir ve en az bir maddelik `why` kanıt listesi taşır.
 
 **Frontend**
-- CDN yok, bundler yok. Chart.js yerel dosyadan yüklenir: `frontend/vendor/`.
+- Grafikler yerel inline SVG ile çizilir (harici CDN veya bundler kullanılmaz).
 - Global değişken yok, `const`/`let` kullan. Alan adları `docs/contract.json` ile birebir aynı olur.
 - Simüle veri ekranda "SIMULATED" etiketiyle gösterilir (arayüz İngilizcedir).
 

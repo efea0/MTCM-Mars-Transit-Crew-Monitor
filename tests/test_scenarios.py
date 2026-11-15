@@ -273,8 +273,7 @@ def test_crew_rules_using_cabin_evidence_declare_cabin_condition(path: Path) -> 
 
 @pytest.fixture(scope="module")
 def ranges() -> dict[str, Any]:
-    if not RANGES_PATH.exists():
-        pytest.skip("data/reference/ranges.json is not on develop yet (PR #16)")
+    assert RANGES_PATH.exists(), "data/reference/ranges.json is missing"
     return json.loads(RANGES_PATH.read_text(encoding="utf-8"))
 
 
@@ -513,8 +512,7 @@ def test_solar_storm_warns_before_dose_and_totals() -> None:
 def test_solar_storm_matches_saved_donki_event() -> None:
     s = load("solar_storm")
     saved_path = ROOT / "data" / "donki" / "sep_event.json"
-    if not saved_path.exists():
-        pytest.skip("data/donki/sep_event.json is not on this branch (arrives when PR #17 merges)")
+    assert saved_path.exists(), "data/donki/sep_event.json is missing"
     selected = json.loads(saved_path.read_text(encoding="utf-8"))["selected"]
     assert s["donki"]["sepID"] == selected["sepID"]
     assert s["donki"]["event_time"] == selected["eventTime"]
@@ -1075,8 +1073,7 @@ def range_path(ranges: dict[str, Any], ref: str) -> Any:
 
 def test_sleep_thresholds_match_ranges(ranges: dict[str, Any]) -> None:
     """Thresholds equal ranges.json uyku_kurallari.kurallar (not the main kurallar list)."""
-    if "uyku_kurallari" not in ranges:
-        pytest.skip("sleep rules are not in ranges.json yet (#146)")
+    assert "uyku_kurallari" in ranges, "sleep rules are not in ranges.json yet (#146)"
     s = load("sleep_deprivation")
     th = s["sleep_thresholds"]
     rules = {r["id"]: r for r in ranges["uyku_kurallari"]["kurallar"]}
