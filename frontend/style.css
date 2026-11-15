@@ -67,77 +67,99 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .theme-toggle:hover { background: var(--surface-hover); }
 
 /* Yerleşim */
-.dashboard { padding: var(--space-4) var(--space-6) 0; max-width: 2000px; margin: auto; display: grid; gap: var(--space-5); }
+.dashboard { padding: var(--space-3) var(--space-6) 0; max-width: 2000px; margin: auto; display: grid; gap: var(--space-3); }
 .section-heading, .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .section-heading { margin: 0 0 var(--space-3); }
 .section-heading h2 .muted { font-size: 12px; padding-left: var(--space-2); font-weight: 400; font-family: var(--font-mono); }
 .section-note { font-size: 12px; }
 .data-notice { background: var(--unknown-tint); color: var(--text); border: 1px solid var(--unknown-ink); border-left-width: 4px; border-radius: var(--radius); padding: var(--space-3) var(--space-4); font-size: 14px; }
-.crew-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+/* Karar önceliği: sol taraf kişi kartları, sağ sütun kabin + uyarı + Dünya bağlantısı. */
+.main-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.side-column { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.crew-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); align-items: start; }
+
+/* Karar bandı: normal olmayan her karar tek satırda, en ağır uyarısı ve kanıt çipleriyle. */
+.decisions-panel { padding: var(--space-3) var(--space-4); border-left: 3px solid var(--accent); }
+.decisions-heading { margin-bottom: var(--space-2); }
+.decisions-heading h2 { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+.decision-list { display: flex; gap: var(--space-3); overflow-x: auto; scrollbar-width: thin; padding-bottom: var(--space-1); }
+.decision-item { flex: 1 1 300px; min-width: 260px; max-width: 460px; background: var(--surface-raised); border: 1px solid var(--border); border-left: 3px solid var(--tone, var(--unknown-ink)); border-radius: 2px var(--radius-sm) var(--radius-sm) 2px; padding: var(--space-2) var(--space-3); }
+.decision-item-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.decision-owner { font-size: 14px; }
+.decision-message { font-size: 13px; line-height: 1.4; margin-top: var(--space-1); overflow-wrap: anywhere; }
+.decision-meta { color: var(--muted); font-size: 10px; margin-top: var(--space-1); }
+.decision-why { display: flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; padding: 0; margin: var(--space-2) 0 0; }
+.decision-note { font-size: 10px; line-height: 1.35; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 1px var(--space-2); }
 
 /* Kartlar: ince, düşük yoğunluklu parlama kenarlığı; ton durum rengini taşır */
 .crew-card, .panel {
   border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); min-width: 0;
   box-shadow: 0 0 14px -8px color-mix(in srgb, var(--tone, var(--accent)) var(--glow-strength), transparent);
 }
-.crew-card { border-top: 3px solid var(--tone, var(--unknown-ink)); padding: var(--space-4); }
+.crew-card { border-top: 3px solid var(--tone, var(--unknown-ink)); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .crew-card[data-tone="nominal"] { border-top-color: color-mix(in srgb, var(--ok-ink) 50%, var(--border)); }
-.panel { padding: var(--space-4); }
-.crew-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3) var(--space-1); padding-bottom: var(--space-3); }
-.crew-identity { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
-.crew-number { color: var(--muted); font-size: 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-2); }
-.crew-name { font-size: 22px; font-weight: 600; line-height: 1.1; }
-.crew-role { color: var(--muted); font-size: 12px; margin-top: var(--space-1); overflow-wrap: anywhere; }
+.panel { padding: var(--space-3) var(--space-4); }
+.crew-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-2); align-items: center; }
+.crew-identity { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.crew-number { color: var(--muted); font-size: 11px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); }
+.crew-name { font-size: 18px; font-weight: 600; line-height: 1.1; }
+.crew-role { color: var(--muted); font-size: 11px; margin-top: 1px; overflow-wrap: anywhere; }
 .badge { display: inline-block; border: 1px solid var(--tone, var(--unknown-ink)); background: var(--tone-tint, var(--unknown-tint)); color: var(--tone, var(--unknown-ink)); font-size: 12px; font-weight: 600; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); white-space: nowrap; }
 .badge[data-tone="caution"], .badge[data-tone="warning"], .badge[data-tone="critical"] { background: var(--tone-fill); border-color: var(--tone-fill); color: var(--on-status); }
-.decision { align-self: start; }
-.activity { color: var(--muted); font-size: 12px; grid-column: 1 / -1; }
-.primary-readings { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-3); }
+/* Karar rozeti kartın en görünür öğesi; vitaller ikinci planda. */
+.decision { align-self: center; font-size: 13px; padding: var(--space-2) var(--space-3); letter-spacing: .02em; }
+.deviation { color: var(--muted); font-size: 11px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 1px var(--space-2); align-self: start; }
+.activity { color: var(--muted); font-size: 11px; grid-column: 1 / -1; }
+.primary-readings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); }
 .reading { min-width: 0; position: relative; }
 .reading-label { color: var(--muted); display: block; font-size: 12px; margin-bottom: var(--space-1); }
 .reading-output { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-1); color: var(--text); }
 /* Normal sakin kalır; yalnızca dikkat gerektiren durumlar değeri renklendirir. */
 [data-tone="caution"] > .reading-output, [data-tone="warning"] > .reading-output, [data-tone="critical"] > .reading-output { color: var(--tone); }
 [data-tone="unknown"] > .reading-output { color: var(--muted); }
-.reading-value { font-size: 30px; line-height: 1.12; font-weight: 600; letter-spacing: -.03em; }
-.reading-unit { font-size: 12px; color: var(--muted); }
-.reading-value.no-value { font-size: 20px; letter-spacing: 0; font-weight: 500; }
-.baseline { display: block; font-size: 11px; color: var(--muted); margin-top: var(--space-1); line-height: 1.35; }
-.reading-status { display: inline-block; color: var(--tone, var(--unknown-ink)); font-size: 11px; font-weight: 600; margin-top: var(--space-1); }
+.reading-value { font-size: 21px; line-height: 1.15; font-weight: 600; letter-spacing: -.02em; }
+.reading-unit { font-size: 11px; color: var(--muted); }
+.reading-value.no-value { font-size: 16px; letter-spacing: 0; font-weight: 500; }
+.baseline { display: block; font-size: 10px; color: var(--muted); margin-top: 1px; line-height: 1.3; }
+.reading-status { display: inline-block; color: var(--tone, var(--unknown-ink)); font-size: 10px; font-weight: 600; margin-top: 1px; }
 .quality { display: inline-block; color: var(--text); background: var(--surface-hover); border: 1px solid var(--border-strong); padding: 1px var(--space-1); margin-left: var(--space-1); font-size: 10px; border-radius: var(--radius-sm); text-transform: uppercase; letter-spacing: .04em; }
-.reading-time { display: block; color: var(--muted); font-size: 10px; margin-top: var(--space-1); }
-.secondary-readings { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: var(--space-3) 0; margin-top: var(--space-3); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
-.secondary .reading-label { font-size: 11px; }
-.secondary .reading-value { font-size: 21px; }
-.secondary .reading-unit { font-size: 10px; }
-.secondary .baseline { font-size: 10px; }
-.secondary .reading-status { font-size: 10px; }
-.secondary .reading-value.no-value { font-size: 16px; }
+.reading-time { display: block; color: var(--muted); font-size: 10px; margin-top: 1px; }
+.secondary-readings { border-top: 1px solid var(--border); padding: var(--space-2) 0 0; margin-top: var(--space-1); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1) var(--space-2); }
+.secondary .reading-label { font-size: 10px; }
+.secondary .reading-value { font-size: 16px; }
+.secondary .reading-unit { font-size: 9px; }
+.secondary .baseline { font-size: 9px; }
+.secondary .reading-status { font-size: 9px; }
+.secondary .reading-value.no-value { font-size: 12px; }
 .stale-data { opacity: var(--stale-opacity); }
 
 /* Trend grafiği: eksen değerleri, baz çizgisi ve boşluklar (eksik ölçüm) */
-.trend-area { margin: var(--space-3) 0 var(--space-2); position: relative; }
-.trend-label { color: var(--muted); font-size: 10px; letter-spacing: .1em; display: block; margin-bottom: var(--space-1); }
-.trend { width: 100%; height: 64px; display: block; color: var(--accent-ink); border-bottom: 1px solid var(--border); }
+.trend-area { margin: var(--space-1) 0 0; position: relative; }
+.trend-label { color: var(--muted); font-size: 9px; letter-spacing: .1em; display: block; margin-bottom: 1px; }
+.trend { width: 100%; height: 40px; display: block; color: var(--accent-ink); border-bottom: 1px solid var(--border); }
 [data-tone="caution"] .trend, [data-tone="warning"] .trend, [data-tone="critical"] .trend { color: var(--tone); }
 .trend polyline { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .trend circle { fill: currentColor; }
 .trend .trend-baseline { stroke: var(--chart-baseline); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+.trend .trend-mark { stroke: var(--caution-ink); stroke-width: 1; stroke-dasharray: 1 3; fill: none; }
+.trend .trend-mark-label { fill: var(--caution-ink); }
+.cabin-trends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin-bottom: var(--space-3); }
+.cabin-trends .trend-area { margin: 0; }
 .trend .trend-axis { fill: var(--muted); font-size: 9px; stroke: none; }
 .trend .trend-axis-end { text-anchor: end; }
-.why-button { width: 100%; text-align: left; color: var(--accent-ink); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font-size: 12px; font-weight: 600; transition: background var(--transition); }
+.why-button { width: 100%; text-align: left; color: var(--accent-ink); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); font-size: 11px; font-weight: 600; transition: background var(--transition); }
 .why-button:hover, .why-button[aria-expanded="true"] { background: var(--surface-hover); }
 .crew-evidence { border-top: 1px solid var(--border); margin-top: var(--space-3); padding-top: var(--space-3); }
 .lower-grid { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: var(--space-4); align-items: stretch; }
 .panel-heading { margin-bottom: var(--space-3); }
-.cabin-readings { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
-.countdowns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
-.countdown { background: var(--surface-raised); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-left: 3px solid var(--tone, var(--unknown-ink)); border-radius: var(--radius-sm); }
-.countdown > span { display: block; color: var(--muted); font-size: 12px; }
-.countdown strong { display: block; color: var(--tone, var(--unknown-ink)); font-size: 27px; font-weight: 600; letter-spacing: -.02em; margin: var(--space-1) 0; }
+.cabin-readings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); margin-bottom: var(--space-2); }
+.countdowns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-2); }
+.countdown { background: var(--surface-raised); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-left: 3px solid var(--tone, var(--unknown-ink)); border-radius: var(--radius-sm); }
+.countdown > span { display: block; color: var(--muted); font-size: 11px; }
+.countdown strong { display: block; color: var(--tone, var(--unknown-ink)); font-size: 21px; font-weight: 600; letter-spacing: -.02em; margin: 1px 0; }
 .countdown small { display: block; color: var(--muted); font-size: 11px; }
 .count-label { font-size: 11px; letter-spacing: .08em; color: var(--text); background: var(--surface-raised); border: 1px solid var(--border-strong); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); white-space: nowrap; }
-.alerts-panel { display: flex; flex-direction: column; max-height: 300px; }
+.alerts-panel { display: flex; flex-direction: column; max-height: 230px; min-height: 120px; }
 .alert-list { overflow: auto; min-height: 0; scrollbar-color: var(--border-strong) var(--surface); scrollbar-width: thin; padding: 2px var(--space-1) var(--space-1) 2px; }
 .alert-row { border-left: 3px solid var(--tone, var(--unknown-ink)); border-bottom: 1px solid var(--border); padding: var(--space-2) var(--space-3); background: var(--surface-raised); margin-bottom: var(--space-2); border-radius: 2px var(--radius-sm) var(--radius-sm) 2px; }
 .alert-row summary { list-style: none; }
@@ -157,6 +179,13 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .evidence-time { display: block; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
 .evidence-block + .evidence-block { border-top: 1px solid var(--border); margin-top: var(--space-4); padding-top: var(--space-4); }
 .evidence-block .alert-message { margin-top: var(--space-2); }
+.earth-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); max-height: 120px; overflow: auto; }
+.earth-row { border-left: 3px solid var(--tone, var(--unknown-ink)); background: var(--surface-raised); padding: var(--space-2) var(--space-3); border-radius: 2px var(--radius-sm) var(--radius-sm) 2px; }
+.earth-row-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+.earth-sender { font-size: 13px; }
+.earth-status { font-size: 11px; }
+.earth-body { font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; margin: var(--space-1) 0; }
+.earth-meta { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
 .demo-panel { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
 .demo-panel h2 { font-size: 14px; }
 .demo-panel p { font-size: 12px; color: var(--muted); margin-top: var(--space-1); }
@@ -195,48 +224,109 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
-@media (min-width: 1600px) and (min-height: 900px) {
-  .topbar { padding: var(--space-5) var(--space-7); }
-  .dashboard { padding: var(--space-5) var(--space-7) 0; gap: var(--space-5); }
-  .crew-card { padding: var(--space-5); }
-  .crew-grid { gap: var(--space-5); }
-  .crew-name { font-size: 27px; }
-  .reading-value { font-size: 38px; }
-  .reading-label { font-size: 14px; }
-  .baseline { font-size: 12px; }
-  .primary-readings { gap: var(--space-5); }
-  .primary-readings .reading-status { position: absolute; top: 0; right: 0; margin: 0; }
-  .secondary .reading-value { font-size: 25px; }
-  .secondary .reading-label, .secondary .baseline, .secondary .reading-status { font-size: 12px; }
-  .trend { height: 76px; }
-  .panel { padding: var(--space-5); }
-  .alerts-panel { max-height: 340px; }
-  .countdown strong { font-size: 35px; }
-  .alert-message { font-size: 15px; }
-  .alert-meta, .alert-row summary::after { font-size: 12px; }
-  footer { padding: var(--space-5) var(--space-7); font-size: 13px; }
-}
-@media (max-height: 820px) and (min-width: 1100px) {
-  .topbar { min-height: 68px; padding: var(--space-3) var(--space-6); }
-  .dashboard { padding-top: var(--space-2); gap: var(--space-3); }
-  .crew-card { padding: var(--space-3); }
+/* Geniş ekran: dort kisi karti tek satirda; yukseklik sinirli kaldigi icin 1080p'de de kaydirma yok. */
+@media (min-width: 1600px) and (min-height: 941px) {
+  .topbar { padding: var(--space-4) var(--space-7); }
+  .dashboard { padding: var(--space-4) var(--space-7) 0; gap: var(--space-4); }
+  .crew-card { padding: var(--space-4); }
+  .crew-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
+  .primary-readings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); }
   .crew-name { font-size: 21px; }
   .reading-value { font-size: 27px; }
-  .primary-readings .reading-status { position: absolute; top: 0; right: 0; font-size: 10px; margin: 0; }
-  .trend { height: 52px; }
-  .panel { padding: var(--space-3); }
-  .alerts-panel { max-height: 250px; }
-  .countdown strong { font-size: 25px; }
-  footer { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+  .reading-label { font-size: 12px; }
+  .baseline { font-size: 11px; }
+  .primary-readings .reading-status { position: absolute; top: 0; right: 0; margin: 0; }
+  .secondary .reading-value { font-size: 18px; }
+  .secondary .reading-label, .secondary .baseline, .secondary .reading-status { font-size: 10px; }
+  .secondary .reading-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trend { height: 54px; }
+  .panel { padding: var(--space-4); }
+  .decision-item { padding: var(--space-2) var(--space-3); }
+  .decision-why { margin-top: var(--space-1); }
+  .side-column { gap: var(--space-3); }
+  .cabin-readings { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }
+  .cabin-readings .reading-label { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cabin-readings .reading-value { font-size: 17px; }
+  .alerts-panel { max-height: 220px; }
+  .earth-list { max-height: 84px; }
+  .countdown strong { font-size: 26px; }
+  .alert-message { font-size: 14px; }
+  .alert-meta, .alert-row summary::after { font-size: 11px; }
+  footer { padding: var(--space-2) var(--space-7); font-size: 12px; }
+}
+/* Kisa ekran (1366x768 dahil): her sey tek ekranda, kaydirma yok. */
+@media (max-height: 940px) and (min-width: 1100px) {
+  .topbar { min-height: 56px; padding: var(--space-1) var(--space-5); }
+  .brand { gap: var(--space-3); }
+  .orbit { width: 32px; height: 32px; font-size: 18px; }
+  h1 { font-size: 20px; }
+  .dashboard { padding-top: var(--space-1); gap: var(--space-2); }
+  .section-heading { margin-bottom: var(--space-2); }
+  /* Karar bandi: kanit cipleri kartta ve uyari akisinda kalir, bant tek satirlik kalir. */
+  .decisions-panel { padding: var(--space-1) var(--space-3); }
+  .decisions-heading { margin-bottom: var(--space-1); }
+  .decision-item { padding: var(--space-1) var(--space-2); }
+  .decision-owner { font-size: 13px; }
+  .decision-message { font-size: 12px; line-height: 1.35; margin-top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .decision-meta { margin-top: 0; }
+  .decision-why { display: none; }
+  /* Kartlar: karar ve ana vitaller kalir, ikincil satirlar tek satira iner. */
+  .crew-card { padding: var(--space-2); gap: 5px; }
+  .crew-header { display: flex; align-items: center; gap: var(--space-2); padding-bottom: 0; }
+  .crew-identity { flex: 1 1 auto; }
+  .crew-number { padding: 0 var(--space-1); font-size: 10px; }
+  .crew-name { font-size: 16px; }
+  .crew-role { font-size: 10px; }
+  .decision { padding: 1px var(--space-2); font-size: 12px; }
+  .activity { grid-column: auto; font-size: 10px; order: 3; }
+  .deviation { font-size: 10px; padding: 0 var(--space-1); }
+  .reading-label { font-size: 10px; margin-bottom: 0; }
+  .reading-value { font-size: 19px; }
+  .reading-unit { font-size: 10px; }
+  .baseline { font-size: 9px; }
+  .primary-readings { gap: var(--space-1) var(--space-2); }
+  .primary-readings .reading-status { position: absolute; top: 0; right: 0; font-size: 9px; margin: 0; }
+  .secondary-readings { grid-template-columns: repeat(6, minmax(0, 1fr)); padding-top: var(--space-1); margin-top: 0; }
+  .secondary .reading-label { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .secondary .reading-value { font-size: 15px; }
+  .secondary .baseline { display: none; }
+  .trend-area { margin-top: 0; }
+  .trend { height: 20px; }
+  .crew-card .reading-time { display: none; }
+  .why-button { padding: 1px var(--space-2); font-size: 10px; }
+  /* Sag sutun: kabin + uyari + Dunya ayni ekrana sigar, uzun listeler kendi icinde kayar. */
+  .panel { padding: var(--space-2) var(--space-3); }
+  .panel-heading { margin-bottom: var(--space-1); }
+  .cabin-readings { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px var(--space-2); margin-bottom: var(--space-1); }
+  .cabin-readings .reading-label { font-size: 9px; line-height: 1.15; }
+  .cabin-readings .reading-value { font-size: 15px; }
+  .cabin-readings .reading-status { font-size: 9px; line-height: 1.15; }
+  .cabin-readings .baseline { display: none; }
+  .cabin-trends { justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-1); }
+  .countdowns { gap: var(--space-1); margin-top: var(--space-1); }
+  .countdown { padding: var(--space-1) var(--space-2); }
+  .countdown > span { font-size: 10px; }
+  .countdown strong { font-size: 17px; margin: 0; }
+  .countdown small { font-size: 9px; }
+  .alerts-panel { max-height: 140px; min-height: 92px; }
+  .alert-row { padding: var(--space-1) var(--space-2); margin-bottom: var(--space-1); }
+  .alert-message { font-size: 12px; line-height: 1.35; }
+  .alert-row summary::after { display: none; }
+  .earth-panel .empty-state { font-size: 12px; }
+  .earth-list { max-height: 72px; gap: var(--space-1); }
+  .earth-row { padding: var(--space-1) var(--space-2); }
+  .earth-body { font-size: 12px; line-height: 1.35; margin: 0; }
+  .earth-meta { display: none; }
+  footer { padding-top: var(--space-1); padding-bottom: var(--space-1); }
 }
 @media (max-width: 1150px) {
   .topbar { flex-wrap: wrap; }
   .mission-meta { flex: 1; justify-content: space-between; }
-  .crew-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lower-grid { grid-template-columns: minmax(0, 1fr); }
+  .main-grid { grid-template-columns: minmax(0, 1fr); }
   .alerts-panel { max-height: 360px; }
 }
 @media (max-width: 600px) {
+  .cabin-trends { grid-template-columns: minmax(0, 1fr); }
   .topbar { padding: var(--space-4); gap: var(--space-4); }
   .brand { gap: var(--space-3); flex-wrap: wrap; }
   .orbit { width: 34px; height: 34px; }

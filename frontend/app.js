@@ -1,3 +1,5 @@
+import { createDecisionBand } from "./decisions.js";
+
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
 const HEALTH_URL = "/api/health";
@@ -35,6 +37,7 @@ const LABELS = {
   activity: { resting: "Resting", exercise: "Exercise", sleep: "Sleeping", unknown: "Unknown" },
   quality: { ok: "Valid", stale: "stale", missing: "missing", sensor_fault: "sensor fault" },
   scenario: { nominal: "Nominal cruise", hypoxia: "O₂ failure", hypercapnia: "CO₂ rise", solar_storm: "Solar storm", sensor_dropout: "Sensor dropout" },
+  sender: { crew: "Crew", mission_control: "Mission Control", system: "System" },
 };
 const PRIMARY_METRICS = ["heart_rate", "spo2", "resp_rate", "core_temp"];
 const SECONDARY_METRICS = ["hrv_rmssd", "systolic_bp", "diastolic_bp"];
@@ -43,6 +46,7 @@ const CREW_NAMES = {
   Ayşe: "Neil Armsted", Can: "Sally Ryder", Ece: "Katherine Johnston", Mert: "John Glennard",
 };
 const UNIT_LABELS = { "nefes/dk": "breaths/min", "µGy/saat": "µGy/h" };
+const CABIN_TREND_METRICS = ["pp_co2", "pp_o2"];
 const DECISION_TONE = { normal: "nominal", watch: "caution", action: "critical", unknown: "unknown" };
 const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
 const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
@@ -56,6 +60,9 @@ const alertViews = new Map();
 const histories = new Map();
 const freshAlertIds = new Map();
 const cabinViews = new Map();
+const earthViews = new Map();
+const cabinTrendViews = new Map();
+const thresholdMarks = new Map();
 let frame = null;
 let lastReceived = null;
 let transportState = "connecting";
@@ -194,6 +201,8 @@ function createCrew(index) {
   const decision = el("span", "badge decision", LABELS.decision.unknown);
   const activity = el("span", "activity", "Unknown");
   header.append(identity, decision, activity);
+  const deviation = el("p", "deviation", "Deviating, not yet confirmed");
+  deviation.hidden = true;
   const primary = el("div", "primary-readings");
   const secondary = el("div", "secondary-readings");
   const readings = new Map();
@@ -222,9 +231,9 @@ function createCrew(index) {
     why.setAttribute("aria-expanded", String(!evidence.hidden));
   });
   const stamp = el("time", "reading-time", "Reading: no data");
-  root.append(header, primary, secondary, trendArea, stamp, why, evidence);
+  root.append(header, deviation, primary, secondary, trendArea, stamp, why, evidence);
   tone(root, "unknown");
-  return { root, name, role, decision, activity, readings, trend, stamp, evidence, why, evidenceKey: null };
+  return { root, name, role, decision, activity, deviation, readings, trend, stamp, evidence, why, evidenceKey: null };
 }
 function svgNode(tag, attributes, text = "") {
   const node = document.createElementNS(SVG_NS, tag);
@@ -232,14 +241,17 @@ function svgNode(tag, attributes, text = "") {
   if (text) node.textContent = text;
   return node;
 }
-function drawTrend(svg, entries, unavailable) {
+function markLabel(value) { return Number.isInteger(value * 10) ? value.toFixed(1) : value.toFixed(2); }
+// marks: horizontal reference lines whose values come from alert evidence (never hard-coded here).
+function drawTrend(svg, entries, unavailable, { name = "Heart-rate", marks = [] } = {}) {
   svg.replaceChildren();
   const values = unavailable ? [] : entries.filter(entry => numeric(entry.value));
-  svg.setAttribute("aria-label", values.length
-    ? "Heart rate trend; dashed line is personal baseline; gaps indicate missing readings" : "Heart rate trend: no data");
-  if (!values.length) return;
   const baseline = [...entries].reverse().find(entry => numeric(entry.baseline))?.baseline ?? null;
-  const all = numeric(baseline) ? [...values.map(entry => entry.value), baseline] : values.map(entry => entry.value);
+  svg.setAttribute("aria-label", values.length
+    ? `${name} trend${numeric(baseline) ? ", dashed line is the personal baseline" : ""}${marks.length ? ", dotted lines mark alert thresholds" : ""}, gaps are missing readings`
+    : `${name} trend: no data`);
+  if (!values.length) return;
+  const all = [...values.map(entry => entry.value), ...marks, ...(numeric(baseline) ? [baseline] : [])];
   const minimum = Math.min(...all);
   const maximum = Math.max(...all);
   const span = maximum - minimum;
@@ -255,6 +267,10 @@ function drawTrend(svg, entries, unavailable) {
     svgNode("text", { x: right, y: TREND_HEIGHT - 3, class: "trend-axis trend-axis-end" }, "now"));
   if (numeric(baseline)) {
     svg.append(svgNode("line", { x1: left, x2: right, y1: yOf(baseline), y2: yOf(baseline), class: "trend-baseline" }));
+  }
+  for (const mark of marks) {
+    svg.append(svgNode("line", { x1: left, x2: right, y1: yOf(mark), y2: yOf(mark), class: "trend-mark" }),
+      svgNode("text", { x: right, y: yOf(mark) - 2, class: "trend-axis trend-axis-end trend-mark-label" }, markLabel(mark)));
   }
   const lastTick = entries.at(-1).tick;
   let segment = [];
@@ -322,6 +338,9 @@ function updateCrew(stale) {
     view.role.textContent = member?.role ?? "Waiting for role";
     view.decision.textContent = stale ? "? NO DATA" : LABELS.decision[decision] ?? LABELS.decision.unknown;
     view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}`;
+    const deviating = !stale && decision === "normal"
+      && Object.values(member?.vitals ?? {}).some(reading => reading?.status && reading.status !== "nominal");
+    view.deviation.hidden = !deviating;
     view.why.setAttribute("aria-label", `${crewText(member?.name) ?? `Crew ${index + 1}`}: Why?`);
     const stamped = !stale && member?.vitals?.heart_rate?.ts;
     view.stamp.textContent = stamped ? `Reading ${formatClock(stamped)} · SIMULATED` : "Reading: no data";
@@ -332,6 +351,37 @@ function updateCrew(stale) {
     crewEvidence(view, member, frame?.alerts.filter(alert => alert.crew_id === member?.id) ?? [], stale);
   }
 }
+function createCabinTrend(metric) {
+  const root = el("div", "trend-area");
+  const label = el("span", "trend-label", `${LABELS.metric[metric].toUpperCase()} · LAST ${HISTORY_TICKS} TICKS`);
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${TREND_WIDTH} ${TREND_HEIGHT}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `${LABELS.metric[metric]} trend: no data yet`);
+  svg.classList.add("trend");
+  root.append(label, svg);
+  return { root, svg };
+}
+// Threshold lines come only from cabin alert evidence (alert.why[].threshold) of the same metric;
+// no evidence seen yet means no line.
+function collectThresholdMarks(alerts) {
+  for (const alert of alerts) {
+    if (alert.crew_id !== null) continue;
+    for (const item of alert.why ?? []) {
+      if (CABIN_TREND_METRICS.includes(item.metric) && numeric(item.threshold)) {
+        const marks = thresholdMarks.get(item.metric) ?? new Set();
+        marks.add(item.threshold);
+        thresholdMarks.set(item.metric, marks);
+      }
+    }
+  }
+}
+function updateCabinTrends(stale) {
+  for (const [metric, view] of cabinTrendViews) {
+    const marks = [...(thresholdMarks.get(metric) ?? [])].sort((a, b) => a - b);
+    drawTrend(view.svg, histories.get(`cabin:${metric}`) ?? [], stale, { name: LABELS.metric[metric], marks });
+  }
+}
 function updateCabin(stale) {
   const cabin = frame?.cabin;
   const state = stale ? "unknown" : cabin?.status ?? "unknown";
@@ -339,6 +389,7 @@ function updateCabin(stale) {
   tone(badge, state);
   badge.textContent = stale ? "? NO DATA" : LABELS.status[state];
   for (const [metric, view] of cabinViews) updateReading(view, cabin?.[metric], stale);
+  updateCabinTrends(stale);
   const cabinStamp = document.getElementById("cabin-time");
   const cabinTs = !stale && cabin?.pp_o2?.ts;
   cabinStamp.textContent = cabinTs ? `Reading ${formatClock(cabinTs)} · SIMULATED` : "Reading: no data";
@@ -404,16 +455,87 @@ function updateAlerts(stale) {
     if (container.children[index] !== view.root) container.insertBefore(view.root, container.children[index] ?? null);
   });
 }
+// CommsMessage has no status field: delivery is derived from the frame clock (frame.ts) and deliver_at.
+function deliveryState(message, now) {
+  const deliverAt = Date.parse(message.deliver_at);
+  if (Number.isNaN(deliverAt) || Number.isNaN(now)) return null;
+  return now < deliverAt ? { delivered: false, secondsLeft: (deliverAt - now) / 1000 } : { delivered: true, secondsLeft: 0 };
+}
+function timeLeft(seconds) {
+  const total = Math.max(0, Math.ceil(seconds));
+  return `${Math.floor(total / SECONDS_PER_MINUTE)} min ${total % SECONDS_PER_MINUTE} s left`;
+}
+// Messages come ordered by sent_at; a repeated id is shown once (the later copy wins).
+function uniqueMessages(messages) {
+  const byId = new Map();
+  for (const message of messages ?? []) byId.set(message.id, message);
+  return [...byId.values()].sort((a, b) => Date.parse(a.sent_at) - Date.parse(b.sent_at));
+}
+function createEarthRow() {
+  const root = el("li", "earth-row");
+  const head = el("div", "earth-row-head");
+  const sender = el("strong", "earth-sender");
+  const status = el("span", "badge earth-status");
+  const body = el("p", "earth-body");
+  const meta = el("p", "earth-meta");
+  head.append(sender, status);
+  root.append(head, body, meta);
+  return { root, sender, status, body, meta };
+}
+function updateEarthRow(view, message, now) {
+  const state = deliveryState(message, now);
+  tone(view.root, state?.delivered ? "nominal" : "unknown");
+  tone(view.status, state?.delivered ? "nominal" : "unknown");
+  view.sender.textContent = LABELS.sender[message.sender] ?? message.sender;
+  view.status.textContent = state === null ? "? Unknown" : state.delivered ? "✓ Delivered" : `→ In transit · ${timeLeft(state.secondsLeft)}`;
+  view.body.textContent = message.body;
+  view.meta.textContent = `Sent ${formatClock(message.sent_at)} · Arrives ${formatClock(message.deliver_at)}`;
+}
+function updateEarth(stale) {
+  const list = document.getElementById("earth-messages");
+  const notice = document.getElementById("earth-notice");
+  const delay = frame?.comms_one_way_delay_s;
+  document.getElementById("earth-delay").textContent = stale || !numeric(delay)
+    ? "Light delay: — min" : `Light delay: ${number(delay / SECONDS_PER_MINUTE)} min`;
+  const messages = stale ? [] : uniqueMessages(frame.messages);
+  notice.hidden = messages.length > 0;
+  notice.textContent = stale ? "NO DATA · Earth link status unknown." : "No alerts sent to Earth";
+  list.hidden = stale || messages.length === 0;
+  const ids = new Set(messages.map(message => message.id));
+  for (const [id, view] of earthViews) {
+    if (!ids.has(id)) { view.root.remove(); earthViews.delete(id); }
+  }
+  const now = Date.parse(frame?.ts);
+  messages.forEach((message, index) => {
+    let view = earthViews.get(message.id);
+    if (!view) { view = createEarthRow(); earthViews.set(message.id, view); }
+    updateEarthRow(view, message, now);
+    if (list.children[index] !== view.root) list.insertBefore(view.root, list.children[index] ?? null);
+  });
+}
 function render() {
   const stale = packetStale();
   document.getElementById("simulated").hidden = false;
   document.getElementById("scenario").textContent = LABELS.scenario[frame?.scenario] ?? "Waiting for packets";
   document.getElementById("mission_elapsed_s").textContent = missionTime(frame?.mission_elapsed_s);
   document.getElementById("mission_elapsed_s").classList.toggle("muted", stale);
-  updateCrew(stale); updateCabin(stale); updateAlerts(stale);
+  updateCrew(stale); updateCabin(stale); updateAlerts(stale); updateEarth(stale);
+  decisionBand.update(frame, stale);
   wasStale = stale;
   updateClock();
 }
+const decisionBand = createDecisionBand({
+  list: document.getElementById("decision-list"),
+  note: document.getElementById("decisions-note"),
+  helpers: {
+    crewText,
+    formatClock,
+    decisionTone: decision => DECISION_TONE[decision] ?? DECISION_TONE.unknown,
+    decisionLabel: decision => LABELS.decision[decision] ?? LABELS.decision.unknown,
+    statusLabel: severity => LABELS.status[severity] ?? LABELS.status.unknown,
+    setTone: tone,
+  },
+});
 function updateClock() {
   const stale = packetStale();
   if (stale !== wasStale) { render(); return; }
@@ -435,6 +557,17 @@ function updateClock() {
     : invalidPacket ? "NO DATA · Could not read telemetry packet; waiting for a valid packet."
     : "NO DATA · Waiting for current telemetry. Old readings are not treated as normal.";
 }
+function recordHistory(key, incoming, reading, interrupted) {
+  const history = histories.get(key) ?? [];
+  if (interrupted && history.length) history.push({ tick: incoming.tick - 0.5, value: null, baseline: null });
+  const valid = validReading(reading);
+  history.push({
+    tick: incoming.tick,
+    value: valid ? reading.value : null,
+    baseline: valid && numeric(reading.baseline_delta) ? reading.value - reading.baseline_delta : null,
+  });
+  histories.set(key, history.filter(entry => entry.tick > incoming.tick - HISTORY_TICKS));
+}
 function acceptFrame(incoming) {
   if (!incoming || incoming.contract_version !== "0.2.0" || !Number.isInteger(incoming.tick)
     || !Array.isArray(incoming.crew) || incoming.crew.length !== CREW_SIZE
@@ -443,7 +576,7 @@ function acceptFrame(incoming) {
     invalidPacket = true; render(); return;
   }
   const interrupted = packetStale();
-  if (previousTick !== null && incoming.tick <= previousTick) histories.clear();
+  if (previousTick !== null && incoming.tick <= previousTick) { histories.clear(); thresholdMarks.clear(); }
   const previousIds = new Set(frame?.alerts.map(alert => alert.id) ?? []);
   for (const [id, firstSeen] of freshAlertIds) {
     if (performance.now() - firstSeen >= ALERT_HIGHLIGHT_MS) freshAlertIds.delete(id);
@@ -451,18 +584,9 @@ function acceptFrame(incoming) {
   for (const alert of incoming.alerts) {
     if (!previousIds.has(alert.id)) freshAlertIds.set(alert.id, performance.now());
   }
-  for (const member of incoming.crew) {
-    const history = histories.get(member.id) ?? [];
-    if (interrupted && history.length) history.push({ tick: incoming.tick - 0.5, value: null, baseline: null });
-    const reading = member.vitals.heart_rate;
-    const valid = validReading(reading);
-    history.push({
-      tick: incoming.tick,
-      value: valid ? reading.value : null,
-      baseline: valid && numeric(reading.baseline_delta) ? reading.value - reading.baseline_delta : null,
-    });
-    histories.set(member.id, history.filter(entry => entry.tick > incoming.tick - HISTORY_TICKS));
-  }
+  for (const member of incoming.crew) recordHistory(member.id, incoming, member.vitals.heart_rate, interrupted);
+  for (const metric of CABIN_TREND_METRICS) recordHistory(`cabin:${metric}`, incoming, incoming.cabin[metric], interrupted);
+  collectThresholdMarks(incoming.alerts);
   frame = incoming;
   previousTick = incoming.tick;
   lastReceived = performance.now();
@@ -520,6 +644,11 @@ async function start() {
     const view = createReading(metric, true);
     cabinViews.set(metric, view);
     document.getElementById("cabin-readings").append(view.root);
+  }
+  for (const metric of CABIN_TREND_METRICS) {
+    const view = createCabinTrend(metric);
+    cabinTrendViews.set(metric, view);
+    document.getElementById("cabin-trends").append(view.root);
   }
   configureTheme(); configureDemo(); render();
   clockTimer = window.setInterval(updateClock, CLOCK_INTERVAL_MS);

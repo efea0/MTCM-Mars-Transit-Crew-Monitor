@@ -32,32 +32,47 @@
   </header>
   <main class="dashboard">
     <div id="data-notice" class="data-notice" role="status">NO DATA · Waiting for telemetry packets.</div>
-    <section id="crew" aria-labelledby="crew-title">
-      <div class="section-heading">
-        <h2 id="crew-title">Crew <span class="muted">/ 04</span></h2>
-        <span id="source-label" class="section-note">Assessment against personal baseline</span>
+    <section id="decisions" class="panel decisions-panel" aria-labelledby="decisions-title">
+      <div class="panel-heading decisions-heading">
+        <h2 id="decisions-title">Active decisions</h2>
+        <span id="decisions-note" class="section-note">Waiting for telemetry</span>
       </div>
-      <div id="crew-grid" class="crew-grid"></div>
+      <div id="decision-list" class="decision-list" role="status" aria-live="polite"></div>
     </section>
-    <div class="lower-grid">
-      <section class="panel cabin-panel" aria-labelledby="cabin-title">
-        <div class="panel-heading"><h2 id="cabin-title">Cabin atmosphere</h2><span id="cabin-status" class="badge tone-unknown">? Unknown</span></div>
-        <div id="cabin-readings" class="cabin-readings"></div>
-        <time id="cabin-time" class="reading-time">Reading: no data</time>
-        <div class="countdowns">
-          <div id="hours_until_o2_limit" class="countdown tone-unknown">
-            <span>Time to O₂ limit</span><strong>NO DATA</strong><small>Waiting for telemetry</small>
-          </div>
-          <div id="hours_until_co2_limit" class="countdown tone-unknown">
-            <span>Time to CO₂ limit</span><strong>NO DATA</strong><small>Waiting for telemetry</small>
-          </div>
+    <div class="main-grid">
+      <section id="crew" aria-labelledby="crew-title">
+        <div class="section-heading">
+          <h2 id="crew-title">Crew <span class="muted">/ 04</span></h2>
+          <span id="source-label" class="section-note">Assessment against personal baseline</span>
         </div>
+        <div id="crew-grid" class="crew-grid"></div>
       </section>
-      <section class="panel alerts-panel" aria-labelledby="alerts-title">
-        <div class="panel-heading"><h2 id="alerts-title">Alert stream</h2><span id="alert-count" class="count-label">—</span></div>
-        <p id="alerts-notice" class="empty-state">NO DATA · Waiting for telemetry.</p>
-        <div id="alerts" class="alert-list" aria-label="Active alerts"></div>
-      </section>
+      <aside class="side-column" aria-label="Cabin, alerts and Earth link">
+        <section class="panel cabin-panel" aria-labelledby="cabin-title">
+          <div class="panel-heading"><h2 id="cabin-title">Cabin atmosphere</h2><span id="cabin-status" class="badge tone-unknown">? Unknown</span></div>
+          <div id="cabin-readings" class="cabin-readings"></div>
+          <div id="cabin-trends" class="cabin-trends"></div>
+          <time id="cabin-time" class="reading-time">Reading: no data</time>
+          <div class="countdowns">
+            <div id="hours_until_o2_limit" class="countdown tone-unknown">
+              <span>Time to O₂ limit</span><strong>NO DATA</strong><small>Waiting for telemetry</small>
+            </div>
+            <div id="hours_until_co2_limit" class="countdown tone-unknown">
+              <span>Time to CO₂ limit</span><strong>NO DATA</strong><small>Waiting for telemetry</small>
+            </div>
+          </div>
+        </section>
+        <section class="panel alerts-panel" aria-labelledby="alerts-title">
+          <div class="panel-heading"><h2 id="alerts-title">Alert stream</h2><span id="alert-count" class="count-label">—</span></div>
+          <p id="alerts-notice" class="empty-state">NO DATA · Waiting for telemetry.</p>
+          <div id="alerts" class="alert-list" aria-label="Active alerts"></div>
+        </section>
+        <section class="panel earth-panel" aria-labelledby="earth-title">
+          <div class="panel-heading"><h2 id="earth-title">Earth link</h2><span id="earth-delay" class="count-label">Light delay: — min</span></div>
+          <p id="earth-notice" class="empty-state">NO DATA · Waiting for telemetry.</p>
+          <ol id="earth-messages" class="earth-list" aria-label="Messages to and from Earth"></ol>
+        </section>
+      </aside>
     </div>
     <section id="demo-panel" class="panel demo-panel" aria-labelledby="demo-title" hidden>
       <div><h2 id="demo-title">Demo controls</h2><p>Change scenario</p><p>The simulation is shared by all viewers; changing the scenario affects everyone.</p></div>
