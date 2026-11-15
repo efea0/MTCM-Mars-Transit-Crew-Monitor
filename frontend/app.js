@@ -469,9 +469,14 @@ function configureDemo() {
       button.disabled = true;
       result.textContent = "Senaryo isteniyor…";
       try {
+        const headers = {};
+        const demoKey = document.getElementById("demo-key").value;
+        if (demoKey) headers["X-Demo-Key"] = demoKey;
         const response = await fetch(`${SCENARIO_URL}/${encodeURIComponent(scenario)}`, {
-          method: "POST", signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
+          method: "POST", headers,
+          signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
         });
+        if (response.status === 401) { result.textContent = "Demo anahtarı gerekli veya yanlış."; return; }
         if (!response.ok) throw new Error("scenario unavailable");
         result.textContent = mockMode ? "İstek gönderildi. Yerel mock akışı kendi sırasıyla sürer." : "Senaryo istendi; telemetri bekleniyor.";
       } catch { result.textContent = "backend henüz hazır değil"; }
