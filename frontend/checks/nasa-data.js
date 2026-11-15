@@ -161,6 +161,14 @@ for (const [width,height] of [[1920,1080],[400,300]]) {
       assert(doc.querySelectorAll(".nasa-table-wrap").length === 3, "Reference groups not loaded");
       doc.querySelector('[aria-label="Close NASA data and limits"]').click();
       assert(!modal.open, "Cannot close reference view");
+      const personButtons = doc.querySelectorAll(".crew-detail-button");
+      assert(personButtons.length === 4, "Missing crew detail entry points");
+      const expectedRule = doc.querySelector(".crew-card .nasa-rule-source")?.dataset.nasaRule;
+      personButtons[0].click();
+      const personDialog = doc.getElementById("crew-detail");
+      assert(personDialog.open && doc.querySelectorAll("#detail-charts svg").length === 7, "Crew card did not open seven charts");
+      assert(expectedRule && doc.querySelector(".detail-source .nasa-rule-source")?.dataset.nasaRule === expectedRule, "Person evidence source does not match alert rule");
+      doc.getElementById("detail-close").click();
       if (width === 1920) assert(doc.documentElement.scrollHeight <= height, "Overview no longer fits 1080p");
     } finally { frame.remove(); }
   });

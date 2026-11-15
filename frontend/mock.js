@@ -134,9 +134,18 @@ function makeFrame(tick, clock) {
     simulated: true, crew, cabin, alerts, comms_one_way_delay_s: MOCK_ONE_WAY_DELAY_S,
     messages: mockMessages(tick, phase, at) };
 }
+const MOCK_CLOCK = Date.now();
+const MOCK_START_TICK = 17;
+
+export function mockHistory(limit = 120) {
+  const last = makeFrame(MOCK_START_TICK - 1, MOCK_CLOCK);
+  const frames = Array.from({ length: MOCK_START_TICK }, (_, tick) => makeFrame(tick, MOCK_CLOCK))
+    .filter(frame => frame.scenario === last.scenario).slice(-Math.max(1, Math.min(400, limit)));
+  return { scenario: last.scenario, frames };
+}
 export function startMock(onFrame) {
-  const clock = Date.now();
-  let tick = 0;
+  const clock = MOCK_CLOCK;
+  let tick = MOCK_START_TICK;
   let stopped = false;
   let timer = null;
   function emit() {
