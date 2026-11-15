@@ -1,0 +1,31 @@
+name: keepalive
+
+# Keeps the free-tier Render service awake so the live demo has no cold start.
+# Scheduled runs only fire from the default branch (main) and GitHub may delay them,
+# so this is a second line of defence next to an external uptime monitor.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: ping
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HEALTH_URL: https://mars-transit-crew-monitor.onrender.com/api/health
+    steps:
+      - name: Ping /api/health
+        run: |
+          curl --fail --silent --show-error \
+            --retry 3 --retry-delay 10 --retry-all-errors \
+            --max-time 90 "$HEALTH_URL"
+          echo
