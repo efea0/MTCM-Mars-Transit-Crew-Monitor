@@ -20,7 +20,7 @@
   },
   "$defs": {
     "Activity": {
-      "description": "Astronotun o anki etkinliği. Egzersizde nabız/solunum artışı alarm ve kanıt sayılmaz.",
+      "description": "Astronaut's current activity. Raised heart/respiratory rate during exercise\nis not counted as an alarm or evidence.",
       "enum": [
         "resting",
         "exercise",
@@ -46,7 +46,7 @@
               "type": "null"
             }
           ],
-          "description": "Kabin uyarısında null.",
+          "description": "Null for a cabin alert.",
           "title": "Crew Id"
         },
         "metric": {
@@ -79,7 +79,7 @@
           "type": "string"
         },
         "why": {
-          "description": "En az bir kanıt zorunlu.",
+          "description": "At least one piece of evidence is required.",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
@@ -139,7 +139,7 @@
             }
           ],
           "default": null,
-          "description": "O₂ limitine kalan süre (saat); None = limite yaklaşmıyor veya hesaplanamıyor; 0.0 = limit zaten aşıldı.",
+          "description": "Time until the O₂ limit (hours); None = not approaching it or not computable; 0.0 = limit already exceeded.",
           "title": "Hours Until O2 Limit"
         },
         "hours_until_co2_limit": {
@@ -153,7 +153,7 @@
             }
           ],
           "default": null,
-          "description": "CO₂ limitine kalan süre (saat); None = limite yaklaşmıyor veya hesaplanamıyor; 0.0 = limit zaten aşıldı.",
+          "description": "Time until the CO₂ limit (hours); None = not approaching it or not computable; 0.0 = limit already exceeded.",
           "title": "Hours Until Co2 Limit"
         }
       },
@@ -188,7 +188,7 @@
           "type": "string"
         },
         "deliver_at": {
-          "description": "sent_at + tek yön ışık gecikmesi.",
+          "description": "sent_at + one-way light delay.",
           "format": "date-time",
           "title": "Deliver At",
           "type": "string"
@@ -222,7 +222,7 @@
       "type": "string"
     },
     "CrewDecision": {
-      "description": "Kişi bazlı karar: normal = Normal, watch = İzle, action = Eylem, unknown = Bilinmiyor.",
+      "description": "Per-crew-member decision: normal = Normal, watch = Watch, action = Action, unknown = Unknown.",
       "enum": [
         "normal",
         "watch",
@@ -236,7 +236,7 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "description": "Örn. 'crew-1'.",
+          "description": "E.g. 'crew-1'.",
           "pattern": "^crew-[1-9]$",
           "title": "Id",
           "type": "string"
@@ -246,7 +246,7 @@
           "type": "string"
         },
         "role": {
-          "description": "Örn. 'Commander', 'Flight Surgeon'.",
+          "description": "E.g. 'Commander', 'Flight Surgeon'.",
           "title": "Role",
           "type": "string"
         },
@@ -268,7 +268,7 @@
             }
           ],
           "default": null,
-          "description": "Kariyer kümülatif efektif doz (mSv, simüle); 600 mSv kariyer limitine oranlanır.",
+          "description": "Career cumulative effective dose (mSv, simulated); vs. the 600 mSv career limit.",
           "title": "Cumulative Dose Msv"
         },
         "event_dose_msv": {
@@ -282,7 +282,7 @@
             }
           ],
           "default": null,
-          "description": "Aktif güneş parçacık olayında alınan doz (mSv, simüle); olay yoksa null.",
+          "description": "Dose received during an active solar particle event (mSv, simulated); null if no event.",
           "title": "Event Dose Msv"
         },
         "status": {
@@ -292,7 +292,7 @@
         "decision": {
           "$ref": "#/$defs/CrewDecision",
           "default": "unknown",
-          "description": "Kişi bazlı karar; rules.py doldurur. Değerlendirilmemiş veya eksik veride unknown."
+          "description": "Per-crew-member decision; set by rules.py. unknown if not evaluated or data missing."
         }
       },
       "required": [
@@ -343,7 +343,7 @@
     },
     "Evidence": {
       "additionalProperties": false,
-      "description": "Bir uyarının 'neden?' listesindeki tek kanıt maddesi.",
+      "description": "A single evidence item in an alert's 'why?' list.",
       "properties": {
         "metric": {
           "$ref": "#/$defs/Metric"
@@ -368,7 +368,7 @@
               "type": "null"
             }
           ],
-          "description": "Aşılan sınır; eksik-veri kanıtında null.",
+          "description": "Limit that was crossed; null for missing-data evidence.",
           "title": "Threshold"
         },
         "comparator": {
@@ -380,7 +380,7 @@
           "type": "string"
         },
         "note": {
-          "description": "İnsan-okunur açıklama, örn. 'SpO2 3 ölçümdür eşiğin altında'.",
+          "description": "Human-readable explanation, e.g. 'SpO2 below threshold for 3 measurements'.",
           "title": "Note",
           "type": "string"
         }
@@ -429,7 +429,7 @@
     },
     "Reading": {
       "additionalProperties": false,
-      "description": "Tek bir sensör okuması. value=None ise quality 'ok' olamaz.",
+      "description": "A single sensor reading. If value=None, quality cannot be 'ok'.",
       "properties": {
         "value": {
           "anyOf": [
@@ -440,16 +440,16 @@
               "type": "null"
             }
           ],
-          "description": "Ölçülen değer; veri yoksa null.",
+          "description": "Measured value; null if no data.",
           "title": "Value"
         },
         "unit": {
-          "description": "Örn. 'bpm', '%', 'mmHg'.",
+          "description": "E.g. 'bpm', '%', 'mmHg'.",
           "title": "Unit",
           "type": "string"
         },
         "ts": {
-          "description": "Ölçüm zamanı (UTC, ISO-8601).",
+          "description": "Measurement time (UTC, ISO-8601).",
           "format": "date-time",
           "title": "Ts",
           "type": "string"
@@ -461,7 +461,7 @@
         "status": {
           "$ref": "#/$defs/Status",
           "default": "unknown",
-          "description": "rules.py doldurur; değerlendirilmemişse unknown."
+          "description": "Filled in by rules.py; unknown if not evaluated."
         },
         "baseline_delta": {
           "anyOf": [
@@ -473,7 +473,7 @@
             }
           ],
           "default": null,
-          "description": "Yalnızca kişi vitallerinde: değer − kişinin kendi baz çizgisi (okumanın biriminde). Kabin okumalarında ve veri yokken null.",
+          "description": "Crew vitals only: value minus the person's own baseline (in the reading's unit). Null for cabin readings and when there is no data.",
           "title": "Baseline Delta"
         }
       },
@@ -516,7 +516,7 @@
       "type": "string"
     },
     "Status": {
-      "description": "Bir ölçümün, kişinin veya kabinin genel durumu.",
+      "description": "Overall status of a measurement, a crew member, or the cabin.",
       "enum": [
         "nominal",
         "caution",
@@ -529,7 +529,7 @@
     },
     "TelemetryFrame": {
       "additionalProperties": false,
-      "description": "SSE ile her tick'te gönderilen tam paket (event: telemetry).",
+      "description": "Full packet sent over SSE on every tick (event: telemetry).",
       "properties": {
         "contract_version": {
           "default": "0.2.0",
@@ -556,7 +556,7 @@
         },
         "simulated": {
           "default": true,
-          "description": "Ekranda 'SİMÜLE' etiketi için.",
+          "description": "Drives the 'SIMULATED' label on screen.",
           "title": "Simulated",
           "type": "boolean"
         },
@@ -606,7 +606,7 @@
     },
     "ThresholdRule": {
       "additionalProperties": false,
-      "description": "Kural yapısı. Sayısal değerler ve kaynakları rules.py içinde tanımlanır.",
+      "description": "Rule structure. Numeric values and their sources are defined in rules.py.",
       "properties": {
         "id": {
           "title": "Id",
@@ -630,11 +630,11 @@
               "type": "null"
             }
           ],
-          "description": "comparator=missing ise null.",
+          "description": "Null if comparator=missing.",
           "title": "Threshold"
         },
         "consecutive_required": {
-          "description": "Uyarı için art arda kaç ölçüm.",
+          "description": "Number of consecutive measurements required to raise an alert.",
           "minimum": 1,
           "title": "Consecutive Required",
           "type": "integer"
@@ -650,17 +650,17 @@
             }
           ],
           "default": null,
-          "description": "Ortalama penceresi (s); örn. CO₂ için 3600 = 1 saatlik ortalama. null = anlık değer.",
+          "description": "Averaging window (s); e.g. 3600 for CO₂ = 1-hour average. null = instantaneous value.",
           "title": "Average Window S"
         },
         "relative_to_baseline": {
           "default": false,
-          "description": "True ise kıyaslanan nicelik 'değer − kişinin baz çizgisi', threshold da aynı birimde fark olarak okunur (örn. nabız +15, SpO₂ −3). False = mutlak eşik.",
+          "description": "If true, the compared quantity is 'value minus the person's baseline' and threshold is read as a difference in the same unit (e.g. heart rate +15, SpO₂ −3). False = absolute threshold.",
           "title": "Relative To Baseline",
           "type": "boolean"
         },
         "skip_when": {
-          "description": "Bu etkinliklerde kural çalışmaz; örn. nabız sapması için ['exercise'].",
+          "description": "Rule is skipped during these activities; e.g. ['exercise'] for heart-rate deviation.",
           "items": {
             "$ref": "#/$defs/Activity"
           },
@@ -668,7 +668,7 @@
           "type": "array"
         },
         "source": {
-          "description": "Eşiğin kaynağı (NASA-STD-3001 vb.) veya 'HİPOTEZ'.",
+          "description": "Source of the threshold (NASA-STD-3001 etc.) or 'HYPOTHESIS'.",
           "title": "Source",
           "type": "string"
         }
