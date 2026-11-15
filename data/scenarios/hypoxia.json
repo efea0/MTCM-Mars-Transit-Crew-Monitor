@@ -324,13 +324,13 @@
       "crew_id": "crew-3",
       "activity": "exercise",
       "targets": {
-        "spo2": 91.5
+        "spo2": 88.0
       },
-      "ramp_min": 30,
-      "note": "During exercise SpO2 drops from 98 to 91.5 (−6.5). Exaggerated for the demo; shown as SIMULATED on screen."
+      "ramp_min": 100,
+      "note": "During exercise SpO2 slowly falls from 98 to 88.0 over 100 min: Watch (drop -3) at ~635 min, Action (drop -6) at ~665 min, so the Watch -> Action transition stays visible for several measurements in the demo video. Exaggerated for the demo; shown as SIMULATED on screen."
     },
     {
-      "t_min": 660,
+      "t_min": 710,
       "type": "activity",
       "crew_id": "crew-3",
       "activity": "resting",
@@ -340,7 +340,7 @@
         "spo2": 94.0
       },
       "ramp_min": 10,
-      "note": "Exercise ends; she moves to rest over 10 minutes (at the 3rd resting measurement the pulse is below the threshold). Pulse +11 is below the cardiac load threshold (+15). Respiration stays +6 at rest: a hypoxia symptom at low cabin PIO2; together with SpO2 −4, Watch continues (resting condition: SpO2 AND respiration/pulse rise). There is no respiration rule in this scenario, so no separate respiration alert is raised."
+      "note": "Exercise ends; she moves to rest over 10 minutes (at the 3rd resting measurement, 720, the pulse is below the threshold). Pulse +11 is below the cardiac load threshold (+15). Respiration stays +6 at rest: a hypoxia symptom at low cabin PIO2; together with SpO2 -4, Watch continues (resting condition: SpO2 AND respiration/pulse rise). There is no respiration rule in this scenario, so no separate respiration alert is raised."
     }
   ],
   "expected_alerts": [
@@ -381,14 +381,14 @@
       "metric": "spo2",
       "severity": "caution",
       "rule_id": "crew_hypoxia_caution",
-      "t_condition": 619.0,
-      "t_earliest": 619,
-      "t_latest": 644,
+      "t_condition": 635.0,
+      "t_earliest": 630,
+      "t_latest": 670,
       "evidence_metrics": [
         "spo2",
         "pp_o2"
       ],
-      "why": "While Katherine exercises, her SpO2 dropped 3 points below her own baseline (98); cabin PIO2 is below 145. Exercise pulse was not counted as evidence.",
+      "why": "While Katherine exercises, her SpO2 dropped 3 points below her own baseline (98); cabin PIO2 is below 145. Watch stays active for several measurements before the drop reaches 6 points. Exercise pulse was not counted as evidence.",
       "recommendation": "Stop exercise, check the O2 source and cabin PIO2.",
       "engine_metric": "spo2",
       "engine_rule_id": "karar-olasi_hipoksi"
@@ -398,14 +398,14 @@
       "metric": "spo2",
       "severity": "critical",
       "rule_id": "crew_hypoxia_critical",
-      "t_condition": 632.75,
-      "t_earliest": 632,
-      "t_latest": 658,
+      "t_condition": 665.0,
+      "t_earliest": 660,
+      "t_latest": 705,
       "evidence_metrics": [
         "spo2",
         "pp_o2"
       ],
-      "why": "Katherine's SpO2 dropped 6 points below her baseline; cabin PIO2 is below normoxia.",
+      "why": "Katherine SpO2 dropped 6 points below her baseline ~30 min after the Watch level; cabin PIO2 is below normoxia. The Watch -> Action transition is slow enough to stay visible in the demo.",
       "recommendation": "Stop exercise, switch to backup O2, report to Earth.",
       "engine_metric": "spo2",
       "engine_rule_id": "karar-olasi_hipoksi"
@@ -415,8 +415,8 @@
       "metric": "pp_o2",
       "severity": "critical",
       "rule_id": "cabin_pio2_low_critical",
-      "t_condition": 1774.5,
-      "t_earliest": 1774,
+      "t_condition": 1763.25,
+      "t_earliest": 1763,
       "t_latest": 1800,
       "evidence_metrics": [
         "pp_o2"
@@ -431,7 +431,7 @@
     {
       "crew_id": "crew-3",
       "metric": "heart_rate",
-      "why": "Exercise pulse (130) does not count as cardiac load; rest is reached with a 10 min ramp, and at the 3rd resting measurement (670) the baseline difference is +10.6: below the threshold."
+      "why": "Exercise pulse (130) does not count as cardiac load; rest is reached with a 10 min ramp, and at the 3rd resting measurement (720) the baseline difference is +10.6: below the threshold."
     },
     {
       "crew_id": "crew-3",
