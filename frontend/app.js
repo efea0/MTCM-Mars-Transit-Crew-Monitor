@@ -583,8 +583,7 @@ const finishCard = createFinishCard({
   order: Object.keys(LABELS.scenario),
   labels: LABELS.scenario,
   start: requestScenario,
-  restart: requestRestart,
-  canControl: () => !controlLocked,
+  restart: () => (controlLocked && frame?.scenario ? requestScenario(frame.scenario) : requestRestart()),
 });
 const crewDetail = createCrewDetail({
   session, labels: LABELS, format: number, evidenceList, sourceNode: ruleId => nasaData.sourceNode(ruleId),
@@ -716,8 +715,8 @@ function requestRestart() {
 function syncScenarioSelect() {
   const select = document.getElementById("scenario-select");
   if (frame?.scenario && Object.hasOwn(LABELS.scenario, frame.scenario) && !select.matches(":focus")) select.value = frame.scenario;
-  select.disabled = controlLocked;
-  document.getElementById("scenario-select-note").textContent = controlLocked ? "Demo key required (?demo=1)" : "";
+  select.disabled = false;
+  document.getElementById("scenario-select-note").textContent = "";
 }
 function configureScenarioSelect() {
   const select = document.getElementById("scenario-select");
@@ -728,7 +727,7 @@ function configureScenarioSelect() {
     note.textContent = "Requesting scenario…";
     const outcome = await requestScenario(select.value);
     note.textContent = outcome.ok && mockMode ? "Local mock continues its own sequence." : outcome.ok ? "" : outcome.message;
-    select.disabled = controlLocked;
+    select.disabled = false;
   });
 }
 function configureDemo() {
