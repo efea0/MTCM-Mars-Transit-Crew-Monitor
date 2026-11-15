@@ -603,6 +603,8 @@ footer { padding-block: var(--space-1); }
 .decision-item[data-tone="critical"], .alert-row[data-tone="critical"], .crew-card[data-tone="critical"] { outline: 2px solid var(--tone); outline-offset: -2px; }
 .decision-item[data-tone="warning"], .alert-row[data-tone="warning"], .crew-card[data-tone="warning"] { outline: 1px solid var(--tone); outline-offset: -1px; }
 
+/* Viewers without the demo key see the facts only: no shortcut buttons. */
+.finish-card[data-state="passive"] .finish-actions, .finish-card[data-state="passive"] .finish-progress { display: none; }
 /* Demo speed presets sit next to the scenario buttons; the pressed one is filled. */
 .speed-group { display: flex; align-items: center; gap: var(--space-2); }
 .speed-label { font-size: 12px; color: var(--muted); }

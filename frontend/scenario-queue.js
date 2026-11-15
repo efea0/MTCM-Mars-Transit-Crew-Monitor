@@ -12,7 +12,7 @@ export function nextScenario(order, current) {
   return order[(index + 1) % order.length];
 }
 
-export function createFinishCard({ root, order, labels, start, restart = null, seconds = NEXT_SCENARIO_SECONDS }) {
+export function createFinishCard({ root, order, labels, start, restart = null, canControl = () => true, seconds = NEXT_SCENARIO_SECONDS }) {
   const spinner = root.querySelector(".finish-spinner");
   const title = root.querySelector(".finish-title");
   const detail = root.querySelector(".finish-detail");
@@ -96,6 +96,14 @@ export function createFinishCard({ root, order, labels, start, restart = null, s
       spinner.hidden = false;
       setBusy(false);
       pausedAt = null;
+      stopTimer();
+      if (!canControl()) {
+        // The server needs a demo key this viewer does not have: no countdown, no buttons, just the facts.
+        root.dataset.state = "passive";
+        spinner.hidden = true;
+        detail.textContent = "The server returns to the starting scenario shortly. Add the demo key (?demo=1) to choose one.";
+        return;
+      }
       deadline = performance.now() + seconds * 1000;
       stopTimer();
       timer = window.setInterval(tick, TICK_MS);

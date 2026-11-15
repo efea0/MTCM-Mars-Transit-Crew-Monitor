@@ -571,6 +571,7 @@ const finishCard = createFinishCard({
   labels: LABELS.scenario,
   start: requestScenario,
   restart: requestRestart,
+  canControl: () => !controlLocked,
 });
 const crewDetail = createCrewDetail({
   session, labels: LABELS, format: number, evidenceList, sourceNode: ruleId => nasaData.sourceNode(ruleId),
@@ -648,10 +649,29 @@ function acceptFrame(incoming) {
   connectingSince = null;
   render();
 }
+function currentDemoKey() {
+  return document.getElementById("demo-key").value || params.get("key");
+}
+// True when the server guards demo controls with a key this viewer has not supplied.
+let controlLocked = false;
+async function probeControl() {
+  // An empty body fails validation (422) after the key check, so this never changes the simulation.
+  try {
+    const headers = { "Content-Type": "application/json" };
+    const demoKey = currentDemoKey();
+    if (demoKey) headers["X-Demo-Key"] = demoKey;
+    const response = await fetch(CONTROL_URL, {
+      method: "POST", headers, body: "{}",
+      signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
+    });
+    controlLocked = response.status === 401;
+  } catch { return; }
+  finishCard.hide();
+}
 async function demoRequest(url, body, subject) {
   try {
     const headers = {};
-    const demoKey = document.getElementById("demo-key").value || params.get("key");
+    const demoKey = currentDemoKey();
     if (demoKey) headers["X-Demo-Key"] = demoKey;
     if (body) headers["Content-Type"] = "application/json";
     const response = await fetch(url, {
@@ -748,6 +768,14 @@ async function start() {
     document.getElementById("cabin-trends").append(view.root);
   }
   configureDemo(); render();
+  if (!mockMode) {
+    probeControl();
+    let probeTimer = null;
+    document.getElementById("demo-key").addEventListener("input", () => {
+      window.clearTimeout(probeTimer);
+      probeTimer = window.setTimeout(probeControl, 400);
+    });
+  }
   clockTimer = window.setInterval(updateClock, CLOCK_INTERVAL_MS);
   if (mockMode) {
     document.getElementById("source-label").textContent = "LOCAL MOCK · Decisions are fixed demo examples";
