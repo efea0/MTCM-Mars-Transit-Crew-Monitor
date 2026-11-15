@@ -79,10 +79,3 @@ All data shown in the app is simulated. The app is decision support, not medical
 
 **[TODO]** State whether any image, video, music or voice in the submission was AI-generated.
 If none: "No AI-generated images, video, audio or voice were used."
-
-## Demo video
-
-- The 30-second demo video is AI-assisted: motion graphics are code (HyperFrames), scripted with Claude Code.
-- It carries a visible SI watermark and uses no NASA logos, flags or mission identifiers.
-- The app footage in the video is a real screen recording of this project.
-

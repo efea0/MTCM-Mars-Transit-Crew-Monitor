@@ -18,8 +18,8 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 | Space Apps project page | **[TODO]** |
 
 > **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
-> without traffic and wakes on the first request. While the dashboard is open, it calls `/health` every 4 minutes
-> to keep the service awake.
+> without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
+> keeps traffic flowing, so there is no separate keep-alive call. The health check endpoint is `/api/health`.
 
 ## What it does
 
@@ -80,9 +80,9 @@ backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  ba
 | O₂/CO₂ mass balance and countdowns (`atmosphere.py`) | done, tested |
 | Reference limits and alert texts (`ranges.json`, `messages.json`) | done |
 | DONKI event record (`data/donki/`) | done |
-| Simulator, rules, API (SSE), Habitat panel | done |
-| Earth link delay queue (`backend/comms.py`) | done in the backend; no Earth panel in the dashboard yet |
-| EVA view, Earth panel, profile selector | not built yet |
+| Simulator, rules engine, API (SSE), Habitat panel | done, tested |
+| Earth link delay queue (`backend/comms.py`) | done in the backend, tested; no Earth panel in the dashboard yet |
+| EVA view, profile selector | **[TODO]** |
 
 ## Run locally
 
