@@ -27,7 +27,7 @@ Record each scenario as its own screen recording at ×600, then cut the windows 
 | 3–7 s | nominal | 6–9 s | Four crew cards are Normal. Neil is exercising: his heart rate rises, but his card stays **Normal**. | "Exercise is not an alarm." |
 | 7–15 s | hypoxia | 60–68 s | O₂ generation has failed and the **O₂ countdown** is running. Katherine is exercising: **Watch** at 65 s, then **Action** at 66.5 s. Open **Why?** to show SpO₂ below her baseline, plus cabin PIO₂ < 145. | "Per person: Katherine's SpO₂ drops 6 below *her* baseline. Act now." |
 | 15–20 s | hypercapnia | 28–31 s, then 56–60 s | Cabin ppCO₂ passes 2.5 (**Watch**). Cut to 56–60 s: the 1-hour average passes 3.0 and Katherine turns **Action** (CO₂ effect). | "CO₂ removal at 40%: the cabin, then the person." |
-| 20–25 s | solar_storm | 2–6 s | The solar event starts at 3 s. Every card turns **Action**: "go to the storm shelter" before the dose arrives (projected 300 mSv ≥ 200 mSv). | "Real NASA DONKI event (10 May 2024). Warned *before* the dose." |
+| 20–25 s | solar_storm | 2–6 s | The solar event starts at 3 s. Every card turns **Action**: "Move to storm shelter!" before the dose arrives (projected 300 mSv ≥ 200 mSv). | "Real NASA DONKI event (10 May 2024). Warned *before* the dose." |
 | 25–29 s | sensor_dropout | 3–6 s, then 7–8.5 s | Sally's heart-rate sensor goes silent, and Sally's card shows **NO DATA**, not Normal. Cut to John: a **stale** SpO₂ reading is not treated as valid. | "Missing data is never normal." |
 | 29–30 s | End card | none | Repo link and "Simulated data · Decision support, not diagnosis". | none |
 
@@ -86,7 +86,7 @@ Before the demo, open the live link once, because the Render service takes about
 | Real s | Do / show | Say |
 |---|---|---|
 | 0 | Start `solar_storm`. | "This uses the time and type of a real NASA DONKI solar particle event from 10 May 2024. The dose is simulated." |
-| 3–4 | The event starts at 3 s. At 4 s all four turn **Action**: "go to the storm shelter". Open **Why?** to show the projected dose of 300 mSv, which is at least 200 mSv. | "The system projects the end-of-event dose and warns *before* the crew receives it." |
+| 3–4 | The event starts at 3 s. At 4 s all four turn **Action**: "Move to storm shelter!". Open **Why?** to show the projected dose of 300 mSv, which is at least 200 mSv. | "The system projects the end-of-event dose and warns *before* the crew receives it." |
 | 4.5 | The crew is in the shelter, and the dose rate drops to a quarter. | none |
 | 7 | The cards go back to **Normal** after the shelter move. Stop here. | none |
 
