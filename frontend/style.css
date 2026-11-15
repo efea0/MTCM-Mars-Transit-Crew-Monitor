@@ -58,8 +58,8 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 /* The brand header has the same tested white-on-blue contrast as primary controls. */
 /* Header palette: exactly three tokens (base, gradient end, accent) plus white text. */
 .topbar { position: relative; background: linear-gradient(90deg, var(--topbar-bg-end), var(--topbar-bg) 45%); color: var(--on-header); }
-/* Brand stripe: the three brand colours, decoration only (never carries status). */
-.topbar::after { content: ""; position: absolute; inset: auto 0 0 0; block-size: 3px; background: linear-gradient(90deg, var(--brand-pink) 0 33.4%, var(--brand-yellow) 33.4% 66.7%, var(--brand-blue) 66.7%); }
+/* Brand stripe: decoration only (never carries status). */
+.topbar::after { content: ""; position: absolute; inset: auto 0 0 0; block-size: 3px; background: linear-gradient(90deg, var(--brand-mid), var(--brand-light)); }
 .topbar h1, .topbar .eyebrow, .topbar .meta-label, .topbar .mission-meta strong,
 .topbar .connection-meta > span, .topbar #connection[data-tone] { color: var(--on-header); }
 .topbar .connection-meta { border-color: var(--on-header); }
@@ -496,7 +496,7 @@ html { scrollbar-gutter: stable; }
 
 
 /* Independent Habitat wordmark; no agency logo or insignia. */
-.habitat-mark { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; background: var(--brand-pink); border: 1px solid var(--brand-pink); border-radius: var(--radius-sm); color: var(--on-accent); font: 600 24px var(--font-mono); }
+.habitat-mark { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; background: var(--brand-light); border: 1px solid var(--brand-light); border-radius: var(--radius-sm); color: var(--on-accent); font: 600 24px var(--font-mono); }
 /* Tactile button treatment inspired by 21st.dev Hero Button; native CSS, no runtime package. */
 .mission-meta .nasa-trigger, .nasa-dialog .nasa-button { transition: transform 80ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
 .mission-meta .nasa-trigger:hover, .nasa-dialog .nasa-button:hover { box-shadow: inset 0 -2px 0 currentColor; }
@@ -595,3 +595,10 @@ footer { padding-block: var(--space-1); }
 .brand { flex: none; }
 .sim-badge { white-space: nowrap; }
 .mission-meta { gap: var(--space-4); }
+
+/* The palette has no hue, so severity is also shown by fill, line style and an inset outline (none of these change layout). */
+.badge[data-tone="warning"] { box-shadow: inset 0 0 0 1px var(--tone); }
+.badge[data-tone="critical"] { background: var(--critical); color: var(--on-critical); box-shadow: inset 0 0 0 1px var(--on-critical); }
+.badge[data-tone="unknown"] { border-style: dashed; }
+.decision-item[data-tone="critical"], .alert-row[data-tone="critical"], .crew-card[data-tone="critical"] { outline: 2px solid var(--tone); outline-offset: -2px; }
+.decision-item[data-tone="warning"], .alert-row[data-tone="warning"], .crew-card[data-tone="warning"] { outline: 1px solid var(--tone); outline-offset: -1px; }

@@ -1,49 +1,48 @@
 @charset "UTF-8";
-/* Habitat palette: one dark theme. Colour comes only from pink, yellow and blue plus neutral black, grey and white.
-   Status maps to those: ok = blue, caution/warning = yellow, critical = pink, unknown = grey. Every state also
-   carries a text label and icon, never colour alone. The light-theme blocks below are intentionally empty stubs
-   (the contrast tests still look for them). */
+/* Habitat palette: one dark theme built only from three colours (#2B2D42, #8D99AE, #EDF2F4) and mixes between them.
+   Status cannot use hue, so every state also has a text label and icon, and severity uses lightness plus
+   border weight and fill. The light-theme blocks below are intentionally empty stubs (the contrast tests still
+   look for them). */
 :root {
   color-scheme: dark;
-  --bg: #0a0a0a;
-  --surface: #141414;
-  --surface-raised: #1d1d1d;
-  --surface-hover: #2a2a2a;
-  --border: #3a3a3a;
-  --border-strong: #6b6b6b;
-  --text: #f5f5f5;
-  --muted: #b3b3b3;
-  --accent: #21b0fe;
-  --on-accent: #0a0a0a;
-  --accent-ink: #21b0fe;
-  --focus: #21b0fe;
-  --ok: #21b0fe;
-  --caution: #fed700;
-  --warning: #f0c800;
-  --critical: #fe218b;
-  --unknown: #8c8c8c;
-  --ok-ink: #21b0fe;
-  --caution-ink: #fed700;
-  --warning-ink: #ffe566;
-  --critical-ink: #ff6bb3;
-  --unknown-ink: #b8b8b8;
-  --ok-tint: #06283d;
-  --caution-tint: #332b00;
-  --warning-tint: #3a3000;
-  --critical-tint: #35091c;
-  --unknown-tint: #262626;
-  --on-status: #0a0a0a;
-  --on-critical: #0a0a0a;
-  --chart-baseline: #21b0fe;
-  --grid-line: rgb(255 255 255 / 4%);
-  --brand-pink: #fe218b;
-  --brand-yellow: #fed700;
-  --brand-blue: #21b0fe;
-  --on-header: #ffffff;
-  --topbar-bg: #0a0a0a;
-  --topbar-bg-end: #1c1c1c;
-  --shine: rgb(255 255 255 / 22%);
-  --lift-shadow: rgb(0 0 0 / 55%);
+  --bg: #2b2d42;
+  --surface: #35384d;
+  --surface-raised: #3d4055;
+  --surface-hover: #464b60;
+  --border: #52586d;
+  --border-strong: #747e93;
+  --text: #edf2f4;
+  --muted: #b8c1ce;
+  --accent: #edf2f4;
+  --on-accent: #2b2d42;
+  --accent-ink: #edf2f4;
+  --focus: #edf2f4;
+  --ok: #8d99ae;
+  --caution: #b3bdca;
+  --warning: #d0d7df;
+  --critical: #edf2f4;
+  --unknown: #747e93;
+  --ok-ink: #c2cad4;
+  --caution-ink: #d5dce2;
+  --warning-ink: #e3e9ed;
+  --critical-ink: #edf2f4;
+  --unknown-ink: #b8c1ce;
+  --ok-tint: #393c51;
+  --caution-tint: #3f4358;
+  --warning-tint: #44495e;
+  --critical-tint: #4c5267;
+  --unknown-tint: #313348;
+  --on-status: #2b2d42;
+  --on-critical: #2b2d42;
+  --chart-baseline: #8d99ae;
+  --grid-line: rgb(141 153 174 / 4%);
+  --brand-light: #edf2f4;
+  --brand-mid: #8d99ae;
+  --on-header: #edf2f4;
+  --topbar-bg: #2b2d42;
+  --topbar-bg-end: #393c51;
+  --shine: rgb(237 242 244 / 22%);
+  --lift-shadow: rgb(43 45 66 / 70%);
   --glow-strength: 0%;
   --space-1: 4px;
   --space-2: 8px;
