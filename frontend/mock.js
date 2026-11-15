@@ -167,7 +167,7 @@ export function mockNasaResponse(path) {
       { id: "pio2-hypoxia-low", group: "cabin", label: "MOCK inspired oxygen limit", metric: "pio2", severity: "critical", comparator: "<", threshold: 127, unit: "mmHg", consecutive_required: 3, source: "MOCK fixture · not a verified NASA limit", status: "verified" },
       { id: "ppco2-caution", group: "cabin", label: "MOCK carbon dioxide watch level", metric: "pp_co2", severity: "caution", comparator: ">", threshold: 2.5, unit: "mmHg", consecutive_required: 3, source: "MOCK fixture · interpretation example", status: "partial" },
       { id: "spo2-drop-watch", group: "vitals", label: "MOCK SpO2 deviation", metric: "spo2", severity: "caution", comparator: "<=", threshold: -3, unit: "% points", consecutive_required: 3, source: "MOCK team demo parameter", status: "unverified" },
-      { id: "radiation-spe-limit", group: "radiation", label: "MOCK event dose limit", metric: null, severity: "critical", comparator: ">=", threshold: 250, unit: "mSv", consecutive_required: null, source: "MOCK fixture · not a verified NASA limit", status: "verified" },
+      { id: "radiation-spe-limit", group: "radiation", label: "MOCK event dose limit", metric: "event_dose_msv", severity: "critical", comparator: ">=", threshold: 250, unit: "mSv", consecutive_required: null, source: "MOCK fixture · not a verified NASA limit", status: "verified" },
     ],
   };
   if (url.pathname === "/api/sep-event") return {
