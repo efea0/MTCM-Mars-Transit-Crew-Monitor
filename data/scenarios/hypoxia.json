@@ -50,7 +50,7 @@
       "baseline": {
         "heart_rate": {
           "mean": 64,
-          "sd": 2.0
+          "sd": 0.5
         },
         "hrv_rmssd": {
           "mean": 48,
@@ -293,7 +293,7 @@
         "heart_rate": 80
       },
       "ramp_min": 120,
-      "note": "While Neil rests, his pulse rises from his own baseline of 64 to 80 (+16): cardiac load Watch. Same pulse as John (80); the baseline difference changes the decision. Unrelated to O2, SpO2 is normal."
+      "note": "While Neil rests, his pulse rises from his own baseline of 64 to 80 (+16): cardiac load Watch. Same pulse as John (80); the baseline difference changes the decision. Unrelated to O2, SpO2 is normal. Measurement noise sd lowered 2.0 -> 0.5 so the +16 target stays clearly above the +15 threshold (no alert flicker)."
     },
     {
       "t_min": 60,
