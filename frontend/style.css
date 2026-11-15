@@ -286,7 +286,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   .baseline { font-size: 9px; }
   .primary-readings { gap: var(--space-1) var(--space-2); }
   .primary-readings .reading-status { position: absolute; top: 0; right: 0; font-size: 9px; margin: 0; }
-  .secondary-readings { grid-template-columns: repeat(6, minmax(0, 1fr)); padding-top: var(--space-1); margin-top: 0; }
+  .secondary-readings { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: var(--space-1); margin-top: 0; }
   .secondary .reading-label { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .secondary .reading-value { font-size: 15px; }
   .secondary .baseline { display: none; }
@@ -403,3 +403,5 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
 @media (max-height: 940px) and (min-width: 1100px) { .crew-detail-button { padding: 1px var(--space-2); font-size: 10px; } }
 
 @media (min-width: 1600px) and (min-height: 941px) { footer { padding-top: var(--space-1); padding-bottom: var(--space-1); } }
+
+@media (max-height: 940px) and (min-width: 1100px) { .crew-card .baseline { display: none; } }

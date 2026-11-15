@@ -97,6 +97,16 @@ check("Time axis uses timestamps instead of equally spaced sample indices", () =
   const points = chart(frames).querySelector(".detail-measurement").getAttribute("points").split(" ").map(pair => Number(pair.split(",")[0]));
   assert(Math.abs((points[1] - points[0]) / (points[2] - points[0]) - .1) < .001, "Index axis used");
 });
+check("Cross-midnight axes identify both UTC dates", () => {
+  const frames = [frame(0), frame(1)];
+  frames[0].ts = "2026-01-01T23:59:00Z"; frames[1].ts = "2026-01-02T00:00:00Z";
+  const text = chart(frames).textContent;
+  assert(text.includes("01-01 23:59:00") && text.includes("01-02 00:00:00"), "Date rollover is ambiguous");
+});
+check("Earlier alert onsets do not appear as new chart-window events", () => {
+  const current = frame(100); current.alerts = [alert(1)];
+  assert(chartEvents([current], "crew-1").length === 0, "Old alert onset included in current window");
+});
 check("Latest alert survives clearing but resets with the scenario", () => {
   const session = createSession();
   const initial = frame(0); initial.alerts = [alert(0)];

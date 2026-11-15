@@ -105,7 +105,9 @@ export function chartEvents(frames, crewId) {
       }
     }
   }
-  return events;
+  const firstTime = Date.parse(frames[0]?.ts);
+  const lastTime = Date.parse(frames.at(-1)?.ts);
+  return events.filter(event => event.time >= firstTime && event.time <= lastTime);
 }
 
 function csvCell(value) {

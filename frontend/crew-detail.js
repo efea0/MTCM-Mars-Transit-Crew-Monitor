@@ -20,7 +20,7 @@ function svgNode(tag, attributes, text = "") {
   node.textContent = text;
   return node;
 }
-const clock = time => new Date(time).toISOString().slice(11, 19);
+const clock = time => new Date(time).toISOString().slice(5, 19).replace("T", " ");
 
 export function drawDetailChart(svg, series, events, format) {
   svg.replaceChildren();
