@@ -281,6 +281,6 @@
     "mars_transit_note": "NASA-STD-3001 limits.",
     "denizalti_note": "0.8% CO₂ is a 2018 study recommendation for 90-day exposure, not an official Navy limit. Crew metabolic rates are astronaut averages (assumption).",
     "yeralti_siginagi_note": "US coal mine refuge chamber (30 CFR 7.506). CO and methane are not modeled.",
-    "pitch_line": "The system built to protect astronauts works the same way in submarines and underground refuge chambers."
+    "pitch_line": "The system built to protect astronauts is designed to work the same way in submarines and underground refuge chambers."
   }
 }
