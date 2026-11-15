@@ -62,7 +62,7 @@ def make_vitals(
         heart_rate=make_reading(hr, "bpm", ts=ts),
         hrv_rmssd=make_reading(hrv, "ms", ts=ts),
         spo2=make_reading(spo2, "%", ts=ts),
-        resp_rate=make_reading(rr, "nefes/dk", ts=ts),
+        resp_rate=make_reading(rr, "breaths/min", ts=ts),
         core_temp=make_reading(temp, "°C", ts=ts),
         systolic_bp=make_reading(sys_bp, "mmHg", ts=ts),
         diastolic_bp=make_reading(dia_bp, "mmHg", ts=ts),
@@ -87,7 +87,7 @@ def make_cabin(
         cabin_pressure=make_reading(pressure, p_unit, ts=ts),
         cabin_temp=make_reading(temp, "°C", ts=ts),
         rel_humidity=make_reading(humidity, "%", ts=ts),
-        radiation_dose_rate=make_reading(rad, "µGy/saat", ts=ts),
+        radiation_dose_rate=make_reading(rad, "µGy/h", ts=ts),
         status=Status.nominal,
     )
 
