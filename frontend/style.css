@@ -18,7 +18,7 @@ h2 { font-size: 17px; font-weight: 600; letter-spacing: .02em; }
 .muted, .section-note { color: var(--muted); }
 .skip-link { position: fixed; top: -80px; left: 20px; z-index: 5; padding: 12px; color: #091321; background: #d7edff; }
 .skip-link:focus { top: 10px; }
-.topbar { padding: 18px 26px; min-height: 89px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 24px; background: #0c1521; }
+.topbar { position: sticky; top: 0; z-index: 10; padding: 18px 26px; min-height: 89px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 24px; background: #0c1521; }
 .brand, .mission-meta { display: flex; align-items: center; gap: 22px; }
 .orbit { display: grid; place-items: center; width: 43px; height: 43px; color: var(--accent); border: 1px solid #7b624e; border-radius: 50%; font-size: 25px; }
 .eyebrow { color: var(--accent); font-size: 10px; letter-spacing: .18em; font-weight: 700; margin-bottom: 3px; }
