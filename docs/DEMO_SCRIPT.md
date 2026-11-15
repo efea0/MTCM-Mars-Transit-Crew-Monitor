@@ -96,6 +96,6 @@ Close: "All data is simulated. This is decision support, not diagnosis."
    (`{event_type}`, `{event_time}`) cannot be filled. The panel shows the dose, but not *which* real event it is.
    The backend now serves the record at `/api/sep-event`, but the panel does not show it yet.
    Until this is fixed, the video caption and the presenter carry the DONKI name.
-2. **Not in this demo:** the EVA view and the profile selector are not built yet. The Earth link panel exists
+2. **Not in this demo:** the EVA view, the profile selector and the voice interface are planned, not built yet. The Earth link panel exists
    but is not part of this script.
 3. Time windows can move by one reading (0.5 s) because of the 3-consecutive-reading rule. Record a little longer than each window.

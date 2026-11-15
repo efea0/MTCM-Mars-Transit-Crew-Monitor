@@ -58,15 +58,15 @@
 
 <h2>Yaklaşımımız</h2>
 <p>Vital takibi ve radyasyon izleme yapan projeler var. Biz bunlara kabin havasını ekleyip üçünü aynı modelde yorumlamaya çalıştık. Bir astronotun O2 tüketimini nabzından tahmin ediyoruz, bu tüketim kabin O2 ve CO2 dengesine giriyor, kabindeki değişim de tekrar astronotun kararına dönüyor. Sonuç "kabin kötü" gibi genel bir uyarı değil, "Ece egzersizi bıraksın, SpO2'si düşüyor ve kabin PIO2 normoksinin altında" gibi kişiye bağlı bir cümle.</p>
-<p>Ortam ve fizyoloji eşiklerini (kabin CO2, PIO2, giysi PICO2, radyasyon limitleri) NASA-STD-3001'den alıyoruz. Kişinin vital sapma eşikleri ise demo parametresi, tıbbi eşik değil. Güneş fırtınası senaryosu gerçek bir NASA DONKI kaydının zamanına ve türüne dayanıyor; doz simülasyon ve ekranda öyle yazıyor. Aynı motor bir profil seçiciyle denizaltı ve yeraltı kurtarma sığınağında da çalışıyor.</p>
+<p>Ortam ve fizyoloji eşiklerini (kabin CO2, PIO2, giysi PICO2, radyasyon limitleri) NASA-STD-3001'den alıyoruz. Kişinin vital sapma eşikleri ise demo parametresi, tıbbi eşik değil. Güneş fırtınası senaryosu gerçek bir NASA DONKI kaydının zamanına ve türüne dayanıyor; doz simülasyon ve ekranda öyle yazıyor. Aynı motorun bir profil seçiciyle denizaltı ve yeraltı kurtarma sığınağında da çalışması hedefleniyor; profil seçici <b>planlanan, şu an yok.</b></p>
 <p>Uzayda kullanılmış sesli asistanlarla karşılaştırınca fark kapsamda. CIMON'un gösterilen sürümü uyandırma sözcüğüyle çalışıp buluttaki Watson'a bağlanıyordu (Space.com), Callisto'da ise Alexa ile telemetri sorgulandı (Military Aerospace). İkisi de genel amaçlı. Bizim sistemimiz sağlık ve havaya odaklı ve sorulmasını beklemeden uyarıyor.</p>
 
 <h2>İki mod, tek motor</h2>
-<p>Habitat ve EVA modu aynı O2/CO2 motorunu kullanıyor. Değişen yalnızca hacim, toplam basınç ve kaynak: kabin ya da giysi tüpü. Önce Habitat modu (P1), sonra EVA modu (P2) geliyor.</p>
+<p>Habitat ve EVA modu aynı O2/CO2 motorunu kullanıyor. Değişen yalnızca hacim, toplam basınç ve kaynak: kabin ya da giysi tüpü. Önce Habitat modu (P1), sonra EVA modu (P2) geliyor. EVA modu: <b>Planlanan, şu an yok.</b></p>
 <table>
   <tr><th style="width:18%">Mod</th><th>Ne gösterir</th><th style="width:24%">Arayüz</th></tr>
   <tr><td>Habitat (P1)</td><td>Dört astronotun vitalleri ve kişi bazlı durumu, kabin O2 ve CO2, ayrı ayrı "kaç saat kaldı" sayaçları (O2 ve CO2), radyasyon dozu, uyarılar ve "Neden?" açıklamaları.</td><td>Koyu temalı görev kontrol paneli</td></tr>
-  <tr><td>EVA (P2)</td><td>Uzay yürüyüşündeki astronot için giysi PIO2 ve PICO2, SpO2 (simüle) ve kalan tüp süresi.</td><td>Aynı panelin giysi görünümü</td></tr>
+  <tr><td>EVA (P2)</td><td><b>Planlanan, şu an yok.</b> Uzay yürüyüşündeki astronot için giysi PIO2 ve PICO2, SpO2 (simüle) ve kalan tüp süresi.</td><td>Aynı panelin giysi görünümü</td></tr>
 </table>
 <p>Uyarılar referans tablosundaki eşiklere göre yeşil, sarı ve kırmızı gösteriliyor. Resmi sınır yalnızca tablodaki limit değeri. Sarı kademe (limite yaklaşma) bizim tanımımız.</p>
 <p>Mars yolunda planlı bir EVA olup olmadığını teyit etmedik. Bu yüzden EVA görünümünü onarım ya da acil durum EVA'sı ve yüzey EVA'sı için düşünüyoruz. Dayanağımız NASA-STD-3001'deki giysi içi atmosferi izleme, gösterme ve uyarma ile metabolik hız gereksinimleri ([V2 11034]–[V2 11038]).</p>
@@ -121,7 +121,7 @@
 <p>Dozun nereden geldiği: DONKI olayın zamanını ve türünü verir, doz vermez. Ekrandaki doz, 1,8 mSv/gün taban hızın üstüne olay etkisi eklenerek modelleniyor ve "simüle" etiketi taşıyor. Toplam doz çubuğu 600 mSv kariyer limitine, güneş fırtınası kararı 250 mSv tasarım eşiğine bağlı.</p>
 
 <h2>Sesli arayüz (P4)</h2>
-<p>Ses en sona bırakıldı. P1, P2 ve P3 bitmeden başlanmayacak; yetişmezse demo onsuz da eksiksiz çalışıyor.</p>
+<p><b>Planlanan, şu an yok.</b> Ses en sona bırakıldı. P1, P2 ve P3 bitmeden başlanmayacak; yetişmezse demo onsuz da eksiksiz çalışıyor.</p>
 <ul>
   <li>Giriş için bas-konuş butonu ve beş sabit komut var: durum, oksijen, kalan süre, radyasyon, yardım. Uyandırma kelimesi yok.</li>
   <li>Çıkış tarafında sistem <code>speechSynthesis</code> ile kendiliğinden uyarı okuyor, örneğin "CO2 yükseliyor, 35 dakika içinde hava kilidine dön."</li>
@@ -136,14 +136,14 @@
   <tr><td>P1</td><td>Kişi bazlı sağlık kararı: baz çizgi, vital sapması ve ortam birlikte (hipoksi, CO2 etkisi, ısı, kalp yükü)</td></tr>
   <tr><td>P1</td><td>Habitat modu (mürettebat paneli)</td></tr>
   <tr><td>P2</td><td>Güneş fırtınası senaryosu (DONKI olayı ve simüle doz), radyasyon çubuğu (600 mSv kariyer limiti, 250 mSv tasarım eşiği)</td></tr>
-  <tr><td>P2</td><td>EVA modu (giysi görünümü)</td></tr>
-  <tr><td>P3</td><td>Dünya'ya gecikmeli mesaj kuyruğu, profil seçici</td></tr>
-  <tr><td>P4</td><td>Sesli arayüz</td></tr>
+  <tr><td>P2</td><td>EVA modu (giysi görünümü): planlanan, şu an yok</td></tr>
+  <tr><td>P3</td><td>Dünya'ya gecikmeli mesaj kuyruğu; profil seçici (planlanan, şu an yok)</td></tr>
+  <tr><td>P4</td><td>Sesli arayüz: planlanan, şu an yok</td></tr>
 </table>
 <p>Bilerek dışarıda bıraktıklarımız: garantili internetsiz ses tanıma, uyandırma kelimesi, kullanıcı girişi, veritabanı (JSON dosyaları yetiyor), CO ve metan modellemesi, göz takibi.</p>
 
 <h2>Dünya uygulamaları ve profil seçici</h2>
-<p>Aynı O2/CO2 kütle dengesi başka kapalı ortamlarda da işe yarıyor. Profil seçiciyle hacim (V), kişi sayısı (N), toplam basınç, CO2 giderme kapasitesi, O2 ve CO2 limitleri ve bu limitlerin kaynağı değişiyor. Bu profillerde ses yok.</p>
+<p><b>Planlanan, şu an yok.</b> Profil limitleri <code>ranges.json</code> içinde hazır, ekranda seçici yok. Aynı O2/CO2 kütle dengesi başka kapalı ortamlarda da işe yarıyor. Profil seçiciyle hacim (V), kişi sayısı (N), toplam basınç, CO2 giderme kapasitesi, O2 ve CO2 limitleri ve bu limitlerin kaynağı değişiyor. Bu profillerde ses yok.</p>
 <p>Kalan süre kabaca V × (limit − şimdiki seviye) ÷ (N × CO2 üretimi − giderme) ile hesaplanıyor. O2 için aynı yapı tüketim ve alt sınırla kuruluyor. Giderme sıfırsa süre en kısa hâline iniyor.</p>
 <table>
   <tr><th style="width:22%">Ortam</th><th>Limit ve kaynak</th><th style="width:16%">Durum</th></tr>
@@ -154,7 +154,7 @@
 <p>Mars limiti (yaklaşık %0,39) denizaltı ve sığınak limitlerinden daha sıkı. Bu yüzden her profil kendi limitini ve kaynağını taşıyor; NASA eşiği başka ortama uygulanmıyor. Metabolik değerler astronot ortalaması olduğu için denizaltı ve sığınak kişilerinde varsayım olarak etiketleniyor. Açık maden galerileri kapsam dışı, çünkü oradaki asıl sorun metan, karbonmonoksit ve havalandırma.</p>
 
 <h2>Teknik mimari ve veri kaynakları</h2>
-<p>Arka uç Python ve FastAPI, ön yüz build adımı olmayan HTML, CSS ve JavaScript. Veriler bellekte ve JSON dosyalarında tutuluyor, Chart.js CDN yerine projeye yerel dosya olarak konuyor. Böylece demo internete bağlı kalmıyor.</p>
+<p>Arka uç Python ve FastAPI, ön yüz build adımı olmayan HTML, CSS ve JavaScript. Veriler bellekte ve JSON dosyalarında tutuluyor. Grafikleri kendi yazdığımız SVG koduyla çiziyoruz, harici grafik kütüphanesi yok; yazı tipleri de projede yerel dosya olarak duruyor. Böylece demo internete bağlı kalmıyor.</p>
 <div class="arch">
   <div class="box"><b>Referans ve profiller</b><code>ranges.json</code></div>
   <div class="box"><b>DONKI kaydı</b><code>sep_event.json</code></div>
@@ -164,7 +164,7 @@
   <div class="box"><b>Kural motoru</b><code>rules.py</code> · ortam + sağlık</div>
   <div class="box"><b>API</b><code>main.py</code> · FastAPI + SSE</div>
   <div class="box"><b>Dünya kuyruğu</b><code>comms.py</code> · 3–22 dk gecikme</div>
-  <div class="box"><b>Ekranlar</b>Habitat paneli, EVA görünümü, Dünya paneli</div>
+  <div class="box"><b>Ekranlar</b>Habitat paneli, Dünya paneli · EVA görünümü planlanan, şu an yok</div>
 </div>
 <p>Simülatör baz değer, sirkadiyen ritim, gürültü ve senaryo olaylarından vital üretiyor. O2/CO2 motoru nabızdan tüketimi hesaplıyor ve profilin hacim, basınç ve giderme değerlerini kullanıyor. Kural motoru uyarıları üretiyor, FastAPI de bunları SSE ile ekranlara aktarıyor. Sensör verisi gelmezse ekran "veri yok" diyor; eksik veri hiçbir zaman "normal" sayılmıyor.</p>
 <p>Ekranlara akan verinin biçimi arka uçtaki Pydantic modellerinde tanımlı ve <code>docs/contract.json</code> olarak dışa veriliyor.</p>
@@ -185,10 +185,10 @@
   <li>Astronot 3 (Ece) egzersizde. Nabzı 130'a, solunumu 26'ya çıkıyor; sistem bunları alarm ya da hipoksi kanıtı saymıyor. Ece'nin SpO2'si kendi bazından 3 puan düşünce "İzle", 6 puan düşünce "Eylem" oluyor. Kanıt olarak SpO2 ve kabin PIO2 gösteriliyor, öneri "egzersizi durdur, yedek O2'ye geç". Bu kişisel uyarı, kabin uyarısı kırmızıya dönmeden çok önce geliyor. Can ve Mert normal kalıyor.</li>
   <li>Ayrı bir örnek: Ayşe ile Mert'in nabzı ikisinde de 80. Ayşe kendi bazının +16 üstünde olduğu için "İzle" oluyor (kalp yükü, hipoksi değil); Mert +13'te kaldığı için normal. Aynı nabız, iki farklı karar.</li>
   <li>Güneş fırtınası: DONKI kaydı tetikleniyor. Sistem olay sonu dozunu tahmin ediyor ve 200 mSv'yi aşacağını görünce doz alınmadan önce "fırtına sığınağına geç" uyarısı veriyor.</li>
-  <li>EVA görünümü: giysi PIO2 ve PICO2, kalan tüp süresi ve gerekirse "hava kilidine dön" önerisi.</li>
+  <li><b>Planlanan, şu an yok.</b> EVA görünümü: giysi PIO2 ve PICO2, kalan tüp süresi ve gerekirse "hava kilidine dön" önerisi.</li>
   <li>Dünya'ya rapor gidiyor; tek yön gecikme sayacı çalışıyor ve cevap gecikmeyle geliyor.</li>
-  <li>Ortam menüsünden denizaltı ve yeraltı sığınağı seçiliyor; limitler ve kaynakları değişiyor. Aynı karar desteği motoru, kendi limitleriyle bu ortamlarda da çalışıyor.</li>
-  <li>Sesli arayüz hazırsa kısa bir komut gösterimi.</li>
+  <li><b>Planlanan, şu an yok.</b> Ortam menüsünden denizaltı ve yeraltı sığınağı seçiliyor; limitler ve kaynakları değişiyor. Aynı karar desteği motoru, kendi limitleriyle bu ortamlarda da çalışıyor.</li>
+  <li><b>Planlanan, şu an yok.</b> Sesli arayüz hazırsa kısa bir komut gösterimi.</li>
 </ol>
 
 <h2 style="break-before: page">Sık sorulan sorular</h2>
