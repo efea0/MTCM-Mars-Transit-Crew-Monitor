@@ -28,6 +28,7 @@ from backend.rules import RulesEngine, SepContext
 from backend.simulator import SIMULATION_EPOCH, SimulationFinished, Simulator
 
 DEFAULT_SCENARIO_NAME: Final[str] = "nominal"
+SCENARIO_ORDER: Final[tuple[Scenario, ...]] = tuple(Scenario)
 DEFAULT_TIME_SCALE: Final[float] = 600.0
 MAX_TIME_SCALE: Final[float] = 6000.0
 MIN_TIME_SCALE: Final[float] = 0.01
@@ -267,14 +268,22 @@ class SimulationManager:
         payload = json.dumps({"scenario": scenario_name})
         self._broadcast(f"event: end\ndata: {payload}\n\n")
 
-    async def _restart_nominal_after_delay(self) -> None:
+    def _next_scenario_name(self) -> str:
+        current = self.pipeline.scenario
+        try:
+            index = SCENARIO_ORDER.index(current)
+        except ValueError:
+            return DEFAULT_SCENARIO_NAME
+        return SCENARIO_ORDER[(index + 1) % len(SCENARIO_ORDER)].value
+
+    async def _advance_scenario_after_delay(self) -> None:
         if self.finish_restart_delay_s is None:
             return
         try:
             await asyncio.wait_for(self._unpaused_event.wait(), timeout=self.finish_restart_delay_s)
         except TimeoutError:
             if not self._shutdown:
-                self.set_scenario(DEFAULT_SCENARIO_NAME)
+                self.set_scenario(self._next_scenario_name())
 
     async def _run_loop(self) -> None:
         loop = asyncio.get_running_loop()
@@ -304,7 +313,7 @@ class SimulationManager:
                     self.running = False
                     self._unpaused_event.clear()
                     self._broadcast_end(self.pipeline.scenario.value)
-                    await self._restart_nominal_after_delay()
+                    await self._advance_scenario_after_delay()
                     self._sim_elapsed = total_sim_s
                     continue
 
@@ -455,7 +464,6 @@ async def get_scenarios() -> list[ScenarioInfo]:
 @app.post(
     "/api/scenario/{name}",
     response_model=ScenarioChangeResponse,
-    dependencies=[Depends(require_demo_key)],
 )
 async def post_scenario(name: str) -> ScenarioChangeResponse:
     valid_names = {s.value for s in Scenario}
