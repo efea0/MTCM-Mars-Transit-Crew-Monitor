@@ -32,6 +32,10 @@
   </header>
   <main class="dashboard">
     <div id="data-notice" class="data-notice" role="status">NO DATA · Waiting for telemetry packets.</div>
+    <div id="finish-actions" class="finish-actions" hidden>
+      <button id="restart-button" class="restart-button" type="button">Restart scenario</button>
+      <span id="restart-result" role="status" aria-live="polite"></span>
+    </div>
     <section id="decisions" class="panel decisions-panel" aria-labelledby="decisions-title">
       <div class="panel-heading decisions-heading">
         <h2 id="decisions-title">Active decisions</h2>

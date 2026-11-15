@@ -1,7 +1,9 @@
 import { createDecisionBand } from "./decisions.js";
+import { requestRestart } from "./restart.js";
 
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
+const CONTROL_URL = "/api/control";
 const HEALTH_URL = "/api/health";
 const HEALTH_CHECK_AFTER_MS = 2000;
 const WAKE_AFTER_MS = 3000;
@@ -547,6 +549,9 @@ function updateClock() {
   notice.textContent = scenarioFinished && !stale ? "Simulation finished · Showing the final packet. Waiting for the next scenario."
     : invalidPacket ? "NO DATA · Could not read telemetry packet; waiting for a valid packet."
     : "NO DATA · Waiting for current telemetry. Old readings are not treated as normal.";
+  const finished = scenarioFinished && !stale;
+  document.getElementById("finish-actions").hidden = !finished;
+  if (!finished) document.getElementById("restart-result").textContent = "";
 }
 function recordHistory(key, incoming, reading, interrupted) {
   const history = histories.get(key) ?? [];
@@ -587,6 +592,17 @@ function acceptFrame(incoming) {
   connectingSince = null;
   render();
 }
+function currentDemoKey() { return document.getElementById("demo-key").value || params.get("key"); }
+function configureRestart() {
+  const button = document.getElementById("restart-button");
+  const result = document.getElementById("restart-result");
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    result.textContent = "Restarting…";
+    result.textContent = await requestRestart(CONTROL_URL, currentDemoKey(), STALE_AFTER_MS);
+    button.disabled = false;
+  });
+}
 function configureDemo() {
   if (params.get("demo") !== "1") return;
   document.getElementById("demo-panel").hidden = false;
@@ -600,7 +616,7 @@ function configureDemo() {
       result.textContent = "Requesting scenario…";
       try {
         const headers = {};
-        const demoKey = document.getElementById("demo-key").value || params.get("key");
+        const demoKey = currentDemoKey();
         if (demoKey) headers["X-Demo-Key"] = demoKey;
         const response = await fetch(`${SCENARIO_URL}/${encodeURIComponent(scenario)}`, {
           method: "POST", headers,
@@ -641,7 +657,7 @@ async function start() {
     cabinTrendViews.set(metric, view);
     document.getElementById("cabin-trends").append(view.root);
   }
-  configureTheme(); configureDemo(); render();
+  configureTheme(); configureDemo(); configureRestart(); render();
   clockTimer = window.setInterval(updateClock, CLOCK_INTERVAL_MS);
   if (mockMode) {
     document.getElementById("source-label").textContent = "LOCAL MOCK · Decisions are fixed demo examples";
