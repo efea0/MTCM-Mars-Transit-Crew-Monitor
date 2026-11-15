@@ -56,9 +56,6 @@ CABIN_UNITS = {
     "rel_humidity": "%",
     "radiation_dose_rate": "µGy/h",
 }
-# Scenario files written before the English contract (#92). Accepted and normalised on load; remove
-# once every data/scenarios/*.json uses CABIN_UNITS (#95).
-LEGACY_CABIN_UNITS = {"radiation_dose_rate": "µGy/saat"}
 
 
 class SimulationFinished(Exception): ...
@@ -168,10 +165,7 @@ class _Scenario(_Input):
         if self.cabin_initial.keys() != CABIN_UNITS.keys():
             raise ValueError("cabin_initial: six cabin readings required: " + ", ".join(CABIN_UNITS))
         for metric, unit in CABIN_UNITS.items():
-            reading = self.cabin_initial[metric]
-            if reading.unit == LEGACY_CABIN_UNITS.get(metric):
-                self.cabin_initial[metric] = reading.model_copy(update={"unit": unit})
-            elif reading.unit != unit:
+            if self.cabin_initial[metric].unit != unit:
                 raise ValueError(f"cabin_initial.{metric}.unit: must be {unit}")
         for event in self.events:
             if (
