@@ -1,17 +1,17 @@
 @charset "UTF-8";
-/* Merkezi tasarım tokenları. Bileşenler (style.css) HEX, RGB ya da piksel değerlerini doğrudan yazmaz.
-   Koyu tema varsayılandır; açık tema iki yerden gelir: sistem tercihi (prefers-color-scheme) ve elle
-   seçim ([data-theme="light"]). İki açık tema bloğu birebir aynı olmalıdır; tests/test_frontend_contrast.py
-   bunu ve aşağıdaki renk çiftlerinin WCAG 2.x AA kontrastını denetler.
+/* Central design tokens. Components (style.css) never write HEX, RGB or pixel values directly.
+   Dark is the default theme; the light theme comes from two places: the system preference
+   (prefers-color-scheme) and a manual choice ([data-theme="light"]). The two light blocks must be identical;
+   tests/test_frontend_contrast.py checks that and the WCAG 2.x AA contrast of the colour pairs below.
 
-   Durum renkleri Okabe-Ito paletinde yaygın yayımlanan değerlerdir (--ok, --caution, --critical, --unknown).
-   Metin ve ince çizgi olarak her zaman "-ink" değişkeni kullanılır: ham renkler iki temada da küçük metinde
-   4,5:1'i geçemediği için okunabilir tonlar ayrı tutulur. Ham renk yalnızca dolgu ve parlama içindir. */
+   Status colours are the values commonly published as the Okabe-Ito palette (--ok, --caution, --critical,
+   --unknown). Text and thin lines always use the "-ink" variable: the raw colours cannot reach 4.5:1 as small
+   text in both themes, so readable tones are kept separately. Raw colours are for fills and glow only. */
 
 :root {
   color-scheme: dark;
 
-  /* Zemin ve yüzeyler */
+  /* Background and surfaces */
   --bg: #0b1220;
   --surface: #111a2b;
   --surface-raised: #162238;
@@ -19,43 +19,43 @@
   --border: #2b3a55;
   --border-strong: #3d5075;
 
-  /* Metin */
+  /* Text */
   --text: #e8edf5;
   --muted: #a9b5c8;
 
-  /* Ana vurgu: etkileşimli öğeler. Dolgu #0072B2, bağlantı ve odak için okunabilir ton ayrı. */
+  /* Main accent: interactive elements. Fill #0072B2; a separate readable tone for links and focus. */
   --accent: #0072b2;
   --on-accent: #ffffff;
   --accent-ink: #56b4e9;
   --focus: #56b4e9;
 
-  /* Durum: ham renk (dolgu, parlama) */
+  /* Status: raw colour (fill, glow) */
   --ok: #009e73;
   --caution: #e69f00;
   --warning: #dc7800;
   --critical: #d55e00;
   --unknown: #667085;
-  /* Durum: okunabilir ton (metin, çizgi, ikon) */
+  /* Status: readable ink (text, lines, icons) */
   --ok-ink: #1faa84;
   --caution-ink: #e69f00;
   --warning-ink: #de7f0d;
   --critical-ink: #dc792b;
   --unknown-ink: #8c94a4;
-  /* Durum: rozet zemini (kart yüzeyi üzerinde %14 ham renk) */
+  /* Status: badge background (14% raw colour over the card surface) */
   --ok-tint: #133340;
   --caution-tint: #333430;
   --warning-tint: #322e30;
   --critical-tint: #312a30;
   --unknown-tint: #212d43;
-  /* Dolgulu rozetlerde (İzle, Eylem) metin rengi */
+  /* Text colour on filled badges (Watch, Action) */
   --on-status: #0b1220;
 
-  /* Grafik ve efektler */
+  /* Chart and effects */
   --chart-baseline: #56b4e9;
   --grid-line: rgb(120 150 200 / 5%);
   --glow-strength: 24%;
 
-  /* Boşluk */
+  /* Spacing */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -65,7 +65,7 @@
   --space-7: 32px;
   --space-8: 48px;
 
-  /* Şekil ve yazı tipi */
+  /* Shape and font */
   --radius: 6px;
   --radius-sm: 4px;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;

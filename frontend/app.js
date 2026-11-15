@@ -1,4 +1,4 @@
-// main.py ile uyumlu API adresleri (POST /api/scenario/{ad}, GET /api/health) ve SSE olay adı.
+// API paths aligned with main.py (POST /api/scenario/{name}, GET /api/health) and the SSE event name.
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
 const HEALTH_URL = "/api/health";
@@ -23,24 +23,24 @@ const THEME_KEY = "theme";
 const ALERT_HIGHLIGHT_MS = 1600;
 const LABELS = {
   metric: {
-    heart_rate: "Nabız", spo2: "SpO₂", resp_rate: "Solunum", core_temp: "Çekirdek ısı",
-    hrv_rmssd: "HRV · RMSSD", systolic_bp: "Sistolik KB", diastolic_bp: "Diyastolik KB",
-    pp_o2: "O₂ kısmi basınç", pp_co2: "CO₂ kısmi basınç", cabin_pressure: "Kabin basıncı",
-    cabin_temp: "Kabin sıcaklığı", rel_humidity: "Bağıl nem", radiation_dose_rate: "Radyasyon hızı",
-    pio2: "Solunan O₂ basıncı", event_dose: "Olay dozu",
+    heart_rate: "Heart rate", spo2: "SpO₂", resp_rate: "Resp. rate", core_temp: "Core temp",
+    hrv_rmssd: "HRV · RMSSD", systolic_bp: "Systolic BP", diastolic_bp: "Diastolic BP",
+    pp_o2: "O₂ partial pressure", pp_co2: "CO₂ partial pressure", cabin_pressure: "Cabin pressure",
+    cabin_temp: "Cabin temp", rel_humidity: "Rel. humidity", radiation_dose_rate: "Radiation rate",
+    pio2: "Inspired O₂ pressure", event_dose: "Event dose",
   },
-  status: { nominal: "● Normal", caution: "◉ İzle", warning: "▲ Uyarı", critical: "! Eylem", unknown: "? Bilinmiyor" },
-  decision: { normal: "✓ Normal", watch: "◉ İzle", action: "! Eylem", unknown: "? Bilinmiyor" },
-  activity: { resting: "Dinleniyor", exercise: "Egzersiz", sleep: "Uyku", unknown: "Bilinmiyor" },
-  quality: { ok: "Geçerli", stale: "eski", missing: "yok", sensor_fault: "sensör hatası" },
-  scenario: { nominal: "Normal seyir", hypoxia: "O₂ arızası", hypercapnia: "CO₂ yükselişi", solar_storm: "Güneş fırtınası", sensor_dropout: "Veri kopması" },
+  status: { nominal: "● Normal", caution: "◉ Watch", warning: "▲ Warning", critical: "! Action", unknown: "? Unknown" },
+  decision: { normal: "✓ Normal", watch: "◉ Watch", action: "! Action", unknown: "? Unknown" },
+  activity: { resting: "Resting", exercise: "Exercise", sleep: "Sleep", unknown: "Unknown" },
+  quality: { ok: "Valid", stale: "stale", missing: "missing", sensor_fault: "sensor fault" },
+  scenario: { nominal: "Nominal cruise", hypoxia: "O₂ failure", hypercapnia: "CO₂ rise", solar_storm: "Solar storm", sensor_dropout: "Sensor dropout" },
 };
 const PRIMARY_METRICS = ["heart_rate", "spo2", "resp_rate", "core_temp"];
 const SECONDARY_METRICS = ["hrv_rmssd", "systolic_bp", "diastolic_bp"];
 const CABIN_METRICS = ["pp_o2", "pp_co2", "cabin_pressure", "cabin_temp", "rel_humidity", "radiation_dose_rate"];
 const DECISION_TONE = { normal: "nominal", watch: "caution", action: "critical", unknown: "unknown" };
 const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
-const numberFormat = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 });
+const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const params = new URLSearchParams(window.location.search);
 const mockMode = params.get("mock") === "1";
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -78,13 +78,13 @@ function formatClock(iso) {
   const time = new Date(iso);
   return Number.isNaN(time.getTime()) ? "—" : `${time.toISOString().slice(11, 19)}Z`;
 }
-// Değer gerçekten değiştiğinde kısa bir sayı geçişi; hareket azaltma tercihinde doğrudan yazılır.
+// A short number transition when a value really changes; written directly when reduced motion is preferred.
 function showValue(node, value) {
   const running = valueTweens.get(node);
   if (running) cancelAnimationFrame(running);
   valueTweens.delete(node);
   const previous = node.dataset.value === undefined ? null : Number(node.dataset.value);
-  if (!numeric(value)) { node.textContent = "veri yok"; delete node.dataset.value; return; }
+  if (!numeric(value)) { node.textContent = "no data"; delete node.dataset.value; return; }
   node.dataset.value = String(value);
   if (reducedMotion.matches || !numeric(previous) || previous === value) { node.textContent = number(value); return; }
   const start = performance.now();
@@ -101,11 +101,11 @@ function currentTheme() {
 }
 function configureTheme() {
   const button = document.getElementById("theme-toggle");
-  const sync = () => { button.textContent = currentTheme() === "light" ? "◐ Tema: Açık" : "◐ Tema: Koyu"; };
+  const sync = () => { button.textContent = currentTheme() === "light" ? "◐ Theme: Light" : "◐ Theme: Dark"; };
   button.addEventListener("click", () => {
     const next = currentTheme() === "light" ? "dark" : "light";
     document.documentElement.dataset.theme = next;
-    try { localStorage.setItem(THEME_KEY, next); } catch { /* depolama kapalı: bu oturumda geçerli */ }
+    try { localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable: applies to this session only */ }
     sync();
   });
   lightQuery.addEventListener("change", sync);
@@ -113,7 +113,7 @@ function configureTheme() {
 }
 function packetStale() {
   if (lastReceived === null || invalidPacket) return true;
-  // Senaryo bittiyse backend kare göndermeyi bırakır; bu veri kaybı değil, son durumdur.
+  // When the scenario is over the backend stops sending frames; that is the final state, not data loss.
   return !scenarioFinished && performance.now() - lastReceived > STALE_AFTER_MS;
 }
 async function checkScenarioFinished() {
@@ -126,21 +126,21 @@ async function checkScenarioFinished() {
     const health = await response.json();
     const finished = health.finished === true && health.scenario === frame?.scenario;
     if (finished !== scenarioFinished) { scenarioFinished = finished; render(); }
-  } catch { /* backend yok: olağan VERİ YOK davranışı */ }
+  } catch { /* backend unreachable: the usual NO DATA behaviour */ }
 }
 function validReading(reading) { return reading && numeric(reading.value) && reading.quality === "ok"; }
 function missionTime(seconds) {
-  if (!numeric(seconds)) return "— g — sa — dk";
+  if (!numeric(seconds)) return "— d — h — min";
   const totalMinutes = Math.floor(seconds / SECONDS_PER_MINUTE);
   const totalHours = Math.floor(totalMinutes / MINUTES_PER_HOUR);
-  return `${Math.floor(totalHours / HOURS_PER_DAY)} g ${totalHours % HOURS_PER_DAY} sa ${totalMinutes % MINUTES_PER_HOUR} dk`;
+  return `${Math.floor(totalHours / HOURS_PER_DAY)} d ${totalHours % HOURS_PER_DAY} h ${totalMinutes % MINUTES_PER_HOUR} min`;
 }
 function createReading(metric, secondary = false, baseline = false) {
   const root = el("div", `reading${secondary ? " secondary" : ""}`);
   root.dataset.metric = metric;
   const label = el("span", "reading-label", LABELS.metric[metric]);
   const output = el("div", "reading-output");
-  const value = el("strong", "reading-value", "veri yok");
+  const value = el("strong", "reading-value", "no data");
   const unit = el("span", "reading-unit");
   output.append(value, unit);
   const delta = el("span", "baseline");
@@ -163,8 +163,8 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   view.unit.textContent = usable ? reading.unit : "";
   view.status.textContent = LABELS.status[state] ?? LABELS.status.unknown;
   const delta = usable && numeric(reading.baseline_delta) ? reading.baseline_delta : null;
-  view.delta.textContent = delta === null ? "Baz çizgiye göre: —"
-    : `${delta < 0 ? "−" : "+"}${number(Math.abs(delta))} ${reading.unit} baz çizgiye göre`;
+  view.delta.textContent = delta === null ? "vs baseline: —"
+    : `${delta < 0 ? "−" : "+"}${number(Math.abs(delta))} ${reading.unit} vs baseline`;
   const quality = stale ? "stale" : reading?.quality ?? "missing";
   view.quality.hidden = quality === "ok";
   view.quality.textContent = LABELS.quality[quality] ?? "yok";
@@ -175,8 +175,8 @@ function createCrew(index) {
   const identity = el("div", "crew-identity");
   const avatar = el("span", "crew-number", String(index + 1).padStart(2, "0"));
   const identityText = el("div");
-  const name = el("h3", "crew-name", `Mürettebat ${index + 1}`);
-  const role = el("p", "crew-role", "Rol bekleniyor");
+  const name = el("h3", "crew-name", `Crew member ${index + 1}`);
+  const role = el("p", "crew-role", "Role pending");
   identityText.append(name, role);
   identity.append(avatar, identityText);
   const decision = el("span", "badge decision", LABELS.decision.unknown);
@@ -191,14 +191,14 @@ function createCrew(index) {
     (SECONDARY_METRICS.includes(metric) ? secondary : primary).append(view.root);
   }
   const trendArea = el("div", "trend-area");
-  const trendLabel = el("span", "trend-label", "NABIZ · SON 60 TICK");
+  const trendLabel = el("span", "trend-label", `HEART RATE · LAST ${HISTORY_TICKS} TICKS`);
   const trend = document.createElementNS(SVG_NS, "svg");
   trend.setAttribute("viewBox", `0 0 ${TREND_WIDTH} ${TREND_HEIGHT}`);
   trend.setAttribute("role", "img");
-  trend.setAttribute("aria-label", "Nabız trendi: henüz veri yok");
+  trend.setAttribute("aria-label", "Heart-rate trend: no data yet");
   trend.classList.add("trend");
   trendArea.append(trendLabel, trend);
-  const why = el("button", "why-button", "Neden? ↗");
+  const why = el("button", "why-button", "Why? ↗");
   why.type = "button";
   why.setAttribute("aria-expanded", "false");
   why.setAttribute("aria-controls", `crew-evidence-${index}`);
@@ -209,7 +209,7 @@ function createCrew(index) {
     evidence.hidden = !evidence.hidden;
     why.setAttribute("aria-expanded", String(!evidence.hidden));
   });
-  const stamp = el("time", "reading-time", "Ölçüm: veri yok");
+  const stamp = el("time", "reading-time", "Measured: no data");
   root.append(header, primary, secondary, trendArea, stamp, why, evidence);
   tone(root, "unknown");
   return { root, name, role, decision, activity, readings, trend, stamp, evidence, why, evidenceKey: null };
@@ -224,7 +224,7 @@ function drawTrend(svg, entries, unavailable) {
   svg.replaceChildren();
   const values = unavailable ? [] : entries.filter(entry => numeric(entry.value));
   svg.setAttribute("aria-label", values.length
-    ? "Nabız trendi, kesikli çizgi kişisel baz çizgisi, boşluklar eksik ölçümdür" : "Nabız trendi: veri yok");
+    ? "Heart-rate trend, dashed line is the personal baseline, gaps are missing readings" : "Heart-rate trend: no data");
   if (!values.length) return;
   const baseline = [...entries].reverse().find(entry => numeric(entry.baseline))?.baseline ?? null;
   const all = numeric(baseline) ? [...values.map(entry => entry.value), baseline] : values.map(entry => entry.value);
@@ -236,11 +236,11 @@ function drawTrend(svg, entries, unavailable) {
   const top = TREND_TOP;
   const bottom = TREND_HEIGHT - TREND_BOTTOM;
   const yOf = value => (span === 0 ? (top + bottom) / 2 : bottom - (value - minimum) / span * (bottom - top));
-  const label = value => String(Math.round(value * 10) / 10).replace(".", ",");
+  const label = value => String(Math.round(value * 10) / 10);
   svg.append(svgNode("text", { x: left - 3, y: top + 3, class: "trend-axis trend-axis-end" }, label(maximum)),
     svgNode("text", { x: left - 3, y: bottom, class: "trend-axis trend-axis-end" }, label(minimum)),
     svgNode("text", { x: left, y: TREND_HEIGHT - 3, class: "trend-axis" }, `−${HISTORY_TICKS}`),
-    svgNode("text", { x: right, y: TREND_HEIGHT - 3, class: "trend-axis trend-axis-end" }, "şimdi"));
+    svgNode("text", { x: right, y: TREND_HEIGHT - 3, class: "trend-axis trend-axis-end" }, "now"));
   if (numeric(baseline)) {
     svg.append(svgNode("line", { x1: left, x2: right, y1: yOf(baseline), y2: yOf(baseline), class: "trend-baseline" }));
   }
@@ -270,7 +270,7 @@ function evidenceList(why) {
   const list = el("ul", "evidence-list");
   for (const item of why ?? []) {
     const row = el("li");
-    const values = `${item.metric} · ${item.value === null ? "veri yok" : number(item.value)} ${item.comparator} ${item.threshold === null ? "—" : number(item.threshold)}`;
+    const values = `${item.metric} · ${item.value === null ? "no data" : number(item.value)} ${item.comparator} ${item.threshold === null ? "—" : number(item.threshold)}`;
     const time = el("time", "evidence-time", item.ts);
     time.dateTime = item.ts;
     row.append(el("strong", "evidence-values", values), el("p", "evidence-note", item.note), time);
@@ -284,17 +284,17 @@ function crewEvidence(view, member, alerts, stale) {
   view.evidenceKey = key;
   view.evidence.replaceChildren();
   if (stale) {
-    view.evidence.append(el("p", "empty-state", "VERİ YOK · Güncel kanıt bekleniyor."));
+    view.evidence.append(el("p", "empty-state", "NO DATA · Waiting for current evidence."));
   } else if (!alerts.length) {
     view.evidence.append(el("p", "empty-state", member.decision === "unknown"
-      ? "Veri yetersiz, karar verilemiyor" : "Aktif uyarı yok"));
+      ? "Insufficient data, no decision possible" : "No active alerts"));
   } else {
     for (const alert of alerts) {
       const block = el("section", "evidence-block");
       const badge = el("span", "badge", LABELS.status[alert.severity]);
       tone(badge, alert.severity);
       block.append(badge, el("p", "alert-message", alert.message),
-        el("p", "alert-meta", `${alert.consecutive_count} art arda ölçüm`), evidenceList(alert.why));
+        el("p", "alert-meta", `${alert.consecutive_count} consecutive readings`), evidenceList(alert.why));
       view.evidence.append(block);
     }
   }
@@ -306,13 +306,13 @@ function updateCrew(stale) {
     const decision = stale ? "unknown" : member?.decision ?? "unknown";
     tone(view.root, DECISION_TONE[decision]);
     tone(view.decision, DECISION_TONE[decision]);
-    view.name.textContent = member?.name ?? `Mürettebat ${index + 1}`;
-    view.role.textContent = member?.role ?? "Rol bekleniyor";
-    view.decision.textContent = stale ? "? VERİ YOK" : LABELS.decision[decision] ?? LABELS.decision.unknown;
+    view.name.textContent = member?.name ?? `Crew member ${index + 1}`;
+    view.role.textContent = member?.role ?? "Role pending";
+    view.decision.textContent = stale ? "? NO DATA" : LABELS.decision[decision] ?? LABELS.decision.unknown;
     view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}`;
-    view.why.setAttribute("aria-label", `${member?.name ?? `Mürettebat ${index + 1}`}: Neden?`);
+    view.why.setAttribute("aria-label", `${member?.name ?? `Crew member ${index + 1}`}: Why?`);
     const stamped = !stale && member?.vitals?.heart_rate?.ts;
-    view.stamp.textContent = stamped ? `Ölçüm ${formatClock(stamped)} · SİMÜLE` : "Ölçüm: veri yok";
+    view.stamp.textContent = stamped ? `Measured ${formatClock(stamped)} · SIMULATED` : "Measured: no data";
     if (stamped) view.stamp.dateTime = stamped; else view.stamp.removeAttribute("datetime");
     view.root.classList.toggle("stale-data", stale);
     for (const [metric, reading] of view.readings) updateReading(reading, member?.vitals[metric], stale, decision === "unknown");
@@ -325,11 +325,11 @@ function updateCabin(stale) {
   const state = stale ? "unknown" : cabin?.status ?? "unknown";
   const badge = document.getElementById("cabin-status");
   tone(badge, state);
-  badge.textContent = stale ? "? VERİ YOK" : LABELS.status[state];
+  badge.textContent = stale ? "? NO DATA" : LABELS.status[state];
   for (const [metric, view] of cabinViews) updateReading(view, cabin?.[metric], stale);
   const cabinStamp = document.getElementById("cabin-time");
   const cabinTs = !stale && cabin?.pp_o2?.ts;
-  cabinStamp.textContent = cabinTs ? `Ölçüm ${formatClock(cabinTs)} · SİMÜLE` : "Ölçüm: veri yok";
+  cabinStamp.textContent = cabinTs ? `Measured ${formatClock(cabinTs)} · SIMULATED` : "Measured: no data";
   if (cabinTs) cabinStamp.dateTime = cabinTs; else cabinStamp.removeAttribute("datetime");
   document.getElementById("cabin-readings").classList.toggle("stale-data", stale);
   for (const field of ["hours_until_o2_limit", "hours_until_co2_limit"]) {
@@ -339,13 +339,13 @@ function updateCabin(stale) {
     const note = root.querySelector("small");
     tone(root, stale || !numeric(hours) ? "unknown" : hours === 0 ? "critical" : state);
     root.classList.toggle("neutral-countdown", !stale && !numeric(hours));
-    if (stale) { output.textContent = "VERİ YOK"; note.textContent = "Güncel telemetri bekleniyor"; }
-    else if (!numeric(hours)) { output.textContent = "—"; note.textContent = "Limite yaklaşmıyor / hesaplanamıyor"; }
-    else if (hours === 0) { output.textContent = "LİMİT AŞILDI"; note.textContent = "Simülasyon süresi"; }
+    if (stale) { output.textContent = "NO DATA"; note.textContent = "Waiting for current telemetry"; }
+    else if (!numeric(hours)) { output.textContent = "—"; note.textContent = "Not approaching limit / cannot be computed"; }
+    else if (hours === 0) { output.textContent = "LIMIT EXCEEDED"; note.textContent = "Simulation time"; }
     else {
       const minutes = Math.round(hours * MINUTES_PER_HOUR);
-      output.textContent = `${Math.floor(minutes / MINUTES_PER_HOUR)} sa ${minutes % MINUTES_PER_HOUR} dk`;
-      note.textContent = "Simülasyon süresi";
+      output.textContent = `${Math.floor(minutes / MINUTES_PER_HOUR)} h ${minutes % MINUTES_PER_HOUR} min`;
+      note.textContent = "Simulation time";
     }
   }
 }
@@ -355,9 +355,9 @@ function updateAlerts(stale) {
   const alerts = stale ? [] : [...frame.alerts].sort((a, b) =>
     (SEVERITY_ORDER[b.severity] ?? 0) - (SEVERITY_ORDER[a.severity] ?? 0)
     || Date.parse(b.last_seen) - Date.parse(a.last_seen));
-  document.getElementById("alert-count").textContent = stale ? "—" : `${alerts.length} AKTİF`;
+  document.getElementById("alert-count").textContent = stale ? "—" : `${alerts.length} ACTIVE`;
   notice.hidden = alerts.length > 0;
-  notice.textContent = stale ? "VERİ YOK · Güncel uyarı durumu bilinmiyor." : "✓ Aktif uyarı yok";
+  notice.textContent = stale ? "NO DATA · Current alert status unknown." : "✓ No active alerts";
   container.hidden = stale;
   if (stale) return;
   const activeIds = new Set(alerts.map(alert => alert.id));
@@ -383,10 +383,10 @@ function updateAlerts(stale) {
     }
     tone(view.root, alert.severity);
     view.root.classList.toggle("new-alert", performance.now() - (freshAlertIds.get(alert.id) ?? -Infinity) < ALERT_HIGHLIGHT_MS);
-    view.owner.textContent = alert.crew_id === null ? "Kabin" : frame.crew.find(member => member.id === alert.crew_id)?.name ?? alert.crew_id;
+    view.owner.textContent = alert.crew_id === null ? "Cabin" : frame.crew.find(member => member.id === alert.crew_id)?.name ?? alert.crew_id;
     view.severity.textContent = LABELS.status[alert.severity];
     view.message.textContent = alert.message;
-    view.meta.textContent = `${alert.consecutive_count} art arda ölçüm · Son: ${formatClock(alert.last_seen)}`;
+    view.meta.textContent = `${alert.consecutive_count} consecutive readings · Last: ${formatClock(alert.last_seen)}`;
     const key = JSON.stringify(alert.why);
     if (key !== view.key) { view.body.replaceChildren(evidenceList(alert.why)); view.key = key; }
     if (container.children[index] !== view.root) container.insertBefore(view.root, container.children[index] ?? null);
@@ -395,7 +395,7 @@ function updateAlerts(stale) {
 function render() {
   const stale = packetStale();
   document.getElementById("simulated").hidden = frame?.simulated === false;
-  document.getElementById("scenario").textContent = LABELS.scenario[frame?.scenario] ?? "Paket bekleniyor";
+  document.getElementById("scenario").textContent = LABELS.scenario[frame?.scenario] ?? "Waiting for packet";
   document.getElementById("mission_elapsed_s").textContent = missionTime(frame?.mission_elapsed_s);
   document.getElementById("mission_elapsed_s").classList.toggle("muted", stale);
   updateCrew(stale); updateCabin(stale); updateAlerts(stale);
@@ -408,20 +408,20 @@ function updateClock() {
   const seconds = lastReceived === null ? null : (performance.now() - lastReceived) / 1000;
   if (!mockMode && !scenarioFinished && seconds !== null && seconds * 1000 > HEALTH_CHECK_AFTER_MS
     && performance.now() - healthCheckedAt > HEALTH_CHECK_AFTER_MS) checkScenarioFinished();
-  document.getElementById("packet-age").textContent = seconds === null ? "Henüz paket yok" : `Son paket: ${number(Math.floor(seconds))} sn önce`;
+  document.getElementById("packet-age").textContent = seconds === null ? "No packet yet" : `Last packet: ${number(Math.floor(seconds))} s ago`;
   const connection = document.getElementById("connection");
   const connected = transportState === "open" && !stale;
-  connection.textContent = scenarioFinished ? "■ Senaryo tamamlandı"
-    : connected ? "● Bağlı" : transportState === "closed" ? "× Koptu" : "◌ Yeniden bağlanıyor";
+  connection.textContent = scenarioFinished ? "■ Scenario complete"
+    : connected ? "● Connected" : transportState === "closed" ? "× Disconnected" : "◌ Reconnecting";
   tone(connection, connected || scenarioFinished ? "nominal" : "unknown");
   const notice = document.getElementById("data-notice");
   notice.hidden = !stale && !scenarioFinished;
-  notice.textContent = scenarioFinished ? "Senaryo tamamlandı · son paket gösteriliyor. Yeni bir senaryo seçin."
-    : invalidPacket ? "VERİ YOK · Telemetri paketi okunamadı; geçerli paket bekleniyor."
-    : "VERİ YOK · Güncel telemetri bekleniyor. Eski ölçümler normal kabul edilmez.";
+  notice.textContent = scenarioFinished ? "Scenario complete · showing the last packet. Choose a new scenario."
+    : invalidPacket ? "NO DATA · Telemetry packet unreadable; waiting for a valid packet."
+    : "NO DATA · Waiting for current telemetry. Old readings are never treated as normal.";
 }
 function acceptFrame(incoming) {
-  // Tam şema backend'e aittir; bozuk veya başka sürümde paket normal görünemez.
+  // The full schema belongs to the backend; a malformed or other-version packet must never look normal.
   if (!incoming || incoming.contract_version !== "0.2.0" || !Number.isInteger(incoming.tick)
     || !Array.isArray(incoming.crew) || incoming.crew.length !== CREW_SIZE
     || !incoming.cabin || !Array.isArray(incoming.alerts)
@@ -467,7 +467,7 @@ function configureDemo() {
     button.addEventListener("click", async () => {
       const result = document.getElementById("demo-result");
       button.disabled = true;
-      result.textContent = "Senaryo isteniyor…";
+      result.textContent = "Requesting scenario…";
       try {
         const headers = {};
         const demoKey = document.getElementById("demo-key").value;
@@ -476,10 +476,10 @@ function configureDemo() {
           method: "POST", headers,
           signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
         });
-        if (response.status === 401) { result.textContent = "Demo anahtarı gerekli veya yanlış."; return; }
+        if (response.status === 401) { result.textContent = "Demo key required or incorrect."; return; }
         if (!response.ok) throw new Error("scenario unavailable");
-        result.textContent = mockMode ? "İstek gönderildi. Yerel mock akışı kendi sırasıyla sürer." : "Senaryo istendi; telemetri bekleniyor.";
-      } catch { result.textContent = "backend henüz hazır değil"; }
+        result.textContent = mockMode ? "Request sent. The local mock stream runs on its own schedule." : "Scenario requested; waiting for telemetry.";
+      } catch { result.textContent = "Backend not ready yet"; }
       finally { button.disabled = false; }
     });
     buttons.append(button);
@@ -499,7 +499,7 @@ async function start() {
   configureTheme(); configureDemo(); render();
   clockTimer = window.setInterval(updateClock, CLOCK_INTERVAL_MS);
   if (mockMode) {
-    document.getElementById("source-label").textContent = "YEREL MOCK · Kararlar sabit demo örnekleridir";
+    document.getElementById("source-label").textContent = "LOCAL MOCK · Decisions are fixed demo examples";
     try {
       const { startMock } = await import("./mock.js");
       stopMock = startMock(acceptFrame);

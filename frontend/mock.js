@@ -1,5 +1,5 @@
-// Yalnızca ?mock=1 ile yüklenir. Bu sayılar klinik eşik veya kural motoru değildir.
-// Kararlar, uyarılar ve kanıtlar sabit demo örnekleridir; gerçek eşiklerden türetilmez.
+// Loaded only with ?mock=1. These numbers are not clinical thresholds or rule-engine output.
+// Decisions, alerts and evidence are fixed demo examples; they are not derived from real thresholds.
 const CONTRACT_VERSION = "0.2.0";
 const MOCK_INTERVAL_MS = 1000;
 const MOCK_CYCLE_TICKS = 48;
@@ -19,8 +19,8 @@ const MOCK_UNITS = {
   cabin_pressure: "mmHg", cabin_temp: "°C", rel_humidity: "%", radiation_dose_rate: "µGy/saat",
 };
 const MOCK_CREW = [
-  { name: "Ayşe", role: "Komutan" }, { name: "Can", role: "Uçuş mühendisi" },
-  { name: "Ece", role: "Bilim sorumlusu" }, { name: "Mert", role: "Uçuş hekimi" },
+  { name: "Ayşe", role: "Commander" }, { name: "Can", role: "Flight Engineer" },
+  { name: "Ece", role: "Mission Specialist" }, { name: "Mert", role: "Flight Surgeon" },
 ];
 const MOCK_WAVE = [0, 1, 0, -1, 0, 2, 1, 0];
 
@@ -54,8 +54,8 @@ function makeFrame(tick, clock) {
       if (index === 0) {
         member.decision = "watch"; member.status = "caution";
         alerts.push(mockAlert("ayse-baseline", member.id, "heart_rate", "caution",
-          "MOCK: Ayşe'nin kişisel baz çizgi farkı için İzle kararı.",
-          16, null, ">", "MOCK: Nabız 80 bpm, kişisel baz çizgi 64 bpm; fark +16. Karar sabit demo örneğidir. Mert de 80 bpm, fakat farkı +13 ve kararı Normal.",
+          "MOCK: Watch decision for Ayşe's personal baseline deviation.",
+          16, null, ">", "MOCK: Heart rate 80 bpm, personal baseline 64 bpm; difference +16. The decision is a fixed demo example. Mert is also at 80 bpm, but his difference is +13 and his decision is Normal.",
           ts, at(6), phase - 5));
       }
     }
@@ -65,10 +65,10 @@ function makeFrame(tick, clock) {
       member.status = actionDemo ? "critical" : "caution";
       vitals.spo2 = reading("spo2", actionDemo ? 93 : 96, ts, baseline.spo2, member.status);
       alerts.push(mockAlert("ece-spo2", member.id, "spo2", member.status,
-        actionDemo ? "MOCK: Ece için Eylem kararı; SpO₂ baz çizgisinden 6 puan düşük."
-          : "MOCK: Ece için İzle kararı; SpO₂ baz çizgisinden 3 puan düşük.",
+        actionDemo ? "MOCK: Action decision for Ece; SpO₂ is 6 points below baseline."
+          : "MOCK: Watch decision for Ece; SpO₂ is 3 points below baseline.",
         actionDemo ? -6 : -3, null, "<",
-        "MOCK: Ece egzersizde. Bu örnekte yalnızca SpO₂ baz çizgi farkı gösterilir; egzersiz nabzı ve solunumu kanıt değildir. Eşik ve karar hesaplanmamıştır.",
+        "MOCK: Ece is exercising. This example shows only the SpO₂ baseline difference; exercise heart rate and breathing are not evidence. No threshold or decision is computed.",
         ts, at(12), phase - 11));
     }
     if (missingDemo && index === 1) {
@@ -77,8 +77,8 @@ function makeFrame(tick, clock) {
       vitals.hrv_rmssd = reading("hrv_rmssd", 51, at(29), 51, "unknown", "stale");
       vitals.spo2 = reading("spo2", 98, ts, 98, "unknown", "sensor_fault");
       alerts.push(mockAlert("can-missing", member.id, "heart_rate", "caution",
-        "MOCK: Can için veri yetersiz, karar verilemiyor.", null, null, "missing",
-        "MOCK: Nabız sensöründen veri yok. Eksik ölçüm normal kabul edilmez; HRV eski, SpO₂ sensör hatalı örnektir.",
+        "MOCK: Insufficient data for Can, no decision possible.", null, null, "missing",
+        "MOCK: No data from the heart-rate sensor. A missing reading is never treated as normal; HRV is a stale example and SpO₂ a sensor-fault example.",
         ts, at(30), phase - 29));
     }
     return member;
@@ -95,8 +95,8 @@ function makeFrame(tick, clock) {
   };
   if (o2Active) {
     alerts.push(mockAlert("cabin-o2", null, "pp_o2", status,
-      "MOCK: Kabin O₂ düşüşü; CO₂ sayacı etkilenmez.", cabin.pp_o2.value, null, "<",
-      "MOCK: Bu sabit demo adımında O₂ sayacı azalır, sonra sıfır olur. CO₂ sayacı null kalır. Bir eşik veya atmosfer modeli hesaplanmamıştır.",
+      "MOCK: Cabin O₂ drop; the CO₂ countdown is unaffected.", cabin.pp_o2.value, null, "<",
+      "MOCK: In this fixed demo step the O₂ countdown decreases, then reaches zero. The CO₂ countdown stays null. No threshold or atmosphere model is computed.",
       ts, at(12), phase - 11));
   }
   return { contract_version: CONTRACT_VERSION, tick, ts,
@@ -113,7 +113,7 @@ export function startMock(onFrame) {
     if (stopped) return;
     onFrame(makeFrame(tick, clock));
     tick += 1;
-    // Döngüde bir kez bağlantı kaybını ve otomatik toparlanmayı görünür kılar.
+    // Once per cycle, shows a connection loss and the automatic recovery.
     const delay = tick % MOCK_CYCLE_TICKS === MOCK_GAP_AT_TICK ? MOCK_GAP_DURATION_MS : MOCK_INTERVAL_MS;
     timer = window.setTimeout(emit, delay);
   }
