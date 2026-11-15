@@ -7,13 +7,14 @@ import hmac
 import json
 import math
 import os
+from collections import deque
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from enum import Enum
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from backend.comms import DelayedLink, load_delay_bounds_s
 from backend.models import CONTRACT_VERSION, Scenario, TelemetryFrame
+from backend.reference import build_limits, build_sep_event
 from backend.rules import RulesEngine, SepContext
 from backend.simulator import SIMULATION_EPOCH, SimulationFinished, Simulator
 
@@ -37,10 +39,14 @@ HTTP_UNAUTHORIZED: Final[int] = 401
 DEMO_KEY_ENV: Final[str] = "DEMO_CONTROL_KEY"
 DEMO_KEY_HEADER: Final[str] = "X-Demo-Key"
 FINISH_RESTART_DELAY_S: Final[float] = 30.0
+HISTORY_MAXLEN: Final[int] = 400
+DEFAULT_HISTORY_LIMIT: Final[int] = 120
+MIN_HISTORY_LIMIT: Final[int] = 1
 
 DATA_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "data"
 RANGES_PATH: Final[Path] = DATA_DIR / "reference" / "ranges.json"
 SCENARIOS_DIR: Final[Path] = DATA_DIR / "scenarios"
+SEP_EVENT_PATH: Final[Path] = DATA_DIR / "donki" / "sep_event.json"
 FRONTEND_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "frontend"
 
 
@@ -164,6 +170,7 @@ class SimulationManager:
         self.running: bool = True
         self.finished: bool = False
         self.last_frame: TelemetryFrame | None = None
+        self.history: deque[TelemetryFrame] = deque(maxlen=HISTORY_MAXLEN)
         self._subscribers: set[asyncio.Queue[str]] = set()
         self._unpaused_event: asyncio.Event = asyncio.Event()
         self._unpaused_event.set()
@@ -207,6 +214,7 @@ class SimulationManager:
     def restart(self) -> None:
         self.pipeline.reset(self.pipeline.scenario)
         self.last_frame = None
+        self.history.clear()
         self.finished = False
         self.running = True
         self._reset_requested = True
@@ -216,6 +224,7 @@ class SimulationManager:
     def set_scenario(self, scenario_name: str) -> None:
         self.pipeline.reset(scenario_name)
         self.last_frame = None
+        self.history.clear()
         self.finished = False
         self.running = True
         self._reset_requested = True
@@ -241,6 +250,7 @@ class SimulationManager:
                 queue.put_nowait(msg)
 
     def _broadcast_frame(self, frame: TelemetryFrame) -> None:
+        self.history.append(frame)
         self._broadcast(f"event: telemetry\ndata: {frame.model_dump_json()}\n\n")
 
     def _broadcast_end(self, scenario_name: str) -> None:
@@ -467,6 +477,33 @@ async def get_state() -> Response:
             detail="No telemetry frame has been produced yet.",
         )
     return Response(content=frame.model_dump_json(), media_type="application/json")
+
+
+@app.get("/api/limits")
+async def get_limits() -> dict[str, Any]:
+    try:
+        return build_limits(RANGES_PATH)
+    except (OSError, ValueError) as err:
+        raise HTTPException(status_code=HTTP_NOT_FOUND, detail="Limits reference not found.") from err
+
+
+@app.get("/api/sep-event")
+async def get_sep_event() -> dict[str, Any]:
+    try:
+        return build_sep_event(SEP_EVENT_PATH)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as err:
+        raise HTTPException(status_code=HTTP_NOT_FOUND, detail="SEP event record not found.") from err
+
+
+@app.get("/api/history")
+async def get_history(
+    limit: int = Query(default=DEFAULT_HISTORY_LIMIT, ge=MIN_HISTORY_LIMIT, le=HISTORY_MAXLEN),
+) -> dict[str, Any]:
+    frames = list(manager.history)[-limit:]
+    return {
+        "scenario": manager.pipeline.scenario.value,
+        "frames": [frame.model_dump(mode="json") for frame in frames],
+    }
 
 
 @app.get("/api/stream")
