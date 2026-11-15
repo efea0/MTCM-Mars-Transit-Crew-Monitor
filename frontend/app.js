@@ -39,6 +39,7 @@ const LABELS = {
 const PRIMARY_METRICS = ["heart_rate", "spo2", "resp_rate", "core_temp"];
 const SECONDARY_METRICS = ["hrv_rmssd", "systolic_bp", "diastolic_bp"];
 const CABIN_METRICS = ["pp_o2", "pp_co2", "cabin_pressure", "cabin_temp", "rel_humidity", "radiation_dose_rate"];
+const CABIN_TREND_METRICS = ["pp_co2", "pp_o2"];
 const DECISION_TONE = { normal: "nominal", watch: "caution", action: "critical", unknown: "unknown" };
 const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
 const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
@@ -53,6 +54,8 @@ const histories = new Map();
 const freshAlertIds = new Map();
 const cabinViews = new Map();
 const earthViews = new Map();
+const cabinTrendViews = new Map();
+const thresholdMarks = new Map();
 let frame = null;
 let lastReceived = null;
 let transportState = "connecting";
@@ -222,14 +225,17 @@ function svgNode(tag, attributes, text = "") {
   if (text) node.textContent = text;
   return node;
 }
-function drawTrend(svg, entries, unavailable) {
+function markLabel(value) { return Number.isInteger(value * 10) ? value.toFixed(1) : value.toFixed(2); }
+// marks: horizontal reference lines whose values come from alert evidence (never hard-coded here).
+function drawTrend(svg, entries, unavailable, { name = "Heart-rate", marks = [] } = {}) {
   svg.replaceChildren();
   const values = unavailable ? [] : entries.filter(entry => numeric(entry.value));
-  svg.setAttribute("aria-label", values.length
-    ? "Heart-rate trend, dashed line is the personal baseline, gaps are missing readings" : "Heart-rate trend: no data");
-  if (!values.length) return;
   const baseline = [...entries].reverse().find(entry => numeric(entry.baseline))?.baseline ?? null;
-  const all = numeric(baseline) ? [...values.map(entry => entry.value), baseline] : values.map(entry => entry.value);
+  svg.setAttribute("aria-label", values.length
+    ? `${name} trend${numeric(baseline) ? ", dashed line is the personal baseline" : ""}${marks.length ? ", dotted lines mark alert thresholds" : ""}, gaps are missing readings`
+    : `${name} trend: no data`);
+  if (!values.length) return;
+  const all = [...values.map(entry => entry.value), ...marks, ...(numeric(baseline) ? [baseline] : [])];
   const minimum = Math.min(...all);
   const maximum = Math.max(...all);
   const span = maximum - minimum;
@@ -245,6 +251,10 @@ function drawTrend(svg, entries, unavailable) {
     svgNode("text", { x: right, y: TREND_HEIGHT - 3, class: "trend-axis trend-axis-end" }, "now"));
   if (numeric(baseline)) {
     svg.append(svgNode("line", { x1: left, x2: right, y1: yOf(baseline), y2: yOf(baseline), class: "trend-baseline" }));
+  }
+  for (const mark of marks) {
+    svg.append(svgNode("line", { x1: left, x2: right, y1: yOf(mark), y2: yOf(mark), class: "trend-mark" }),
+      svgNode("text", { x: right, y: yOf(mark) - 2, class: "trend-axis trend-axis-end trend-mark-label" }, markLabel(mark)));
   }
   const lastTick = entries.at(-1).tick;
   let segment = [];
@@ -322,6 +332,37 @@ function updateCrew(stale) {
     crewEvidence(view, member, frame?.alerts.filter(alert => alert.crew_id === member?.id) ?? [], stale);
   }
 }
+function createCabinTrend(metric) {
+  const root = el("div", "trend-area");
+  const label = el("span", "trend-label", `${LABELS.metric[metric].toUpperCase()} · LAST ${HISTORY_TICKS} TICKS`);
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${TREND_WIDTH} ${TREND_HEIGHT}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `${LABELS.metric[metric]} trend: no data yet`);
+  svg.classList.add("trend");
+  root.append(label, svg);
+  return { root, svg };
+}
+// Threshold lines come only from cabin alert evidence (alert.why[].threshold) of the same metric;
+// no evidence seen yet means no line.
+function collectThresholdMarks(alerts) {
+  for (const alert of alerts) {
+    if (alert.crew_id !== null) continue;
+    for (const item of alert.why ?? []) {
+      if (CABIN_TREND_METRICS.includes(item.metric) && numeric(item.threshold)) {
+        const marks = thresholdMarks.get(item.metric) ?? new Set();
+        marks.add(item.threshold);
+        thresholdMarks.set(item.metric, marks);
+      }
+    }
+  }
+}
+function updateCabinTrends(stale) {
+  for (const [metric, view] of cabinTrendViews) {
+    const marks = [...(thresholdMarks.get(metric) ?? [])].sort((a, b) => a - b);
+    drawTrend(view.svg, histories.get(`cabin:${metric}`) ?? [], stale, { name: LABELS.metric[metric], marks });
+  }
+}
 function updateCabin(stale) {
   const cabin = frame?.cabin;
   const state = stale ? "unknown" : cabin?.status ?? "unknown";
@@ -329,6 +370,7 @@ function updateCabin(stale) {
   tone(badge, state);
   badge.textContent = stale ? "? NO DATA" : LABELS.status[state];
   for (const [metric, view] of cabinViews) updateReading(view, cabin?.[metric], stale);
+  updateCabinTrends(stale);
   const cabinStamp = document.getElementById("cabin-time");
   const cabinTs = !stale && cabin?.pp_o2?.ts;
   cabinStamp.textContent = cabinTs ? `Measured ${formatClock(cabinTs)} · SIMULATED` : "Measured: no data";
@@ -480,6 +522,17 @@ function updateClock() {
     : invalidPacket ? "NO DATA · Telemetry packet unreadable; waiting for a valid packet."
     : "NO DATA · Waiting for current telemetry. Old readings are never treated as normal.";
 }
+function recordHistory(key, incoming, reading, interrupted) {
+  const history = histories.get(key) ?? [];
+  if (interrupted && history.length) history.push({ tick: incoming.tick - 0.5, value: null, baseline: null });
+  const valid = validReading(reading);
+  history.push({
+    tick: incoming.tick,
+    value: valid ? reading.value : null,
+    baseline: valid && numeric(reading.baseline_delta) ? reading.value - reading.baseline_delta : null,
+  });
+  histories.set(key, history.filter(entry => entry.tick > incoming.tick - HISTORY_TICKS));
+}
 function acceptFrame(incoming) {
   // The full schema belongs to the backend; a malformed or other-version packet must never look normal.
   if (!incoming || incoming.contract_version !== "0.2.0" || !Number.isInteger(incoming.tick)
@@ -489,7 +542,7 @@ function acceptFrame(incoming) {
     invalidPacket = true; render(); return;
   }
   const interrupted = packetStale();
-  if (previousTick !== null && incoming.tick <= previousTick) histories.clear();
+  if (previousTick !== null && incoming.tick <= previousTick) { histories.clear(); thresholdMarks.clear(); }
   const previousIds = new Set(frame?.alerts.map(alert => alert.id) ?? []);
   for (const [id, firstSeen] of freshAlertIds) {
     if (performance.now() - firstSeen >= ALERT_HIGHLIGHT_MS) freshAlertIds.delete(id);
@@ -497,18 +550,9 @@ function acceptFrame(incoming) {
   for (const alert of incoming.alerts) {
     if (!previousIds.has(alert.id)) freshAlertIds.set(alert.id, performance.now());
   }
-  for (const member of incoming.crew) {
-    const history = histories.get(member.id) ?? [];
-    if (interrupted && history.length) history.push({ tick: incoming.tick - 0.5, value: null, baseline: null });
-    const reading = member.vitals.heart_rate;
-    const valid = validReading(reading);
-    history.push({
-      tick: incoming.tick,
-      value: valid ? reading.value : null,
-      baseline: valid && numeric(reading.baseline_delta) ? reading.value - reading.baseline_delta : null,
-    });
-    histories.set(member.id, history.filter(entry => entry.tick > incoming.tick - HISTORY_TICKS));
-  }
+  for (const member of incoming.crew) recordHistory(member.id, incoming, member.vitals.heart_rate, interrupted);
+  for (const metric of CABIN_TREND_METRICS) recordHistory(`cabin:${metric}`, incoming, incoming.cabin[metric], interrupted);
+  collectThresholdMarks(incoming.alerts);
   frame = incoming;
   previousTick = incoming.tick;
   lastReceived = performance.now();
@@ -555,6 +599,11 @@ async function start() {
     const view = createReading(metric, true);
     cabinViews.set(metric, view);
     document.getElementById("cabin-readings").append(view.root);
+  }
+  for (const metric of CABIN_TREND_METRICS) {
+    const view = createCabinTrend(metric);
+    cabinTrendViews.set(metric, view);
+    document.getElementById("cabin-trends").append(view.root);
   }
   configureTheme(); configureDemo(); render();
   clockTimer = window.setInterval(updateClock, CLOCK_INTERVAL_MS);

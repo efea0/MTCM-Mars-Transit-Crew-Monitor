@@ -123,6 +123,10 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .trend polyline { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .trend circle { fill: currentColor; }
 .trend .trend-baseline { stroke: var(--chart-baseline); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+.trend .trend-mark { stroke: var(--caution-ink); stroke-width: 1; stroke-dasharray: 1 3; fill: none; }
+.trend .trend-mark-label { fill: var(--caution-ink); }
+.cabin-trends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin-bottom: var(--space-3); }
+.cabin-trends .trend-area { margin: 0; }
 .trend .trend-axis { fill: var(--muted); font-size: 9px; stroke: none; }
 .trend .trend-axis-end { text-anchor: end; }
 .why-button { width: 100%; text-align: left; color: var(--accent-ink); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font-size: 12px; font-weight: 600; transition: background var(--transition); }
@@ -244,6 +248,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   .alerts-panel { max-height: 360px; }
 }
 @media (max-width: 600px) {
+  .cabin-trends { grid-template-columns: minmax(0, 1fr); }
   .topbar { padding: var(--space-4); gap: var(--space-4); }
   .brand { gap: var(--space-3); flex-wrap: wrap; }
   .orbit { width: 34px; height: 34px; }

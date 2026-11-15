@@ -8,6 +8,10 @@ const MOCK_GAP_DURATION_MS = 12000;
 const MOCK_MISSION_START_S = 12 * 24 * 60 * 60;
 const MOCK_SECONDS_PER_TICK = 60;
 const MOCK_ONE_WAY_DELAY_S = 720;
+const MOCK_CO2_BASE = 1.8;
+const MOCK_CO2_STEP = 0.08;
+const MOCK_CO2_WATCH_LINE = 2.5;
+const MOCK_CO2_LIMIT_LINE = 3.0;
 const MOCK_BASELINES = [
   { heart_rate: 64, spo2: 98, resp_rate: 14, core_temp: 36.7, hrv_rmssd: 48, systolic_bp: 118, diastolic_bp: 76 },
   { heart_rate: 68, spo2: 98, resp_rate: 15, core_temp: 36.8, hrv_rmssd: 51, systolic_bp: 120, diastolic_bp: 78 },
@@ -102,9 +106,12 @@ function makeFrame(tick, clock) {
   });
   const o2Active = watchDemo || actionDemo;
   const status = actionDemo ? "critical" : watchDemo ? "caution" : "nominal";
+  // Demo CO₂ rise in the same window; the two lines below are mock demo values, not clinical thresholds.
+  const co2 = o2Active ? Math.round((MOCK_CO2_BASE + (phase - 12) * MOCK_CO2_STEP) * 100) / 100 : MOCK_CO2_BASE;
+  const co2Status = co2 > MOCK_CO2_LIMIT_LINE ? "critical" : co2 > MOCK_CO2_WATCH_LINE ? "caution" : "nominal";
   const cabin = {
     pp_o2: reading("pp_o2", o2Active ? 156 - (phase - 12) : 159, ts, null, status),
-    pp_co2: reading("pp_co2", 1.8, ts), cabin_pressure: reading("cabin_pressure", 760, ts),
+    pp_co2: reading("pp_co2", co2, ts, null, co2Status), cabin_pressure: reading("cabin_pressure", 760, ts),
     cabin_temp: reading("cabin_temp", 22, ts), rel_humidity: reading("rel_humidity", 44, ts),
     radiation_dose_rate: reading("radiation_dose_rate", 1.1, ts), status,
     hours_until_o2_limit: watchDemo ? (20 - phase) / 4 : actionDemo ? 0 : null,
@@ -115,6 +122,13 @@ function makeFrame(tick, clock) {
       "MOCK: Cabin O₂ drop; the CO₂ countdown is unaffected.", cabin.pp_o2.value, null, "<",
       "MOCK: In this fixed demo step the O₂ countdown decreases, then reaches zero. The CO₂ countdown stays null. No threshold or atmosphere model is computed.",
       ts, at(12), phase - 11));
+  }
+  for (const [id, severity, line, comparator] of [["cabin-co2-watch", "caution", MOCK_CO2_WATCH_LINE, ">"],
+    ["cabin-co2-limit", "critical", MOCK_CO2_LIMIT_LINE, ">"]]) {
+    if (co2 > line) {
+      alerts.push(mockAlert(id, null, "pp_co2", severity, `MOCK: Cabin CO₂ is above the demo ${line} mmHg line.`,
+        co2, line, comparator, "MOCK: Demo threshold shown only so the cabin trend can draw its line.", ts, at(12), phase - 11));
+    }
   }
   return { contract_version: CONTRACT_VERSION, tick, ts,
     mission_elapsed_s: MOCK_MISSION_START_S + tick * MOCK_SECONDS_PER_TICK,
