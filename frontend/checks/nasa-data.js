@@ -156,10 +156,10 @@ for (const [width,height] of [[1920,1080],[400,300]]) {
       const open = doc.getElementById("nasa-trigger"); const rect = open.getBoundingClientRect();
       assert(rect.width > 0 && rect.right <= width, "Trigger off screen");
       open.click();
-      for (let attempt=0; attempt<100 && !doc.querySelector(".nasa-table tbody tr"); attempt++) await new Promise(resolve => setTimeout(resolve,20));
+      for (let attempt=0; attempt<100 && !doc.querySelector("#nasa-data .nasa-table tbody tr"); attempt++) await new Promise(resolve => setTimeout(resolve,20));
       const modal = doc.getElementById("nasa-data");
       assert(modal.open && modal.scrollWidth <= modal.clientWidth, "Modal horizontal overflow");
-      assert(doc.querySelectorAll(".nasa-table-wrap").length === 3, "Reference groups not loaded");
+      assert(doc.querySelectorAll("#nasa-data .nasa-table-wrap").length === 3, "Reference groups not loaded");
       doc.querySelector('[aria-label="Close NASA data and limits"]').click();
       assert(!modal.open, "Cannot close reference view");
       const personButtons = doc.querySelectorAll(".crew-detail-button");
