@@ -1,4 +1,6 @@
 import { createDecisionBand } from "./decisions.js";
+import { createSession, validFrame } from "./session.js";
+import { createCrewDetail } from "./crew-detail.js";
 
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
@@ -58,6 +60,7 @@ const valueTweens = new WeakMap();
 const crewViews = new Map();
 const alertViews = new Map();
 const histories = new Map();
+const session = createSession();
 const freshAlertIds = new Map();
 const cabinViews = new Map();
 const earthViews = new Map();
@@ -231,9 +234,23 @@ function createCrew(index) {
     why.setAttribute("aria-expanded", String(!evidence.hidden));
   });
   const stamp = el("time", "reading-time", "Reading: no data");
-  root.append(header, deviation, primary, secondary, trendArea, stamp, why, evidence);
+  const details = el("button", "crew-detail-button", "View details & history ↗");
+  details.type = "button";
+  details.setAttribute("aria-haspopup", "dialog");
+  details.setAttribute("aria-controls", "crew-detail");
+  const openDetails = () => {
+    const member = frame?.crew[index];
+    if (member) crewDetail.open(member.id, details);
+  };
+  details.addEventListener("click", openDetails);
+  root.addEventListener("click", event => {
+    if (!event.target.closest("button, a, summary, .crew-evidence") && !window.getSelection()?.toString()) openDetails();
+  });
+  const actions = el("div", "crew-card-actions");
+  actions.append(details, why);
+  root.append(header, deviation, primary, secondary, trendArea, stamp, actions, evidence);
   tone(root, "unknown");
-  return { root, name, role, decision, activity, deviation, readings, trend, stamp, evidence, why, evidenceKey: null };
+  return { root, name, role, decision, activity, deviation, readings, trend, stamp, evidence, why, details, evidenceKey: null };
 }
 function svgNode(tag, attributes, text = "") {
   const node = document.createElementNS(SVG_NS, tag);
@@ -335,6 +352,8 @@ function updateCrew(stale) {
     tone(view.root, DECISION_TONE[decision]);
     tone(view.decision, DECISION_TONE[decision]);
     view.name.textContent = crewText(member?.name) ?? `Crew ${index + 1}`;
+    view.details.disabled = !member;
+    view.details.setAttribute("aria-label", `View details for ${member?.name ?? `Crew ${index + 1}`}`);
     view.role.textContent = member?.role ?? "Waiting for role";
     view.decision.textContent = stale ? "? NO DATA" : LABELS.decision[decision] ?? LABELS.decision.unknown;
     view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}`;
@@ -521,6 +540,7 @@ function render() {
   document.getElementById("mission_elapsed_s").classList.toggle("muted", stale);
   updateCrew(stale); updateCabin(stale); updateAlerts(stale); updateEarth(stale);
   decisionBand.update(frame, stale);
+  crewDetail.update(stale);
   wasStale = stale;
   updateClock();
 }
@@ -535,6 +555,10 @@ const decisionBand = createDecisionBand({
     statusLabel: severity => LABELS.status[severity] ?? LABELS.status.unknown,
     setTone: tone,
   },
+});
+const crewDetail = createCrewDetail({
+  session, labels: LABELS, format: number, evidenceList,
+  decisionTone: decision => DECISION_TONE[decision] ?? "unknown",
 });
 function updateClock() {
   const stale = packetStale();
@@ -569,14 +593,21 @@ function recordHistory(key, incoming, reading, interrupted) {
   histories.set(key, history.filter(entry => entry.tick > incoming.tick - HISTORY_TICKS));
 }
 function acceptFrame(incoming) {
-  if (!incoming || incoming.contract_version !== "0.2.0" || !Number.isInteger(incoming.tick)
-    || !Array.isArray(incoming.crew) || incoming.crew.length !== CREW_SIZE
-    || !incoming.cabin || !Array.isArray(incoming.alerts)
-    || incoming.crew.some(member => !member?.vitals || !member.id)) {
+  if (!validFrame(incoming)) {
     invalidPacket = true; render(); return;
   }
   const interrupted = packetStale();
-  if (previousTick !== null && incoming.tick <= previousTick) { histories.clear(); thresholdMarks.clear(); }
+  const duplicate = frame?.scenario === incoming.scenario && frame?.tick === incoming.tick && frame?.ts === incoming.ts;
+  if (duplicate) {
+    lastReceived = performance.now();
+    invalidPacket = false;
+    transportState = "open";
+    if (interrupted) render();
+    return;
+  }
+  const reset = frame?.scenario !== incoming.scenario || (previousTick !== null && incoming.tick <= previousTick);
+  if (reset && frame) { histories.clear(); thresholdMarks.clear(); }
+  session.ingest(incoming, { live: true });
   const previousIds = new Set(frame?.alerts.map(alert => alert.id) ?? []);
   for (const [id, firstSeen] of freshAlertIds) {
     if (performance.now() - firstSeen >= ALERT_HIGHLIGHT_MS) freshAlertIds.delete(id);
@@ -634,6 +665,23 @@ function configureDemo() {
     buttons.append(button);
   }
 }
+async function loadRecentHistory(loader) {
+  try {
+    const payload = await loader();
+    if (!payload || typeof payload.scenario !== "string" || !Array.isArray(payload.frames)
+      || payload.frames.some(item => !validFrame(item) || item.scenario !== payload.scenario)) throw new Error("Invalid history");
+    session.hydrate(payload);
+    const recent = session.frames;
+    for (const incoming of recent.slice(0, -1)) {
+      for (const member of incoming.crew) recordHistory(member.id, incoming, member.vitals.heart_rate, false);
+      for (const metric of CABIN_TREND_METRICS) recordHistory(`cabin:${metric}`, incoming, incoming.cabin[metric], false);
+    }
+    if (session.latest) acceptFrame(session.latest);
+    crewDetail.historyStatus(recent.length ? "" : "No earlier frames available yet. New readings will appear live.");
+  } catch {
+    crewDetail.historyStatus("Recent history unavailable. Recording live readings from this page onward.");
+  }
+}
 async function start() {
   for (let index = 0; index < CREW_SIZE; index += 1) {
     const view = createCrew(index);
@@ -655,10 +703,18 @@ async function start() {
   if (mockMode) {
     document.getElementById("source-label").textContent = "LOCAL MOCK · Decisions are fixed demo examples";
     try {
-      const { startMock } = await import("./mock.js");
+      const { startMock, mockHistory } = await import("./mock.js");
+      await loadRecentHistory(() => mockHistory(120));
       stopMock = startMock(acceptFrame);
     } catch { transportState = "closed"; invalidPacket = true; render(); }
   } else {
+    await loadRecentHistory(async () => {
+      const response = await fetch("/api/history?limit=120", {
+        signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
+      });
+      if (!response.ok) throw new Error("History unavailable");
+      return response.json();
+    });
     connectStream();
   }
 }

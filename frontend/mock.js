@@ -17,9 +17,9 @@ const MOCK_BASELINES = [
   { heart_rate: 67, spo2: 98, resp_rate: 15, core_temp: 36.7, hrv_rmssd: 46, systolic_bp: 121, diastolic_bp: 79 },
 ];
 const MOCK_UNITS = {
-  heart_rate: "bpm", spo2: "%", resp_rate: "nefes/dk", core_temp: "°C", hrv_rmssd: "ms",
+  heart_rate: "bpm", spo2: "%", resp_rate: "breaths/min", core_temp: "°C", hrv_rmssd: "ms",
   systolic_bp: "mmHg", diastolic_bp: "mmHg", pp_o2: "mmHg", pp_co2: "mmHg",
-  cabin_pressure: "mmHg", cabin_temp: "°C", rel_humidity: "%", radiation_dose_rate: "µGy/saat",
+  cabin_pressure: "mmHg", cabin_temp: "°C", rel_humidity: "%", radiation_dose_rate: "µGy/h",
 };
 const MOCK_CREW = [
   { name: "Neil Armsted", role: "Commander" }, { name: "Sally Ryder", role: "Flight Engineer" },
@@ -134,9 +134,18 @@ function makeFrame(tick, clock) {
     simulated: true, crew, cabin, alerts, comms_one_way_delay_s: MOCK_ONE_WAY_DELAY_S,
     messages: mockMessages(tick, phase, at) };
 }
+const MOCK_CLOCK = Date.now();
+const MOCK_START_TICK = 17;
+
+export function mockHistory(limit = 120) {
+  const last = makeFrame(MOCK_START_TICK - 1, MOCK_CLOCK);
+  const frames = Array.from({ length: MOCK_START_TICK }, (_, tick) => makeFrame(tick, MOCK_CLOCK))
+    .filter(frame => frame.scenario === last.scenario).slice(-Math.max(1, Math.min(400, limit)));
+  return { scenario: last.scenario, frames };
+}
 export function startMock(onFrame) {
-  const clock = Date.now();
-  let tick = 0;
+  const clock = MOCK_CLOCK;
+  let tick = MOCK_START_TICK;
   let stopped = false;
   let timer = null;
   function emit() {
