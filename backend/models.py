@@ -76,7 +76,7 @@ class Metric(str, Enum):
     heart_rate = "heart_rate"  # bpm
     hrv_rmssd = "hrv_rmssd"  # ms
     spo2 = "spo2"  # %
-    resp_rate = "resp_rate"  # nefes/dk
+    resp_rate = "resp_rate"  # breaths/min
     core_temp = "core_temp"  # °C
     systolic_bp = "systolic_bp"  # mmHg
     diastolic_bp = "diastolic_bp"  # mmHg
@@ -86,7 +86,7 @@ class Metric(str, Enum):
     cabin_pressure = "cabin_pressure"  # mmHg
     cabin_temp = "cabin_temp"  # °C
     rel_humidity = "rel_humidity"  # %
-    radiation_dose_rate = "radiation_dose_rate"  # µGy/saat
+    radiation_dose_rate = "radiation_dose_rate"  # µGy/h
     pio2 = "pio2"  # mmHg, solunan O₂ kısmi basıncı (kabin pp_o2'den türetilir)
     # kişi bazlı radyasyon (simüle)
     event_dose = "event_dose"  # mSv, aktif güneş parçacık olayında alınan doz
@@ -97,7 +97,7 @@ METRIC_UNITS: dict[Metric, str] = {
     Metric.heart_rate: "bpm",
     Metric.hrv_rmssd: "ms",
     Metric.spo2: "%",
-    Metric.resp_rate: "nefes/dk",
+    Metric.resp_rate: "breaths/min",
     Metric.core_temp: "°C",
     Metric.systolic_bp: "mmHg",
     Metric.diastolic_bp: "mmHg",
@@ -106,7 +106,7 @@ METRIC_UNITS: dict[Metric, str] = {
     Metric.cabin_pressure: "mmHg",
     Metric.cabin_temp: "°C",
     Metric.rel_humidity: "%",
-    Metric.radiation_dose_rate: "µGy/saat",
+    Metric.radiation_dose_rate: "µGy/h",
     Metric.pio2: "mmHg",
     Metric.event_dose: "mSv",
 }
