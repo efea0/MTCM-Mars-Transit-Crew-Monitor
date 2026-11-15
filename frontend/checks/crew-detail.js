@@ -1,5 +1,6 @@
 import { createSession, metricSeries, chartEvents, sessionCsv, CHART_FRAME_LIMIT } from "../session.js";
 import { drawDetailChart, createCrewDetail } from "../crew-detail.js";
+import { setText, svgRenderer, chartRange, resetChartRange } from "../ui.js";
 import { mockHistory } from "../mock.js";
 
 const results = [];
@@ -29,6 +30,35 @@ function chart(frames) {
   drawDetailChart(svg, metricSeries(frames, "crew-1", "heart_rate"), chartEvents(frames, "crew-1"), String);
   return svg;
 }
+check("Unchanged text preserves its existing text node", () => {
+  const node = document.createElement("span"); node.textContent = "Stable";
+  const text = node.firstChild; setText(node, "Stable");
+  assert(node.firstChild === text, "Unchanged text was recreated");
+});
+check("SVG updates preserve existing paths and remove obsolete markers", () => {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  let paint = svgRenderer(svg);
+  const path = paint.node("path", "polyline", { points: "0,0 1,1" });
+  paint.node("old-event", "line", { x1: 0, x2: 0 }); paint.finish();
+  paint = svgRenderer(svg);
+  const next = paint.node("path", "polyline", { points: "0,1 1,2" }); paint.finish();
+  assert(path === next && svg.children.length === 1 && path.getAttribute("points") === "0,1 1,2", "SVG churn or obsolete marker");
+});
+check("Chart ranges stay stable for noise and reset for a new session", () => {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  chartRange(svg, [60, 100], 0);
+  const stable = chartRange(svg, [70, 80], 1);
+  assert(stable.minimum === 60 && stable.maximum === 100, "Axis shrank with every sample");
+  resetChartRange(svg);
+  const reset = chartRange(svg, [70, 80], 0);
+  assert(reset.minimum === 70 && reset.maximum === 80, "New person/session kept the old range");
+});
+check("Detail charts reuse their measurement path when telemetry changes", () => {
+  const svg = chart([frame(0), frame(1)]);
+  const path = svg.querySelector(".detail-measurement");
+  drawDetailChart(svg, metricSeries([frame(0), frame(1), frame(2)], "crew-1", "heart_rate"), [], String);
+  assert(svg.querySelector(".detail-measurement") === path, "Live update replaced the SVG path");
+});
 check("Late join loads ordered history and deduplicates the first SSE frame", () => {
   const session = createSession();
   assert(session.hydrate({ scenario: "nominal", frames: [frame(2), frame(0), frame(1)] }), "History not loaded");

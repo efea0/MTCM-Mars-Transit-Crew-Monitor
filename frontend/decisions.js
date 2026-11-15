@@ -1,3 +1,5 @@
+import { setText } from "./ui.js";
+
 /** Decision-first band: every non-normal decision and cabin alert in one row above the fold.
  *
  * Data comes from the telemetry frame only; nothing here invents thresholds or text. The whole alert
@@ -91,22 +93,26 @@ export function createDecisionBand({ list, note, helpers }) {
   function updateView(view, item) {
     helpers.setTone(view.root, item.tone);
     helpers.setTone(view.badge, item.tone);
-    view.owner.textContent = item.owner;
-    view.badge.textContent = item.badge;
-    view.message.textContent = item.message;
+    setText(view.owner, item.owner);
+    setText(view.badge, item.badge);
+    setText(view.message, item.message);
     // The sentence may be clipped on short screens; keep the full text in the tooltip.
     view.message.title = item.message;
-    view.meta.textContent = item.meta;
+    setText(view.meta, item.meta);
     view.meta.hidden = !item.meta;
     const key = JSON.stringify(item.notes);
     if (key !== view.notesKey) {
       view.notesKey = key;
-      view.why.replaceChildren(...item.notes.map(text => {
-        const chip = document.createElement("li");
-        chip.className = "decision-note";
-        chip.textContent = text;
-        return chip;
-      }));
+      while (view.why.children.length > item.notes.length) view.why.lastElementChild.remove();
+      item.notes.forEach((text, index) => {
+        let chip = view.why.children[index];
+        if (!chip) {
+          chip = document.createElement("li");
+          chip.className = "decision-note";
+          view.why.append(chip);
+        }
+        setText(chip, text);
+      });
       view.why.hidden = item.notes.length === 0;
     }
   }

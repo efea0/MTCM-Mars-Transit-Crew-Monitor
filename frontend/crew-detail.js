@@ -1,3 +1,4 @@
+import { setText, svgRenderer, chartRange, resetChartRange } from "./ui.js";
 import { VITAL_METRICS, finite, usable, metricSeries, chartEvents, sessionCsv } from "./session.js";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -23,24 +24,24 @@ function svgNode(tag, attributes, text = "") {
 const clock = time => new Date(time).toISOString().slice(5, 19).replace("T", " ");
 
 export function drawDetailChart(svg, series, events, format) {
-  svg.replaceChildren();
+  const paint = svgRenderer(svg);
   const values = series.flatMap(point => [point.value, point.baseline]).filter(finite);
   if (!values.length) {
-    svg.append(svgNode("text", { x: LEFT, y: HEIGHT / 2, class: "detail-axis" }, "No valid readings in this window"));
+    paint.node("empty", "text", { x: LEFT, y: HEIGHT / 2, class: "detail-axis" }, "No valid readings in this window");
+    paint.finish();
     return;
   }
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
+  const { minimum, maximum } = chartRange(svg, values, series.at(-1).tick);
   const firstTime = series[0].time;
   const lastTime = series.at(-1).time;
   const x = time => firstTime === lastTime ? (LEFT + RIGHT) / 2 : LEFT + (time - firstTime) / (lastTime - firstTime) * (RIGHT - LEFT);
   const y = value => maximum === minimum ? (TOP + BOTTOM) / 2 : BOTTOM - (value - minimum) / (maximum - minimum) * (BOTTOM - TOP);
-  for (const value of new Set([minimum, maximum])) {
-    svg.append(svgNode("line", { x1: LEFT, x2: RIGHT, y1: y(value), y2: y(value), class: "detail-gridline" }),
-      svgNode("text", { x: LEFT - 6, y: y(value) + 4, "text-anchor": "end", class: "detail-axis" }, format(value)));
-  }
-  svg.append(svgNode("text", { x: LEFT, y: HEIGHT - 6, class: "detail-axis" }, `${clock(firstTime)} UTC`),
-    svgNode("text", { x: RIGHT, y: HEIGHT - 6, "text-anchor": "end", class: "detail-axis" }, `${clock(lastTime)} UTC`));
+  [...new Set([minimum, maximum])].forEach((value, index) => {
+    paint.node(`grid:${index}`, "line", { x1: LEFT, x2: RIGHT, y1: y(value), y2: y(value), class: "detail-gridline" });
+    paint.node(`axis:${index}`, "text", { x: LEFT - 6, y: y(value) + 4, "text-anchor": "end", class: "detail-axis" }, format(value));
+  });
+  paint.node("start", "text", { x: LEFT, y: HEIGHT - 6, class: "detail-axis" }, `${clock(firstTime)} UTC`);
+  paint.node("end", "text", { x: RIGHT, y: HEIGHT - 6, "text-anchor": "end", class: "detail-axis" }, `${clock(lastTime)} UTC`);
 
   function segments(field) {
     const parts = [];
@@ -57,21 +58,24 @@ export function drawDetailChart(svg, series, events, format) {
     if (current.length) parts.push(current);
     return parts;
   }
-  for (const part of segments("baseline")) {
+  segments("baseline").forEach((part, index) => {
     const points = part.map(point => `${x(point.time)},${y(point.baseline)}`).join(" ");
-    svg.append(svgNode("polyline", { points, class: "detail-baseline-band" }),
-      svgNode("polyline", { points, class: "detail-baseline" }));
-  }
+    paint.node(`baseline-band:${index}`, "polyline", { points, class: "detail-baseline-band" });
+    paint.node(`baseline:${index}`, "polyline", { points, class: "detail-baseline" });
+  });
   for (const event of events.filter(item => item.time >= firstTime && item.time <= lastTime)) {
-    const line = svgNode("line", { x1: x(event.time), x2: x(event.time), y1: TOP, y2: BOTTOM,
-      class: `detail-marker detail-marker-${event.kind}`, "data-kind": event.kind });
-    line.append(svgNode("title", {}, `${clock(event.time)} UTC · ${event.label}`));
-    svg.append(line);
+    const line = paint.node(`event:${event.kind}:${event.time}:${event.label}`, "line", {
+      x1: x(event.time), x2: x(event.time), y1: TOP, y2: BOTTOM,
+      class: `detail-marker detail-marker-${event.kind}`, "data-kind": event.kind,
+    });
+    if (!line.firstElementChild) line.append(svgNode("title", {}));
+    setText(line.firstElementChild, `${clock(event.time)} UTC · ${event.label}`);
   }
-  for (const part of segments("value")) {
-    svg.append(svgNode("polyline", { points: part.map(point => `${x(point.time)},${y(point.value)}`).join(" "), class: "detail-measurement" }));
-    if (part.length === 1) svg.append(svgNode("circle", { cx: x(part[0].time), cy: y(part[0].value), r: 2.5, class: "detail-point" }));
-  }
+  segments("value").forEach((part, index) => {
+    paint.node(`measurement:${index}`, "polyline", { points: part.map(point => `${x(point.time)},${y(point.value)}`).join(" "), class: "detail-measurement" });
+    if (part.length === 1) paint.node(`point:${index}`, "circle", { cx: x(part[0].time), cy: y(part[0].value), r: 2.5, class: "detail-point" });
+  });
+  paint.finish();
 }
 
 export function createCrewDetail({ session, labels, format, evidenceList, decisionTone }) {
@@ -86,6 +90,12 @@ export function createCrewDetail({ session, labels, format, evidenceList, decisi
   const count = document.getElementById("detail-count");
   const download = document.getElementById("download-session");
   const views = new Map();
+  const eventViews = new Map();
+  const evidenceLabel = element("p", "detail-kicker");
+  const evidenceMessage = element("p", "detail-alert-message");
+  const evidenceRows = evidenceList([]);
+  evidence.append(evidenceLabel, evidenceMessage, evidenceRows);
+  let seriesKey = null;
   let crewId = null;
   let revision = -1;
   let oldStale = null;
@@ -120,8 +130,8 @@ export function createCrewDetail({ session, labels, format, evidenceList, decisi
     const frames = session.chartFrames;
     const latest = session.latest;
     const member = latest?.crew.find(person => person.id === crewId);
-    title.textContent = member?.name ?? "Crew member unavailable";
-    subtitle.textContent = `${member?.role ?? "Unknown role"} · ${labels.activity[member?.activity] ?? "Unknown activity"}`;
+    setText(title, member?.name ?? "Crew member unavailable");
+    setText(subtitle, `${member?.role ?? "Unknown role"} · ${labels.activity[member?.activity] ?? "Unknown activity"}`);
     badge.dataset.tone = unavailable ? "unknown" : decisionTone(member?.decision);
     badge.textContent = unavailable ? "? Unknown · no current data" : labels.decision[member?.decision] ?? labels.decision.unknown;
     notice.textContent = unavailable
@@ -131,29 +141,56 @@ export function createCrewDetail({ session, labels, format, evidenceList, decisi
     count.textContent = `${frames.length} chart frames · ${session.archive.length} session frames · SIMULATED DATA`;
     download.disabled = session.archive.length === 0;
     const events = chartEvents(frames, crewId);
+    const nextSeriesKey = `${session.scenario}:${crewId}`;
+    if (seriesKey !== nextSeriesKey) {
+      for (const view of views.values()) resetChartRange(view.svg);
+      seriesKey = nextSeriesKey;
+    }
     for (const [metric, view] of views) {
       const reading = member?.vitals[metric];
       const valid = !unavailable && usable(reading);
       view.card.dataset.tone = valid ? reading.status : "unknown";
-      view.value.textContent = valid ? `${format(reading.value)} ${reading.unit ?? ""}` : "no data";
+      setText(view.value, valid ? `${format(reading.value)} ${reading.unit ?? ""}` : "no data");
       view.status.textContent = valid ? labels.status[reading.status] ?? labels.status.unknown
         : `Unknown · ${unavailable ? "current data unavailable" : labels.quality[reading?.quality] ?? "missing"}`;
       drawDetailChart(view.svg, metricSeries(frames, crewId, metric), events, format);
     }
     const lastAlert = session.latestAlert(crewId);
-    evidence.replaceChildren();
     if (lastAlert) {
       const active = latest.alerts.some(alert => alert.id === lastAlert.id && alert.crew_id === crewId);
       const state = unavailable ? "Last recorded alert · current state unknown" : active ? "Latest active alert" : "Last recorded alert · cleared";
-      evidence.append(element("p", "detail-kicker", state), element("p", "detail-alert-message", lastAlert.message), evidenceList(lastAlert.why));
-    } else evidence.append(element("p", "empty-state", member?.decision === "unknown" || unavailable
-      ? "Insufficient data for a current decision. No recorded alert for this person." : "No recorded alerts for this person."));
+      setText(evidenceLabel, state);
+      setText(evidenceMessage, lastAlert.message);
+      evidenceMessage.hidden = false;
+      evidenceRows.hidden = false;
+      evidenceList(lastAlert.why, evidenceRows);
+    } else {
+      setText(evidenceLabel, member?.decision === "unknown" || unavailable
+        ? "Insufficient data for a current decision. No recorded alert for this person." : "No recorded alerts for this person.");
+      evidenceMessage.hidden = true;
+      evidenceRows.hidden = true;
+    }
     const recent = events.slice(-8).reverse();
-    markers.replaceChildren(...recent.map(event => {
-      const row = element("li", `detail-event detail-event-${event.kind}`);
-      row.append(element("time", "", `${clock(event.time)} UTC`), element("span", "", event.label));
-      return row;
-    }));
+    const keys = new Set(recent.map(event => `${event.kind}:${event.time}:${event.label}`));
+    for (const [key, view] of eventViews) {
+      if (!keys.has(key)) { view.root.remove(); eventViews.delete(key); }
+    }
+    if (markers.firstElementChild?.className === "empty-state") markers.firstElementChild.remove();
+    recent.forEach((event, index) => {
+      const key = `${event.kind}:${event.time}:${event.label}`;
+      let view = eventViews.get(key);
+      if (!view) {
+        const root = element("li", `detail-event detail-event-${event.kind}`);
+        const time = element("time", "");
+        const text = element("span", "");
+        root.append(time, text);
+        view = { root, time, text };
+        eventViews.set(key, view);
+      }
+      setText(view.time, `${clock(event.time)} UTC`);
+      setText(view.text, event.label);
+      if (markers.children[index] !== view.root) markers.insertBefore(view.root, markers.children[index] ?? null);
+    });
     if (!recent.length) markers.append(element("li", "empty-state", "No activity changes or alert onsets in this window."));
   }
   function schedule() {
@@ -174,7 +211,7 @@ export function createCrewDetail({ session, labels, format, evidenceList, decisi
     document.body.classList.remove("detail-open");
     if (animation !== null) cancelAnimationFrame(animation);
     animation = null;
-    returnFocus?.focus();
+    returnFocus?.focus({ preventScroll: true });
   });
   download.addEventListener("click", () => {
     const blob = new Blob(["\ufeff", ...sessionCsv(session.archive)], { type: "text/csv;charset=utf-8" });

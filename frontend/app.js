@@ -1,3 +1,4 @@
+import { setText, svgRenderer, chartRange, resetChartRange } from "./ui.js";
 import { createDecisionBand } from "./decisions.js";
 import { createSession, validFrame } from "./session.js";
 import { createCrewDetail } from "./crew-detail.js";
@@ -23,7 +24,6 @@ const TREND_LEFT = 34;
 const TREND_RIGHT = 4;
 const TREND_TOP = 8;
 const TREND_BOTTOM = 16;
-const VALUE_TWEEN_MS = 350;
 const THEME_KEY = "theme";
 const ALERT_HIGHLIGHT_MS = 1600;
 const LABELS = {
@@ -52,11 +52,11 @@ const CABIN_TREND_METRICS = ["pp_co2", "pp_o2"];
 const DECISION_TONE = { normal: "nominal", watch: "caution", action: "critical", unknown: "unknown" };
 const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
 const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+const readingFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const params = new URLSearchParams(window.location.search);
 const mockMode = params.get("mock") === "1";
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
-const valueTweens = new WeakMap();
 const crewViews = new Map();
 const alertViews = new Map();
 const histories = new Map();
@@ -100,21 +100,7 @@ function formatClock(iso) {
   return Number.isNaN(time.getTime()) ? "—" : `${time.toISOString().slice(11, 19)}Z`;
 }
 function showValue(node, value) {
-  const running = valueTweens.get(node);
-  if (running) cancelAnimationFrame(running);
-  valueTweens.delete(node);
-  const previous = node.dataset.value === undefined ? null : Number(node.dataset.value);
-  if (!numeric(value)) { node.textContent = "no data"; delete node.dataset.value; return; }
-  node.dataset.value = String(value);
-  if (reducedMotion.matches || !numeric(previous) || previous === value) { node.textContent = number(value); return; }
-  const start = performance.now();
-  const step = now => {
-    const progress = Math.min(1, (now - start) / VALUE_TWEEN_MS);
-    node.textContent = number(previous + (value - previous) * (1 - (1 - progress) ** 3));
-    if (progress < 1) valueTweens.set(node, requestAnimationFrame(step));
-    else valueTweens.delete(node);
-  };
-  valueTweens.set(node, requestAnimationFrame(step));
+  setText(node, numeric(value) ? readingFormat.format(value) : "no data");
 }
 function currentTheme() {
   return document.documentElement.dataset.theme ?? (lightQuery.matches ? "light" : "dark");
@@ -170,9 +156,11 @@ function createReading(metric, secondary = false, baseline = false) {
   quality.hidden = true;
   root.append(label, output);
   if (baseline) root.append(delta);
-  root.append(status, quality);
+  const state = el("div", "reading-state");
+  state.append(status, quality);
+  root.append(state);
   tone(root, "unknown");
-  return { root, value, unit, delta, status, quality };
+  return { root, value, unit, delta, status, quality, state };
 }
 function updateReading(view, reading, stale, unknownDecision = false) {
   const usable = !stale && validReading(reading);
@@ -182,14 +170,16 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   view.root.title = usable ? `${LABELS.metric[view.root.dataset.metric]} · ${formatClock(reading.ts)}` : "";
   view.value.classList.toggle("no-value", !usable);
   const unit = Object.hasOwn(UNIT_LABELS, reading?.unit) ? UNIT_LABELS[reading.unit] : reading?.unit;
-  view.unit.textContent = usable ? unit : "";
-  view.status.textContent = LABELS.status[state] ?? LABELS.status.unknown;
+  setText(view.unit, usable ? unit : "");
+  setText(view.status, LABELS.status[state] ?? LABELS.status.unknown);
   const delta = usable && numeric(reading.baseline_delta) ? reading.baseline_delta : null;
-  view.delta.textContent = delta === null ? "Compared with baseline: —"
-    : `${delta < 0 ? "−" : "+"}${number(Math.abs(delta))} ${unit} compared with baseline`;
+  setText(view.delta, delta === null ? "Baseline: no data"
+    : `Δ ${delta < 0 ? "−" : "+"}${readingFormat.format(Math.abs(delta))} ${unit}`);
+  view.delta.title = delta === null ? "Personal baseline unavailable" : `${view.delta.textContent} compared with personal baseline`;
   const quality = stale ? "stale" : reading?.quality ?? "missing";
+  view.state.dataset.quality = quality;
   view.quality.hidden = quality === "ok";
-  view.quality.textContent = LABELS.quality[quality] ?? "missing";
+  setText(view.quality, LABELS.quality[quality] ?? "missing");
 }
 function createCrew(index) {
   const root = el("article", "crew-card");
@@ -250,55 +240,47 @@ function createCrew(index) {
   actions.append(details, why);
   root.append(header, deviation, primary, secondary, trendArea, stamp, actions, evidence);
   tone(root, "unknown");
-  return { root, name, role, decision, activity, deviation, readings, trend, stamp, evidence, why, details, evidenceKey: null };
-}
-function svgNode(tag, attributes, text = "") {
-  const node = document.createElementNS(SVG_NS, tag);
-  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
-  if (text) node.textContent = text;
-  return node;
+  return { root, name, role, decision, activity, deviation, readings, trend, stamp, evidence, why, details, evidenceBlocks: new Map() };
 }
 function markLabel(value) { return Number.isInteger(value * 10) ? value.toFixed(1) : value.toFixed(2); }
 // marks: horizontal reference lines whose values come from alert evidence (never hard-coded here).
 function drawTrend(svg, entries, unavailable, { name = "Heart-rate", marks = [] } = {}) {
-  svg.replaceChildren();
+  const paint = svgRenderer(svg);
   const values = unavailable ? [] : entries.filter(entry => numeric(entry.value));
   const baseline = [...entries].reverse().find(entry => numeric(entry.baseline))?.baseline ?? null;
   svg.setAttribute("aria-label", values.length
     ? `${name} trend${numeric(baseline) ? ", dashed line is the personal baseline" : ""}${marks.length ? ", dotted lines mark alert thresholds" : ""}, gaps are missing readings`
     : `${name} trend: no data`);
-  if (!values.length) return;
+  if (!values.length) { paint.finish(); return; }
   const all = [...values.map(entry => entry.value), ...marks, ...(numeric(baseline) ? [baseline] : [])];
-  const minimum = Math.min(...all);
-  const maximum = Math.max(...all);
+  const { minimum, maximum } = chartRange(svg, all, entries.at(-1).tick);
   const span = maximum - minimum;
   const left = TREND_LEFT;
   const right = TREND_WIDTH - TREND_RIGHT;
   const top = TREND_TOP;
   const bottom = TREND_HEIGHT - TREND_BOTTOM;
   const yOf = value => (span === 0 ? (top + bottom) / 2 : bottom - (value - minimum) / span * (bottom - top));
-  const label = value => number(value);
-  svg.append(svgNode("text", { x: left - 3, y: top + 3, class: "trend-axis trend-axis-end" }, label(maximum)),
-    svgNode("text", { x: left - 3, y: bottom, class: "trend-axis trend-axis-end" }, label(minimum)),
-    svgNode("text", { x: left, y: TREND_HEIGHT - 3, class: "trend-axis" }, `−${HISTORY_TICKS}`),
-    svgNode("text", { x: right, y: TREND_HEIGHT - 3, class: "trend-axis trend-axis-end" }, "now"));
-  if (numeric(baseline)) {
-    svg.append(svgNode("line", { x1: left, x2: right, y1: yOf(baseline), y2: yOf(baseline), class: "trend-baseline" }));
-  }
-  for (const mark of marks) {
-    svg.append(svgNode("line", { x1: left, x2: right, y1: yOf(mark), y2: yOf(mark), class: "trend-mark" }),
-      svgNode("text", { x: right, y: yOf(mark) - 2, class: "trend-axis trend-axis-end trend-mark-label" }, markLabel(mark)));
-  }
+  paint.node("max", "text", { x: left - 3, y: top + 3, class: "trend-axis trend-axis-end" }, number(maximum));
+  paint.node("min", "text", { x: left - 3, y: bottom, class: "trend-axis trend-axis-end" }, number(minimum));
+  paint.node("start", "text", { x: left, y: TREND_HEIGHT - 3, class: "trend-axis" }, `−${HISTORY_TICKS}`);
+  paint.node("end", "text", { x: right, y: TREND_HEIGHT - 3, class: "trend-axis trend-axis-end" }, "now");
+  if (numeric(baseline)) paint.node("baseline", "line", { x1: left, x2: right, y1: yOf(baseline), y2: yOf(baseline), class: "trend-baseline" });
+  marks.forEach((mark, index) => {
+    paint.node(`mark:${index}`, "line", { x1: left, x2: right, y1: yOf(mark), y2: yOf(mark), class: "trend-mark" });
+    paint.node(`mark-label:${index}`, "text", { x: right, y: yOf(mark) - 2, class: "trend-axis trend-axis-end trend-mark-label" }, markLabel(mark));
+  });
   const lastTick = entries.at(-1).tick;
   let segment = [];
   let previous = null;
+  let index = 0;
   function flush() {
     if (!segment.length) return;
-    svg.append(svgNode("polyline", { points: segment.join(" ") }));
+    paint.node(`segment:${index}`, "polyline", { points: segment.join(" ") });
     if (segment.length === 1) {
       const [x, y] = segment[0].split(",");
-      svg.append(svgNode("circle", { cx: x, cy: y, r: "2" }));
+      paint.node(`point:${index}`, "circle", { cx: x, cy: y, r: 2 });
     }
+    index += 1;
     segment = [];
   }
   for (const entry of entries) {
@@ -310,39 +292,58 @@ function drawTrend(svg, entries, unavailable, { name = "Heart-rate", marks = [] 
     previous = entry.tick;
   }
   flush();
+  paint.finish();
 }
-function evidenceList(why) {
-  const list = el("ul", "evidence-list");
-  for (const item of why ?? []) {
-    const row = el("li");
-    const values = `${item.metric} · ${item.value === null ? "no data" : number(item.value)} ${item.comparator} ${item.threshold === null ? "—" : number(item.threshold)}`;
-    const time = el("time", "evidence-time", item.ts);
+function evidenceList(why, list = el("ul", "evidence-list")) {
+  const items = why ?? [];
+  while (list.children.length > items.length) list.lastElementChild.remove();
+  items.forEach((item, index) => {
+    let row = list.children[index];
+    if (!row) {
+      row = el("li");
+      row.append(el("strong", "evidence-values"), el("p", "evidence-note"), el("time", "evidence-time"));
+      list.append(row);
+    }
+    const [values, note, time] = row.children;
+    setText(values, `${item.metric} · ${item.value === null ? "no data" : number(item.value)} ${item.comparator} ${item.threshold === null ? "—" : number(item.threshold)}`);
+    setText(note, crewText(item.note));
+    setText(time, item.ts);
     time.dateTime = item.ts;
-    row.append(el("strong", "evidence-values", values), el("p", "evidence-note", crewText(item.note)), time);
-    list.append(row);
-  }
+  });
   return list;
 }
 function crewEvidence(view, member, alerts, stale) {
-  const key = JSON.stringify([stale, member?.decision, alerts]);
-  if (view.evidenceKey === key) return;
-  view.evidenceKey = key;
-  view.evidence.replaceChildren();
-  if (stale) {
-    view.evidence.append(el("p", "empty-state", "NO DATA · Waiting for current evidence."));
-  } else if (!alerts.length) {
-    view.evidence.append(el("p", "empty-state", member.decision === "unknown"
-      ? "Insufficient data to make a decision" : "No active alerts"));
-  } else {
-    for (const alert of alerts) {
-      const block = el("section", "evidence-block");
-      const badge = el("span", "badge", LABELS.status[alert.severity]);
-      tone(badge, alert.severity);
-      block.append(badge, el("p", "alert-message", crewText(alert.message)),
-        el("p", "alert-meta", `${alert.consecutive_count} consecutive readings`), evidenceList(alert.why));
-      view.evidence.append(block);
-    }
+  if (stale || !alerts.length) {
+    const message = stale ? "NO DATA · Waiting for current evidence." : member?.decision === "unknown"
+      ? "Insufficient data to make a decision" : "No active alerts";
+    if (view.evidence.firstElementChild?.className !== "empty-state") view.evidence.replaceChildren(el("p", "empty-state"));
+    setText(view.evidence.firstElementChild, message);
+    return;
   }
+  if (view.evidence.firstElementChild?.className === "empty-state") view.evidence.firstElementChild.remove();
+  const active = new Set(alerts.map(alert => alert.id));
+  for (const [id, block] of view.evidenceBlocks) {
+    if (!active.has(id)) { block.root.remove(); view.evidenceBlocks.delete(id); }
+  }
+  alerts.forEach((alert, index) => {
+    let block = view.evidenceBlocks.get(alert.id);
+    if (!block) {
+      const root = el("section", "evidence-block");
+      const badge = el("span", "badge");
+      const message = el("p", "alert-message");
+      const meta = el("p", "alert-meta");
+      const why = evidenceList([]);
+      root.append(badge, message, meta, why);
+      block = { root, badge, message, meta, why };
+      view.evidenceBlocks.set(alert.id, block);
+    }
+    tone(block.badge, alert.severity);
+    setText(block.badge, LABELS.status[alert.severity]);
+    setText(block.message, crewText(alert.message));
+    setText(block.meta, `${alert.consecutive_count} consecutive readings`);
+    evidenceList(alert.why, block.why);
+    if (view.evidence.children[index] !== block.root) view.evidence.insertBefore(block.root, view.evidence.children[index] ?? null);
+  });
 }
 function updateCrew(stale) {
   for (let index = 0; index < CREW_SIZE; index += 1) {
@@ -465,13 +466,16 @@ function updateAlerts(stale) {
       alertViews.set(alert.id, view);
     }
     tone(view.root, alert.severity);
-    view.root.classList.toggle("new-alert", performance.now() - (freshAlertIds.get(alert.id) ?? -Infinity) < ALERT_HIGHLIGHT_MS);
+    view.root.classList.toggle("new-alert", !reducedMotion.matches && performance.now() - (freshAlertIds.get(alert.id) ?? -Infinity) < ALERT_HIGHLIGHT_MS);
     view.owner.textContent = alert.crew_id === null ? "Cabin" : crewText(frame.crew.find(member => member.id === alert.crew_id)?.name) ?? alert.crew_id;
     view.severity.textContent = LABELS.status[alert.severity];
     view.message.textContent = crewText(alert.message);
     view.meta.textContent = `${alert.consecutive_count} consecutive readings · Last: ${formatClock(alert.last_seen)}`;
     const key = JSON.stringify(alert.why);
-    if (key !== view.key) { view.body.replaceChildren(evidenceList(alert.why)); view.key = key; }
+    if (key !== view.key) {
+      if (!view.body.firstElementChild) view.body.append(evidenceList([]));
+      evidenceList(alert.why, view.body.firstElementChild); view.key = key;
+    }
     if (container.children[index] !== view.root) container.insertBefore(view.root, container.children[index] ?? null);
   });
 }
@@ -608,7 +612,11 @@ function acceptFrame(incoming) {
     return;
   }
   const reset = frame?.scenario !== incoming.scenario || (previousTick !== null && incoming.tick <= previousTick);
-  if (reset && frame) { histories.clear(); thresholdMarks.clear(); }
+  if (reset && frame) {
+    histories.clear(); thresholdMarks.clear();
+    for (const view of crewViews.values()) resetChartRange(view.trend);
+    for (const view of cabinTrendViews.values()) resetChartRange(view.svg);
+  }
   session.ingest(incoming, { live: true });
   const previousIds = new Set(frame?.alerts.map(alert => alert.id) ?? []);
   for (const [id, firstSeen] of freshAlertIds) {
