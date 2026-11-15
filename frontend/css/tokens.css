@@ -34,6 +34,8 @@
   --on-critical: #ffffff;
   --chart-baseline: #83d0d4;
   --grid-line: rgb(20 100 113 / 4%);
+  --shine: rgb(255 255 255 / 22%);
+  --lift-shadow: rgb(0 0 0 / 28%);
   --glow-strength: 0%;
   --space-1: 4px;
   --space-2: 8px;
@@ -77,6 +79,8 @@
     --on-status: #121820;
     --chart-baseline: #146471;
     --grid-line: rgb(20 100 113 / 4%);
+    --shine: rgb(255 255 255 / 22%);
+    --lift-shadow: rgb(0 0 0 / 14%);
     --glow-strength: 0%;
   }
 }
@@ -108,5 +112,7 @@
   --on-status: #121820;
   --chart-baseline: #146471;
   --grid-line: rgb(20 100 113 / 4%);
+  --shine: rgb(255 255 255 / 22%);
+  --lift-shadow: rgb(0 0 0 / 14%);
   --glow-strength: 0%;
 }

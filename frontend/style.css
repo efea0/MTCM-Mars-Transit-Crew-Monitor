@@ -515,3 +515,53 @@ html { scrollbar-gutter: stable; }
 @media (prefers-reduced-motion: reduce) {
   .mission-meta .nasa-trigger, .nasa-dialog .nasa-button { transition: none; animation: none !important; transform: none; }
 }
+
+/* Finish card: countdown to the next scenario with two shortcuts. Transform/opacity animation only. */
+.finish-card { position: relative; overflow: hidden; display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; background: var(--surface-raised); border: 1px solid var(--accent-ink); border-left-width: 4px; border-radius: var(--radius); padding: var(--space-3) var(--space-4); animation: finish-reveal 240ms ease-out both; }
+.finish-card[hidden] { display: none; }
+.finish-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
+.finish-title { font-size: 14px; }
+.finish-detail { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.finish-spinner { flex: none; inline-size: 18px; block-size: 18px; border: 2px solid var(--border-strong); border-top-color: var(--accent-ink); border-radius: 50%; animation: finish-spin 900ms linear infinite; }
+.finish-card[data-state="error"] .finish-spinner { display: none; }
+.finish-card[data-state="error"] { border-color: var(--warning-ink); }
+.finish-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.finish-button { position: relative; overflow: hidden; isolation: isolate; color: var(--on-accent); background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font-size: 12px; font-weight: 600; }
+.finish-button.finish-secondary { color: var(--text); background: var(--surface); border-color: var(--border-strong); }
+.finish-button:disabled { opacity: .55; cursor: wait; }
+.finish-progress { position: absolute; inset: auto 0 0 0; block-size: 2px; background: var(--accent-ink); transform-origin: left; transform: scaleX(var(--finish-progress, 0)); transition: transform 250ms linear; }
+.finish-card[data-state="starting"] .finish-progress, .finish-card[data-state="error"] .finish-progress { display: none; }
+@keyframes finish-spin { to { transform: rotate(360deg); } }
+@keyframes finish-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* Nominal decision card fills the band instead of sitting in an empty box. */
+.decision-item[data-tone="nominal"] .decision-message:not([hidden]) { color: var(--text); font-size: 14px; }
+.decision-item[data-tone="nominal"] .decision-owner { font-size: 16px; }
+
+/* Earth link: readable text; the list scrolls inside its own panel. Alert stream gives up the same height. */
+.earth-list { max-height: 132px; }
+.earth-body { font-size: 13px; line-height: 1.4; }
+.earth-meta { display: block; font-size: 11px; }
+.alerts-panel { max-height: 218px; }
+@media (min-width: 1600px) and (min-height: 941px) { .alerts-panel { max-height: 172px; } }
+@media (max-height: 940px) and (min-width: 1100px) {
+  .earth-list { max-height: 108px; }
+  .earth-body { font-size: 12.5px; line-height: 1.35; }
+  .earth-meta { display: none; }
+  .alerts-panel { max-height: 104px; min-height: 80px; }
+}
+
+/* Light polish inspired by reactbits.dev (Shiny Text, Fade Content, Pulse dot), re-implemented in CSS only. */
+.finish-button::after, .scenario-button::after, .crew-card .crew-detail-button::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, var(--shine) 50%, transparent 65%);
+  transform: translateX(-120%); transition: transform 520ms ease;
+}
+.finish-button:hover:not(:disabled)::after, .scenario-button:hover:not(:disabled)::after,
+.crew-card .crew-detail-button:hover::after { transform: translateX(120%); }
+.crew-card .crew-detail-button, .scenario-button { position: relative; overflow: hidden; isolation: isolate; }
+.decision-item { animation: finish-reveal 260ms ease-out both; }
+#connection[data-tone="nominal"]::first-letter { animation: status-pulse 2.4s ease-in-out infinite; }
+@keyframes status-pulse { 50% { opacity: .35; } }
+.crew-card { transition: transform 160ms ease, box-shadow 160ms ease; }
+@media (hover: hover) { .crew-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px var(--lift-shadow); } }
