@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import logging
 import math
 import os
 from collections import deque
@@ -36,12 +37,15 @@ KEEPALIVE_INTERVAL_S: Final[float] = 15.0
 SECONDS_PER_MINUTE: Final[float] = 60.0
 HTTP_NOT_FOUND: Final[int] = 404
 HTTP_UNAUTHORIZED: Final[int] = 401
+HTTP_SERVICE_UNAVAILABLE: Final[int] = 503
 DEMO_KEY_ENV: Final[str] = "DEMO_CONTROL_KEY"
 DEMO_KEY_HEADER: Final[str] = "X-Demo-Key"
 FINISH_RESTART_DELAY_S: Final[float] = 30.0
 HISTORY_MAXLEN: Final[int] = 400
 DEFAULT_HISTORY_LIMIT: Final[int] = 120
 MIN_HISTORY_LIMIT: Final[int] = 1
+
+logger: Final = logging.getLogger(__name__)
 
 DATA_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "data"
 RANGES_PATH: Final[Path] = DATA_DIR / "reference" / "ranges.json"
@@ -97,11 +101,16 @@ class Pipeline:
         return self.sim.finished
 
     def reset(self, scenario: Scenario | str) -> None:
-        self.scenario = Scenario(scenario)
-        self.sim = Simulator(self.scenario, scenario_dir=self.scenarios_dir, ranges_path=self.ranges_path)
-        self.rules = RulesEngine(self.ranges_path)
+        target_scenario = Scenario(scenario)
+        new_sim = Simulator(target_scenario, scenario_dir=self.scenarios_dir, ranges_path=self.ranges_path)
+        new_rules = RulesEngine(self.ranges_path)
         bounds = load_delay_bounds_s(self.ranges_path)
-        self.link = DelayedLink(delay_bounds_s=bounds)
+        new_link = DelayedLink(delay_bounds_s=bounds)
+
+        self.scenario = target_scenario
+        self.sim = new_sim
+        self.rules = new_rules
+        self.link = new_link
         self._active_keys.clear()
         self._absent_frames.clear()
 
@@ -176,6 +185,7 @@ class SimulationManager:
         self._unpaused_event.set()
         self._interrupt_event: asyncio.Event = asyncio.Event()
         self._reset_requested: bool = False
+        self._sim_elapsed: float = 0.0
         self._shutdown: bool = False
         self._task: asyncio.Task[None] | None = None
 
@@ -268,33 +278,41 @@ class SimulationManager:
 
     async def _run_loop(self) -> None:
         loop = asyncio.get_running_loop()
+        interval_min = self.pipeline.measurement_interval_min
+        total_sim_s = interval_min * SECONDS_PER_MINUTE
+        self._sim_elapsed = total_sim_s
+
         while not self._shutdown:
             await self._unpaused_event.wait()
             if self._shutdown:
                 break
 
-            self._reset_requested = False
-            try:
-                frame = self.pipeline.step()
-                self.last_frame = frame
-                self._broadcast_frame(frame)
-            except SimulationFinished:
-                self.finished = True
-                self.running = False
-                self._unpaused_event.clear()
-                self._broadcast_end(self.pipeline.scenario.value)
-                await self._restart_nominal_after_delay()
-                continue
+            if self._reset_requested:
+                self._reset_requested = False
+                self._sim_elapsed = total_sim_s
 
-            interval_min = self.pipeline.measurement_interval_min
-            total_sim_s = interval_min * SECONDS_PER_MINUTE
-            sim_elapsed = 0.0
+            if self._sim_elapsed >= total_sim_s:
+                try:
+                    frame = self.pipeline.step()
+                    self.last_frame = frame
+                    self._broadcast_frame(frame)
+                    interval_min = self.pipeline.measurement_interval_min
+                    total_sim_s = interval_min * SECONDS_PER_MINUTE
+                    self._sim_elapsed = 0.0
+                except SimulationFinished:
+                    self.finished = True
+                    self.running = False
+                    self._unpaused_event.clear()
+                    self._broadcast_end(self.pipeline.scenario.value)
+                    await self._restart_nominal_after_delay()
+                    self._sim_elapsed = total_sim_s
+                    continue
 
-            while sim_elapsed < total_sim_s and not self._shutdown:
+            while self._sim_elapsed < total_sim_s and not self._shutdown:
                 if not self.running or self._reset_requested:
                     break
 
-                remaining_sim = total_sim_s - sim_elapsed
+                remaining_sim = total_sim_s - self._sim_elapsed
                 time_scale = self.time_scale
                 delay_s = remaining_sim / time_scale
                 t_start = loop.time()
@@ -303,10 +321,11 @@ class SimulationManager:
                     await asyncio.wait_for(self._interrupt_event.wait(), timeout=delay_s)
                     self._interrupt_event.clear()
                     dt_real = loop.time() - t_start
-                    sim_elapsed += dt_real * time_scale
+                    self._sim_elapsed += dt_real * time_scale
                     if self._shutdown or not self.running or self._reset_requested:
                         break
                 except TimeoutError:
+                    self._sim_elapsed = total_sim_s
                     break
 
 
@@ -315,6 +334,10 @@ manager: Final[SimulationManager] = SimulationManager()
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    if not os.getenv(DEMO_KEY_ENV, ""):
+        logger.warning(
+            "DEMO_CONTROL_KEY is not configured; control endpoints are open without authentication."
+        )
     manager.start()
     try:
         yield
@@ -325,6 +348,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 def require_demo_key(x_demo_key: str | None = Header(default=None)) -> None:
     expected = os.getenv(DEMO_KEY_ENV, "")
     if not expected:
+        logger.warning("DEMO_CONTROL_KEY is not configured; demo control endpoints are unauthenticated.")
         return
     provided = x_demo_key or ""
     if not hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
@@ -483,8 +507,12 @@ async def get_state() -> Response:
 async def get_limits() -> dict[str, Any]:
     try:
         return build_limits(RANGES_PATH)
-    except (OSError, ValueError) as err:
+    except FileNotFoundError as err:
         raise HTTPException(status_code=HTTP_NOT_FOUND, detail="Limits reference not found.") from err
+    except (OSError, ValueError, AttributeError) as err:
+        raise HTTPException(
+            status_code=HTTP_SERVICE_UNAVAILABLE, detail="Limits reference not available."
+        ) from err
 
 
 @app.get("/api/sep-event")
@@ -533,6 +561,11 @@ async def get_stream(request: Request) -> StreamingResponse:
         "Connection": "keep-alive",
     }
     return StreamingResponse(event_generator(), media_type="text/event-stream", headers=headers)
+
+
+@app.api_route("/checks{rest_of_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+async def block_checks(rest_of_path: str = "") -> None:
+    raise HTTPException(status_code=HTTP_NOT_FOUND, detail="Not Found")
 
 
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)

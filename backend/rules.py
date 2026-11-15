@@ -21,6 +21,7 @@ Based on NASA-STD-3001 and data/reference/ranges.json, it:
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -541,7 +542,8 @@ class RulesEngine:
             if count >= self.consecutive_required:
                 note = (
                     f"Cabin PIO2 {pio2_mmhg:.1f} mmHg (mild hypoxia lower bound "
-                    f"{self.pio2_hafif_hipoksi_alt} mmHg), for {count} readings"
+                    f"{self.pio2_hafif_hipoksi_alt} mmHg, absolute limit "
+                    f"{self.pio2_mutlak_alt} mmHg), for {count} readings"
                 )
                 why = [
                     Evidence(
@@ -554,8 +556,13 @@ class RulesEngine:
                     )
                 ]
                 msg = (
-                    f"Cabin O2 below mild hypoxia bound: PIO2 {pio2_mmhg:.1f} mmHg. "
-                    "Switch to backup O2 and stop exercise."
+                    f"Cabin O2 below mild hypoxia bound: PIO2 {pio2_mmhg:.1f} mmHg"
+                    + (
+                        f" (below absolute limit {self.pio2_mutlak_alt} mmHg)!"
+                        if pio2_mmhg < self.pio2_mutlak_alt
+                        else ". "
+                    )
+                    + "Switch to backup O2 and stop exercise."
                 )
                 self._active_alerts[hypoxia_low_id] = Alert(
                     id=hypoxia_low_id,
@@ -829,8 +836,15 @@ class RulesEngine:
         return updated
 
     def _evaluate_vital_reading_status(
-        self, metric: Metric, delta: float | None, activity: Activity
+        self, metric: Metric, delta: float | None, activity: Activity | str | None
     ) -> Status:
+        act_val = activity.value if isinstance(activity, Activity) else activity
+        if (act_val == Activity.unknown.value or act_val is None) and metric in (
+            Metric.heart_rate,
+            Metric.resp_rate,
+        ):
+            return Status.unknown
+
         if delta is None:
             return Status.nominal
 
@@ -842,7 +856,7 @@ class RulesEngine:
             return Status.nominal
 
         if metric == Metric.heart_rate:
-            if activity != Activity.resting.value:
+            if act_val != Activity.resting.value:
                 return Status.nominal
             if delta >= self.hr_eylem:
                 return Status.critical
@@ -851,7 +865,7 @@ class RulesEngine:
             return Status.nominal
 
         if metric == Metric.resp_rate:
-            if activity != Activity.resting.value:
+            if act_val != Activity.resting.value:
                 return Status.nominal
             if delta >= self.rr_eylem:
                 return Status.critical
@@ -1361,7 +1375,14 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why_rad,
                 )
-        elif self._hold_alert(rad_id, can_hold=True):
+        elif self._hold_alert(
+            rad_id,
+            can_hold=(
+                crew.cumulative_dose_msv is not None
+                and not math.isnan(crew.cumulative_dose_msv)
+                and (not sep_active or not sep_missing)
+            ),
+        ):
             pass
         else:
             self._consecutive_counts[rad_id] = 0
@@ -1389,7 +1410,7 @@ class RulesEngine:
         if o2_r.value is None or o2_r.quality != Quality.ok.value or pio2_mmhg is None:
             o2_status = Status.unknown
         else:
-            if pio2_mmhg < self.pio2_hafif_hipoksi_alt:
+            if pio2_mmhg < self.pio2_hafif_hipoksi_alt or pio2_mmhg < self.pio2_mutlak_alt:
                 o2_status = Status.critical
             elif pio2_mmhg < self.pio2_normoksi_min or pio2_mmhg > self.pio2_normoksi_max:
                 o2_status = Status.caution
@@ -1445,7 +1466,20 @@ class RulesEngine:
                     cabin.radiation_dose_rate,
                 )
             )
-            cab_status = Status.unknown if (has_missing or pio2_mmhg is None) else Status.nominal
+            if has_missing or pio2_mmhg is None:
+                cab_status = Status.unknown
+            elif any(
+                r.status == Status.critical
+                for r in (updated_co2, updated_o2, updated_p, updated_temp, updated_humidity, updated_rad)
+            ):
+                cab_status = Status.critical
+            elif any(
+                r.status == Status.caution
+                for r in (updated_co2, updated_o2, updated_p, updated_temp, updated_humidity, updated_rad)
+            ):
+                cab_status = Status.caution
+            else:
+                cab_status = Status.nominal
 
         return cabin.model_copy(
             update={

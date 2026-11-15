@@ -784,3 +784,71 @@ def test_api_history_cleared_after_scenario_change(client: TestClient) -> None:
     body = client.get("/api/history").json()
     assert body["scenario"] == "hypoxia"
     assert all(f["scenario"] == "hypoxia" for f in body["frames"])
+
+
+def test_checks_directory_returns_404(client: TestClient) -> None:
+    assert client.get("/checks").status_code == 404
+    assert client.get("/checks/").status_code == 404
+    assert client.get("/checks/nasa-data.js").status_code == 404
+
+
+def test_limits_returns_503_for_list_formatted_ranges(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    bad_ranges = tmp_path / "bad_ranges.json"
+    bad_ranges.write_text(json.dumps([{"item": 1}]), encoding="utf-8")
+    monkeypatch.setattr("backend.main.RANGES_PATH", bad_ranges)
+    res = client.get("/api/limits")
+    assert res.status_code == 503
+    assert res.json()["detail"] == "Limits reference not available."
+
+
+def test_pipeline_reset_atomic_on_failure(tmp_path: Path) -> None:
+    from backend.main import Pipeline
+
+    p = Pipeline(scenario="nominal")
+    orig_scenario = p.scenario
+    orig_sim = p.sim
+    with pytest.raises(ValueError):
+        p.reset("non_existent_scenario_xyz")
+    assert p.scenario == orig_scenario
+    assert p.sim is orig_sim
+
+
+def test_demo_control_key_missing_logs_warning(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import logging
+
+    monkeypatch.delenv("DEMO_CONTROL_KEY", raising=False)
+    with caplog.at_level(logging.WARNING):
+        res = client.post("/api/control", json={"action": "pause"})
+        assert res.status_code == 200
+        assert any("DEMO_CONTROL_KEY is not configured" in rec.message for rec in caplog.records)
+
+
+def test_pause_resume_preserves_sim_elapsed() -> None:
+    async def check() -> None:
+        local = SimulationManager()
+        local.set_time_scale(60.0)
+        queue: asyncio.Queue[str] = asyncio.Queue()
+        local.add_subscriber(queue)
+        local.start()
+        try:
+            msg1 = await asyncio.wait_for(queue.get(), timeout=1.0)
+            assert json.loads(msg1.split("data: ", 1)[1])["tick"] == 0
+            await asyncio.sleep(0.1)
+            local.pause()
+            await asyncio.sleep(0.02)
+            elapsed_at_pause = local._sim_elapsed
+            assert 0.0 < elapsed_at_pause < 120.0
+
+            local.resume()
+            assert queue.empty()
+            await asyncio.sleep(0.02)
+            assert queue.empty()
+            assert local._sim_elapsed >= elapsed_at_pause
+        finally:
+            await local.stop()
+
+    asyncio.run(check())

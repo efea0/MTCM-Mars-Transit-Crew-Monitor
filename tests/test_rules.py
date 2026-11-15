@@ -857,3 +857,62 @@ def test_reproducibility_and_reset() -> None:
     outputs_2 = [engine.evaluate(f).model_dump(mode="json") for f in frames]
 
     assert outputs_1 == outputs_2
+
+
+def test_unknown_activity_vital_status_is_unknown() -> None:
+    engine = r.RulesEngine()
+    c1 = CrewMember(
+        id="crew-1",
+        name="Alper",
+        role="CDR",
+        vitals=make_vitals(hr=70.0, rr=14.0),
+        activity=Activity.unknown,
+    )
+    frame = make_frame(tick=1, crew_list=[c1] + [c for c in make_frame().crew if c.id != "crew-1"])
+    evaluated = engine.evaluate(frame)
+    alper = next(c for c in evaluated.crew if c.id == "crew-1")
+    assert alper.vitals.heart_rate.status == Status.unknown
+    assert alper.vitals.resp_rate.status == Status.unknown
+    assert alper.vitals.spo2.status == Status.nominal
+
+
+def test_cabin_status_reflects_abnormal_reading_before_alert_triggers() -> None:
+    engine = r.RulesEngine()
+    # At tick 1, consecutive count is 1 so no active alert is formed yet,
+    # but pp_co2 is critical (>3.0) and cabin status must not be nominal!
+    f1 = make_frame(tick=1, cabin=make_cabin(pp_co2=3.5))
+    e1 = engine.evaluate(f1)
+    assert not any(a.rule_id == "ppco2-limit" for a in e1.alerts)
+    assert e1.cabin.pp_co2.status == Status.critical
+    assert e1.cabin.status == Status.critical
+
+
+def test_radiation_alert_cannot_hold_without_valid_dose() -> None:
+    engine = r.RulesEngine()
+    c1 = CrewMember(
+        id="crew-1",
+        name="Alper",
+        role="CDR",
+        vitals=make_vitals(),
+        cumulative_dose_msv=1100.0,  # exceeds career limit
+    )
+    # Tick 1 to 3 to trigger career radiation alert
+    for tick in range(1, 4):
+        f = make_frame(
+            tick=tick,
+            crew_list=[c1.model_copy(update={"cumulative_dose_msv": 1100.0})]
+            + [c for c in make_frame().crew if c.id != "crew-1"],
+        )
+        e = engine.evaluate(f)
+    rad_alert = next((a for a in e.alerts if a.id == "crew-1:karar-radyasyon_etkisi"), None)
+    assert rad_alert is not None
+
+    # Next frame, cumulative_dose_msv is None (missing/invalid)
+    f_missing = make_frame(
+        tick=4,
+        crew_list=[c1.model_copy(update={"cumulative_dose_msv": None})]
+        + [c for c in make_frame().crew if c.id != "crew-1"],
+    )
+    e_missing = engine.evaluate(f_missing)
+    # Alert should NOT be held when dose data is missing
+    assert not any(a.id == "crew-1:karar-radyasyon_etkisi" for a in e_missing.alerts)
