@@ -3,6 +3,7 @@ import { setText, svgRenderer, chartRange, resetChartRange } from "./ui.js";
 import { createDecisionBand } from "./decisions.js";
 import { createSession, validFrame } from "./session.js";
 import { createCrewDetail } from "./crew-detail.js";
+import { createBeyondSpace } from "./beyond-space.js";
 
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
@@ -52,6 +53,7 @@ const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }
 const readingFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const params = new URLSearchParams(window.location.search);
 const mockMode = params.get("mock") === "1";
+createBeyondSpace({ trigger: document.getElementById("beyond-trigger") });
 const nasaData = createNasaData({ trigger: document.getElementById("nasa-trigger"), banner: document.getElementById("nasa-storm-banner"), mock: mockMode });
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
