@@ -1,6 +1,6 @@
 {
   "scenario": "nominal",
-  "title": "Normal durum",
+  "title": "Nominal operation",
   "purpose": "Her şey yolundayken yanlış alarm olmadığını göstermek. crew-1'in egzersiz nabzı alarm sayılmaz.",
   "simulated": true,
   "seed": 42,

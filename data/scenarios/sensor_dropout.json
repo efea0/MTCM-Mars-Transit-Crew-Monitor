@@ -1,6 +1,6 @@
 {
   "scenario": "sensor_dropout",
-  "title": "Sensör kopması: eksik veri asla normal sayılmaz",
+  "title": "Sensor dropout: missing data is never treated as normal",
   "purpose": "Sensörler veri vermeyince sistem 'veri yok' uyarısı verir, o okumayı Normal saymaz ve sahte alarm da üretmez. Üç durum: crew-2'nin nabız sensörü hiç veri vermez (missing), crew-4'ün SpO2 sensörü eski değeri tekrarlar (stale), kabin CO2 sensörü imkânsız bir değer bildirir (sensor_fault). Aynı sırada crew-3'ün gerçek nabız sapması kaybolmaz: bir sensörün kopması başkasının uyarısını gizlememeli. Veri gelince okumalar Normal'e döner.",
   "simulated": true,
   "seed": 42,

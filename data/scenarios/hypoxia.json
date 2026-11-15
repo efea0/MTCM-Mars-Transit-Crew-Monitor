@@ -1,6 +1,6 @@
 {
   "scenario": "hypoxia",
-  "title": "O2 ünitesi arızası: Astronot 3 egzersizde",
+  "title": "O2 unit failure: astronaut 3 exercising",
   "purpose": "O2 üretimi durur, kabin PIO2 normoksiden (145) çıkar. Ece egzersizdeyken SpO2'si düşer ve kişi bazlı hipoksi kararı çıkar; egzersiz nabzı kanıt sayılmaz. Aynı senaryoda kişi bazlı nabız sapması: Ayşe ve Mert'in nabzı ikisi de 80; Ayşe baz 64 → +16 İzle, Mert baz 67 → +13 normal. Aynı nabız, farklı baz çizgisi, farklı karar. Kabin PIO2 127'nin altına inince kırmızı.",
   "simulated": true,
   "seed": 42,

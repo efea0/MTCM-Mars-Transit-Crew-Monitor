@@ -1,6 +1,6 @@
 {
   "scenario": "hypercapnia",
-  "title": "CO2 yükselişi: giderme ünitesi kısmi arıza",
+  "title": "CO2 rise: removal unit partial failure",
   "purpose": "CO2 giderme %40 kapasiteye düşer, kabin ppCO2 yükselir. Önce kabin uyarısı, sonra yalnızca belirti gösteren crew-3 için kişi bazlı karar.",
   "simulated": true,
   "seed": 42,

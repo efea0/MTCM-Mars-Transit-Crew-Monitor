@@ -1,6 +1,6 @@
 {
   "scenario": "solar_storm",
-  "title": "Güneş fırtınası (SEP)",
+  "title": "Solar storm (SEP)",
   "purpose": "Gerçek DONKI kaydının zamanıyla SEP başlar. Sistem olay sonu tahmini dozu hesaplar ve dozu ALMADAN ÖNCE sığınak uyarısı verir (ranges.json radyasyon_etkisi).",
   "simulated": true,
   "seed": 42,
