@@ -376,7 +376,8 @@ def test_stream_disconnect_cleanup(
 
 
 @pytest.fixture
-def client() -> Generator[TestClient, None, None]:
+def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, None, None]:
+    monkeypatch.delenv("DEMO_CONTROL_KEY", raising=False)
     manager.set_scenario(DEFAULT_SCENARIO_NAME)
     manager.set_time_scale(DEFAULT_TIME_SCALE)
     with TestClient(app) as test_client:
@@ -634,3 +635,75 @@ def test_api_stream_sse() -> None:
         assert frame.simulated is True
         assert len(frame.crew) == 4
         assert frame.cabin.status is not None
+
+
+@pytest.mark.parametrize(
+    ("method_path", "body"),
+    [
+        ("/api/scenario/hypoxia", None),
+        ("/api/control", {"action": "pause"}),
+        ("/api/speed", {"time_scale": 600.0}),
+    ],
+)
+def test_control_endpoints_require_demo_key_when_configured(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, method_path: str, body: dict[str, object] | None
+) -> None:
+    monkeypatch.setenv("DEMO_CONTROL_KEY", "test-anahtari")
+    assert client.post(method_path, json=body).status_code == 401
+    assert client.post(method_path, json=body, headers={"X-Demo-Key": "yanlis"}).status_code == 401
+    assert client.post(method_path, json=body, headers={"X-Demo-Key": "test-anahtari"}).status_code == 200
+
+
+def test_read_endpoints_stay_open_with_demo_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEMO_CONTROL_KEY", "test-anahtari")
+    assert client.get("/api/health").status_code == 200
+    assert client.get("/api/scenarios").status_code == 200
+
+
+def test_empty_demo_key_leaves_control_open(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEMO_CONTROL_KEY", "")
+    assert client.post("/api/control", json={"action": "resume"}).status_code == 200
+
+
+def test_finished_scenario_restarts_nominal_after_delay(
+    isolated_manager: SimulationManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def check() -> None:
+        local = isolated_manager
+        local.set_scenario("hypoxia")
+        frame = local.pipeline.step()
+        steps = [frame, SimulationFinished, *([frame] * 50)]
+        monkeypatch.setattr(local.pipeline, "step", Mock(side_effect=steps))
+        local.finish_restart_delay_s = 0.05
+        local.set_time_scale(MAX_TIME_SCALE)
+        local.start()
+        try:
+            for _ in range(100):
+                await asyncio.sleep(0.02)
+                if local.pipeline.scenario == Scenario.nominal and not local.finished:
+                    break
+            assert local.pipeline.scenario == Scenario.nominal
+            assert not local.finished
+            assert local.running
+        finally:
+            await local.stop()
+
+    asyncio.run(check())
+
+
+def test_finished_scenario_stays_finished_without_delay(
+    isolated_manager: SimulationManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def check() -> None:
+        local = isolated_manager
+        monkeypatch.setattr(local.pipeline, "step", Mock(side_effect=SimulationFinished))
+        local.finish_restart_delay_s = None
+        local.start()
+        try:
+            await asyncio.sleep(0.2)
+            assert local.finished
+            assert not local.running
+        finally:
+            await local.stop()
+
+    asyncio.run(check())

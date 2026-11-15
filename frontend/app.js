@@ -1,6 +1,8 @@
-// main.py ile uyumlandırılacak taslak API adresleri ve SSE olay adı.
+// main.py ile uyumlu API adresleri (POST /api/scenario/{ad}, GET /api/health) ve SSE olay adı.
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
+const HEALTH_URL = "/api/health";
+const HEALTH_CHECK_AFTER_MS = 2000;
 const TELEMETRY_EVENT = "telemetry";
 const STALE_AFTER_MS = 5000;
 const CLOCK_INTERVAL_MS = 250;
@@ -11,8 +13,13 @@ const SECONDS_PER_MINUTE = 60;
 const HOURS_PER_DAY = 24;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const TREND_WIDTH = 260;
-const TREND_HEIGHT = 32;
-const TREND_PADDING = 3;
+const TREND_HEIGHT = 64;
+const TREND_LEFT = 34;
+const TREND_RIGHT = 4;
+const TREND_TOP = 8;
+const TREND_BOTTOM = 16;
+const VALUE_TWEEN_MS = 350;
+const THEME_KEY = "theme";
 const ALERT_HIGHLIGHT_MS = 1600;
 const LABELS = {
   metric: {
@@ -22,7 +29,7 @@ const LABELS = {
     cabin_temp: "Kabin sıcaklığı", rel_humidity: "Bağıl nem", radiation_dose_rate: "Radyasyon hızı",
     pio2: "Solunan O₂ basıncı", event_dose: "Olay dozu",
   },
-  status: { nominal: "● Normal", caution: "△ Dikkat", warning: "▲ Uyarı", critical: "! Kritik", unknown: "? Bilinmiyor" },
+  status: { nominal: "● Normal", caution: "◉ İzle", warning: "▲ Uyarı", critical: "! Eylem", unknown: "? Bilinmiyor" },
   decision: { normal: "✓ Normal", watch: "◉ İzle", action: "! Eylem", unknown: "? Bilinmiyor" },
   activity: { resting: "Dinleniyor", exercise: "Egzersiz", sleep: "Uyku", unknown: "Bilinmiyor" },
   quality: { ok: "Geçerli", stale: "eski", missing: "yok", sensor_fault: "sensör hatası" },
@@ -36,6 +43,9 @@ const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
 const numberFormat = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 });
 const params = new URLSearchParams(window.location.search);
 const mockMode = params.get("mock") === "1";
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
+const valueTweens = new WeakMap();
 const crewViews = new Map();
 const alertViews = new Map();
 const histories = new Map();
@@ -46,6 +56,8 @@ let lastReceived = null;
 let transportState = "connecting";
 let invalidPacket = false;
 let wasStale = true;
+let scenarioFinished = false;
+let healthCheckedAt = 0;
 let stream = null;
 let stopMock = null;
 let clockTimer = null;
@@ -62,8 +74,59 @@ function tone(node, value) {
 }
 function numeric(value) { return typeof value === "number" && Number.isFinite(value); }
 function number(value) { return numeric(value) ? numberFormat.format(value) : "—"; }
+function formatClock(iso) {
+  const time = new Date(iso);
+  return Number.isNaN(time.getTime()) ? "—" : `${time.toISOString().slice(11, 19)}Z`;
+}
+// Değer gerçekten değiştiğinde kısa bir sayı geçişi; hareket azaltma tercihinde doğrudan yazılır.
+function showValue(node, value) {
+  const running = valueTweens.get(node);
+  if (running) cancelAnimationFrame(running);
+  valueTweens.delete(node);
+  const previous = node.dataset.value === undefined ? null : Number(node.dataset.value);
+  if (!numeric(value)) { node.textContent = "veri yok"; delete node.dataset.value; return; }
+  node.dataset.value = String(value);
+  if (reducedMotion.matches || !numeric(previous) || previous === value) { node.textContent = number(value); return; }
+  const start = performance.now();
+  const step = now => {
+    const progress = Math.min(1, (now - start) / VALUE_TWEEN_MS);
+    node.textContent = number(previous + (value - previous) * (1 - (1 - progress) ** 3));
+    if (progress < 1) valueTweens.set(node, requestAnimationFrame(step));
+    else valueTweens.delete(node);
+  };
+  valueTweens.set(node, requestAnimationFrame(step));
+}
+function currentTheme() {
+  return document.documentElement.dataset.theme ?? (lightQuery.matches ? "light" : "dark");
+}
+function configureTheme() {
+  const button = document.getElementById("theme-toggle");
+  const sync = () => { button.textContent = currentTheme() === "light" ? "◐ Tema: Açık" : "◐ Tema: Koyu"; };
+  button.addEventListener("click", () => {
+    const next = currentTheme() === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem(THEME_KEY, next); } catch { /* depolama kapalı: bu oturumda geçerli */ }
+    sync();
+  });
+  lightQuery.addEventListener("change", sync);
+  sync();
+}
 function packetStale() {
-  return lastReceived === null || invalidPacket || performance.now() - lastReceived > STALE_AFTER_MS;
+  if (lastReceived === null || invalidPacket) return true;
+  // Senaryo bittiyse backend kare göndermeyi bırakır; bu veri kaybı değil, son durumdur.
+  return !scenarioFinished && performance.now() - lastReceived > STALE_AFTER_MS;
+}
+async function checkScenarioFinished() {
+  healthCheckedAt = performance.now();
+  try {
+    const response = await fetch(HEALTH_URL, {
+      signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
+    });
+    if (!response.ok) return;
+    const health = await response.json();
+    const finished = health.finished === true && health.scenario === frame?.scenario;
+    if (finished !== scenarioFinished) { scenarioFinished = finished; render(); }
+  } catch { /* backend yok: olağan VERİ YOK davranışı */ }
 }
 function validReading(reading) { return reading && numeric(reading.value) && reading.quality === "ok"; }
 function missionTime(seconds) {
@@ -94,7 +157,8 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   const usable = !stale && validReading(reading);
   const state = usable && !unknownDecision ? reading.status : "unknown";
   tone(view.root, state);
-  view.value.textContent = usable ? number(reading.value) : "veri yok";
+  showValue(view.value, usable ? reading.value : null);
+  view.root.title = usable ? `${LABELS.metric[view.root.dataset.metric]} · ${formatClock(reading.ts)}` : "";
   view.value.classList.toggle("no-value", !usable);
   view.unit.textContent = usable ? reading.unit : "";
   view.status.textContent = LABELS.status[state] ?? LABELS.status.unknown;
@@ -145,44 +209,58 @@ function createCrew(index) {
     evidence.hidden = !evidence.hidden;
     why.setAttribute("aria-expanded", String(!evidence.hidden));
   });
-  root.append(header, primary, secondary, trendArea, why, evidence);
+  const stamp = el("time", "reading-time", "Ölçüm: veri yok");
+  root.append(header, primary, secondary, trendArea, stamp, why, evidence);
   tone(root, "unknown");
-  return { root, name, role, decision, activity, readings, trend, evidence, why, evidenceKey: null };
+  return { root, name, role, decision, activity, readings, trend, stamp, evidence, why, evidenceKey: null };
+}
+function svgNode(tag, attributes, text = "") {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+  if (text) node.textContent = text;
+  return node;
 }
 function drawTrend(svg, entries, unavailable) {
   svg.replaceChildren();
   const values = unavailable ? [] : entries.filter(entry => numeric(entry.value));
-  svg.setAttribute("aria-label", values.length ? "Nabız trendi, boşluklar eksik ölçümdür" : "Nabız trendi: veri yok");
+  svg.setAttribute("aria-label", values.length
+    ? "Nabız trendi, kesikli çizgi kişisel baz çizgisi, boşluklar eksik ölçümdür" : "Nabız trendi: veri yok");
   if (!values.length) return;
-  const minimum = Math.min(...values.map(entry => entry.value));
-  const maximum = Math.max(...values.map(entry => entry.value));
+  const baseline = [...entries].reverse().find(entry => numeric(entry.baseline))?.baseline ?? null;
+  const all = numeric(baseline) ? [...values.map(entry => entry.value), baseline] : values.map(entry => entry.value);
+  const minimum = Math.min(...all);
+  const maximum = Math.max(...all);
   const span = maximum - minimum;
+  const left = TREND_LEFT;
+  const right = TREND_WIDTH - TREND_RIGHT;
+  const top = TREND_TOP;
+  const bottom = TREND_HEIGHT - TREND_BOTTOM;
+  const yOf = value => (span === 0 ? (top + bottom) / 2 : bottom - (value - minimum) / span * (bottom - top));
+  const label = value => String(Math.round(value * 10) / 10).replace(".", ",");
+  svg.append(svgNode("text", { x: left - 3, y: top + 3, class: "trend-axis trend-axis-end" }, label(maximum)),
+    svgNode("text", { x: left - 3, y: bottom, class: "trend-axis trend-axis-end" }, label(minimum)),
+    svgNode("text", { x: left, y: TREND_HEIGHT - 3, class: "trend-axis" }, `−${HISTORY_TICKS}`),
+    svgNode("text", { x: right, y: TREND_HEIGHT - 3, class: "trend-axis trend-axis-end" }, "şimdi"));
+  if (numeric(baseline)) {
+    svg.append(svgNode("line", { x1: left, x2: right, y1: yOf(baseline), y2: yOf(baseline), class: "trend-baseline" }));
+  }
   const lastTick = entries.at(-1).tick;
   let segment = [];
   let previous = null;
   function flush() {
     if (!segment.length) return;
-    const line = document.createElementNS(SVG_NS, "polyline");
-    line.setAttribute("points", segment.join(" "));
-    svg.append(line);
+    svg.append(svgNode("polyline", { points: segment.join(" ") }));
     if (segment.length === 1) {
-      const dot = document.createElementNS(SVG_NS, "circle");
       const [x, y] = segment[0].split(",");
-      dot.setAttribute("cx", x);
-      dot.setAttribute("cy", y);
-      dot.setAttribute("r", "2");
-      svg.append(dot);
+      svg.append(svgNode("circle", { cx: x, cy: y, r: "2" }));
     }
     segment = [];
   }
   for (const entry of entries) {
     if (!numeric(entry.value) || (previous !== null && entry.tick !== previous + 1)) flush();
     if (numeric(entry.value)) {
-      const x = TREND_PADDING + (entry.tick - lastTick + HISTORY_TICKS - 1)
-        / (HISTORY_TICKS - 1) * (TREND_WIDTH - TREND_PADDING * 2);
-      const y = span === 0 ? TREND_HEIGHT / 2 : TREND_HEIGHT - TREND_PADDING
-        - (entry.value - minimum) / span * (TREND_HEIGHT - TREND_PADDING * 2);
-      segment.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+      const x = left + (entry.tick - lastTick + HISTORY_TICKS - 1) / (HISTORY_TICKS - 1) * (right - left);
+      segment.push(`${x.toFixed(2)},${yOf(entry.value).toFixed(2)}`);
     }
     previous = entry.tick;
   }
@@ -233,6 +311,10 @@ function updateCrew(stale) {
     view.decision.textContent = stale ? "? VERİ YOK" : LABELS.decision[decision] ?? LABELS.decision.unknown;
     view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}`;
     view.why.setAttribute("aria-label", `${member?.name ?? `Mürettebat ${index + 1}`}: Neden?`);
+    const stamped = !stale && member?.vitals?.heart_rate?.ts;
+    view.stamp.textContent = stamped ? `Ölçüm ${formatClock(stamped)} · SİMÜLE` : "Ölçüm: veri yok";
+    if (stamped) view.stamp.dateTime = stamped; else view.stamp.removeAttribute("datetime");
+    view.root.classList.toggle("stale-data", stale);
     for (const [metric, reading] of view.readings) updateReading(reading, member?.vitals[metric], stale, decision === "unknown");
     drawTrend(view.trend, histories.get(member?.id) ?? [], stale);
     crewEvidence(view, member, frame?.alerts.filter(alert => alert.crew_id === member?.id) ?? [], stale);
@@ -245,6 +327,11 @@ function updateCabin(stale) {
   tone(badge, state);
   badge.textContent = stale ? "? VERİ YOK" : LABELS.status[state];
   for (const [metric, view] of cabinViews) updateReading(view, cabin?.[metric], stale);
+  const cabinStamp = document.getElementById("cabin-time");
+  const cabinTs = !stale && cabin?.pp_o2?.ts;
+  cabinStamp.textContent = cabinTs ? `Ölçüm ${formatClock(cabinTs)} · SİMÜLE` : "Ölçüm: veri yok";
+  if (cabinTs) cabinStamp.dateTime = cabinTs; else cabinStamp.removeAttribute("datetime");
+  document.getElementById("cabin-readings").classList.toggle("stale-data", stale);
   for (const field of ["hours_until_o2_limit", "hours_until_co2_limit"]) {
     const root = document.getElementById(field);
     const hours = cabin?.[field];
@@ -299,7 +386,7 @@ function updateAlerts(stale) {
     view.owner.textContent = alert.crew_id === null ? "Kabin" : frame.crew.find(member => member.id === alert.crew_id)?.name ?? alert.crew_id;
     view.severity.textContent = LABELS.status[alert.severity];
     view.message.textContent = alert.message;
-    view.meta.textContent = `${alert.consecutive_count} art arda ölçüm · Son: ${alert.last_seen}`;
+    view.meta.textContent = `${alert.consecutive_count} art arda ölçüm · Son: ${formatClock(alert.last_seen)}`;
     const key = JSON.stringify(alert.why);
     if (key !== view.key) { view.body.replaceChildren(evidenceList(alert.why)); view.key = key; }
     if (container.children[index] !== view.root) container.insertBefore(view.root, container.children[index] ?? null);
@@ -319,14 +406,18 @@ function updateClock() {
   const stale = packetStale();
   if (stale !== wasStale) { render(); return; }
   const seconds = lastReceived === null ? null : (performance.now() - lastReceived) / 1000;
+  if (!mockMode && !scenarioFinished && seconds !== null && seconds * 1000 > HEALTH_CHECK_AFTER_MS
+    && performance.now() - healthCheckedAt > HEALTH_CHECK_AFTER_MS) checkScenarioFinished();
   document.getElementById("packet-age").textContent = seconds === null ? "Henüz paket yok" : `Son paket: ${number(Math.floor(seconds))} sn önce`;
   const connection = document.getElementById("connection");
   const connected = transportState === "open" && !stale;
-  connection.textContent = connected ? "● Bağlı" : transportState === "closed" ? "× Koptu" : "◌ Yeniden bağlanıyor";
-  tone(connection, connected ? "nominal" : "unknown");
+  connection.textContent = scenarioFinished ? "■ Senaryo tamamlandı"
+    : connected ? "● Bağlı" : transportState === "closed" ? "× Koptu" : "◌ Yeniden bağlanıyor";
+  tone(connection, connected || scenarioFinished ? "nominal" : "unknown");
   const notice = document.getElementById("data-notice");
-  notice.hidden = !stale;
-  notice.textContent = invalidPacket ? "VERİ YOK · Telemetri paketi okunamadı; geçerli paket bekleniyor."
+  notice.hidden = !stale && !scenarioFinished;
+  notice.textContent = scenarioFinished ? "Senaryo tamamlandı · son paket gösteriliyor. Yeni bir senaryo seçin."
+    : invalidPacket ? "VERİ YOK · Telemetri paketi okunamadı; geçerli paket bekleniyor."
     : "VERİ YOK · Güncel telemetri bekleniyor. Eski ölçümler normal kabul edilmez.";
 }
 function acceptFrame(incoming) {
@@ -348,14 +439,20 @@ function acceptFrame(incoming) {
   }
   for (const member of incoming.crew) {
     const history = histories.get(member.id) ?? [];
-    if (interrupted && history.length) history.push({ tick: incoming.tick - 0.5, value: null });
+    if (interrupted && history.length) history.push({ tick: incoming.tick - 0.5, value: null, baseline: null });
     const reading = member.vitals.heart_rate;
-    history.push({ tick: incoming.tick, value: validReading(reading) ? reading.value : null });
+    const valid = validReading(reading);
+    history.push({
+      tick: incoming.tick,
+      value: valid ? reading.value : null,
+      baseline: valid && numeric(reading.baseline_delta) ? reading.value - reading.baseline_delta : null,
+    });
     histories.set(member.id, history.filter(entry => entry.tick > incoming.tick - HISTORY_TICKS));
   }
   frame = incoming;
   previousTick = incoming.tick;
   lastReceived = performance.now();
+  scenarioFinished = false;
   invalidPacket = false;
   transportState = "open";
   render();
@@ -399,7 +496,7 @@ async function start() {
     cabinViews.set(metric, view);
     document.getElementById("cabin-readings").append(view.root);
   }
-  configureDemo(); render();
+  configureTheme(); configureDemo(); render();
   clockTimer = window.setInterval(updateClock, CLOCK_INTERVAL_MS);
   if (mockMode) {
     document.getElementById("source-label").textContent = "YEREL MOCK · Kararlar sabit demo örnekleridir";

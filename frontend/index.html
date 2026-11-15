@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <title>Habitat | Mars Transit Crew Monitor</title>
+  <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="style.css">
+  <script>/* Tema kaydını ilk boyamadan önce uygula: açılışta yanlış tema parlaması olmasın. */
+    try { const saved = localStorage.getItem("theme"); if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved; } catch { /* depolama kapalı: sistem tercihi */ }
+  </script>
   <link rel="icon" href="data:,">
 </head>
 <body>
@@ -23,6 +27,7 @@
         <strong id="connection" class="tone-unknown">◌ Yeniden bağlanıyor</strong>
         <span id="packet-age">Henüz paket yok</span>
       </div>
+      <button id="theme-toggle" class="theme-toggle" type="button">◐ Tema</button>
     </div>
   </header>
   <main class="dashboard">
@@ -38,6 +43,7 @@
       <section class="panel cabin-panel" aria-labelledby="cabin-title">
         <div class="panel-heading"><h2 id="cabin-title">Kabin atmosferi</h2><span id="cabin-status" class="badge tone-unknown">? Bilinmiyor</span></div>
         <div id="cabin-readings" class="cabin-readings"></div>
+        <time id="cabin-time" class="reading-time">Ölçüm: veri yok</time>
         <div class="countdowns">
           <div id="hours_until_o2_limit" class="countdown tone-unknown">
             <span>O₂ limitine kalan</span><strong>VERİ YOK</strong><small>Telemetri bekleniyor</small>
