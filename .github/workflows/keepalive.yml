@@ -1,8 +1,9 @@
 name: keepalive
 
 # Keeps the free-tier Render service awake so the live demo has no cold start.
-# Scheduled runs only fire from the default branch (main) and GitHub may delay them,
-# so this is a second line of defence next to an external uptime monitor.
+# Scheduled (cron) runs only fire from the default branch (main) and GitHub may delay them;
+# manual workflow_dispatch runs can be triggered from any branch. This is a second line of
+# defence next to an external uptime monitor.
 on:
   schedule:
     - cron: "*/5 * * * *"
