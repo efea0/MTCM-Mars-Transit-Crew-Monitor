@@ -2,8 +2,8 @@
 
 Kontrast göreli parlaklık formülüyle (WCAG 2.x, sRGB) bu dosyada hesaplanır; WebAIM aracıyla aynı formüldür.
 Denetlenenler:
-1. Açık tema iki yerde tanımlı (sistem tercihi ve elle seçim); ikisi birebir aynı olmalı.
-2. Her temada metin, durum, vurgu ve grafik renk çiftleri AA eşiğini geçer.
+1. Tek koyu tema (açık tema yok): metin, durum, vurgu ve grafik renk çiftleri AA eşiğini geçer.
+2. Beş durum dolgusu birbirinden farklıdır.
 3. style.css rastgele HEX/RGB değeri taşımaz; renkler tokenlardan gelir.
 4. Font dosyaları ve lisans metni yerinde.
 """
@@ -42,11 +42,7 @@ def declarations(css: str) -> dict[str, str]:
 
 
 DARK = declarations(block(TOKENS, ":root {"))
-LIGHT_MANUAL = declarations(block(TOKENS, ':root[data-theme="light"] {'))
-LIGHT_SYSTEM = declarations(
-    block(block(TOKENS, "@media (prefers-color-scheme: light) {"), ':root:not([data-theme="dark"]) {')
-)
-THEMES = {"dark": DARK, "light": {**DARK, **LIGHT_MANUAL}}
+THEMES = {"dark": DARK}
 
 
 def luminance(hex_color: str) -> float:
@@ -76,14 +72,6 @@ def pairs(tokens: dict[str, str]) -> list[tuple[str, str, float]]:
     return out
 
 
-def test_light_theme_blocks_are_identical() -> None:
-    assert LIGHT_SYSTEM == LIGHT_MANUAL, "prefers-color-scheme ve [data-theme=light] aynı değerleri taşımalı"
-
-
-def test_light_theme_only_overrides_existing_tokens() -> None:
-    assert set(LIGHT_MANUAL) <= set(DARK), sorted(set(LIGHT_MANUAL) - set(DARK))
-
-
 @pytest.mark.parametrize("theme", sorted(THEMES))
 def test_wcag_aa_contrast_pairs(theme: str) -> None:
     tokens = THEMES[theme]
@@ -95,15 +83,13 @@ def test_wcag_aa_contrast_pairs(theme: str) -> None:
     assert not failures, f"{theme}: " + "; ".join(failures)
 
 
-def test_status_palette_keeps_distinct_semantics_and_consistent_themes() -> None:
+def test_status_palette_keeps_distinct_semantics() -> None:
     """Theme branding may change; five statuses and their fills remain distinct and consistent."""
     for tokens in THEMES.values():
         status_fills = [tokens[f"--{status}"].lower() for status in STATUSES]
         assert len(set(status_fills)) == len(STATUSES), "each status needs a distinct fill"
         assert all(re.fullmatch(r"#[0-9a-f]{6}", color) for color in status_fills)
         assert tokens["--on-accent"] != tokens["--accent"]
-    for status in STATUSES:
-        assert THEMES["light"][f"--{status}"] == DARK[f"--{status}"], "status fills stay consistent"
 
 
 def test_unknown_is_never_green() -> None:
