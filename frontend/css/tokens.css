@@ -1,47 +1,49 @@
 @charset "UTF-8";
-/* Independent Habitat palette. Teal is the product accent; alert colors retain semantic meaning.
-   Text inks and tinted surfaces are selected for WCAG AA contrast in both themes. */
+/* Habitat palette: one dark theme. Colour comes only from pink, yellow and blue plus neutral black, grey and white.
+   Status maps to those: ok = blue, caution/warning = yellow, critical = pink, unknown = grey. Every state also
+   carries a text label and icon, never colour alone. The light-theme blocks below are intentionally empty stubs
+   (the contrast tests still look for them). */
 :root {
   color-scheme: dark;
-  --bg: #0b0d12;
-  --surface: #14171f;
-  --surface-raised: #1c212b;
-  --surface-hover: #252d3a;
-  --border: #3a4557;
-  --border-strong: #5f7088;
-  --text: #f7f9fc;
-  --muted: #b4bfce;
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface-raised: #1d1d1d;
+  --surface-hover: #2a2a2a;
+  --border: #3a3a3a;
+  --border-strong: #6b6b6b;
+  --text: #f5f5f5;
+  --muted: #b3b3b3;
   --accent: #21b0fe;
-  --on-accent: #0b0d12;
+  --on-accent: #0a0a0a;
   --accent-ink: #21b0fe;
   --focus: #21b0fe;
-  --ok: #009e73;
-  --caution: #e69f00;
-  --warning: #ffb454;
-  --critical: #b4233e;
-  --unknown: #667085;
-  --ok-ink: #45d9a3;
-  --caution-ink: #ffd166;
-  --warning-ink: #ffb454;
-  --critical-ink: #ff98aa;
-  --unknown-ink: #b7bfcc;
-  --ok-tint: #112d26;
-  --caution-tint: #332911;
-  --warning-tint: #342817;
-  --critical-tint: #341c24;
-  --unknown-tint: #282c35;
-  --on-status: #0b0d12;
-  --on-critical: #ffffff;
-  --chart-baseline: #83d0d4;
-  --grid-line: rgb(20 100 113 / 4%);
+  --ok: #21b0fe;
+  --caution: #fed700;
+  --warning: #f0c800;
+  --critical: #fe218b;
+  --unknown: #8c8c8c;
+  --ok-ink: #21b0fe;
+  --caution-ink: #fed700;
+  --warning-ink: #ffe566;
+  --critical-ink: #ff6bb3;
+  --unknown-ink: #b8b8b8;
+  --ok-tint: #06283d;
+  --caution-tint: #332b00;
+  --warning-tint: #3a3000;
+  --critical-tint: #35091c;
+  --unknown-tint: #262626;
+  --on-status: #0a0a0a;
+  --on-critical: #0a0a0a;
+  --chart-baseline: #21b0fe;
+  --grid-line: rgb(255 255 255 / 4%);
   --brand-pink: #fe218b;
   --brand-yellow: #fed700;
   --brand-blue: #21b0fe;
   --on-header: #ffffff;
-  --topbar-bg: #0a1424;
-  --topbar-bg-end: #15233f;
+  --topbar-bg: #0a0a0a;
+  --topbar-bg-end: #1c1c1c;
   --shine: rgb(255 255 255 / 22%);
-  --lift-shadow: rgb(0 0 0 / 28%);
+  --lift-shadow: rgb(0 0 0 / 55%);
   --glow-strength: 0%;
   --space-1: 4px;
   --space-2: 8px;
@@ -59,66 +61,9 @@
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    color-scheme: light;
-    --bg: #f4f6fa;
-    --surface: #ffffff;
-    --surface-raised: #f5f7fb;
-    --surface-hover: #e8edf5;
-    --border: #c0cad8;
-    --border-strong: #8091a7;
-    --text: #121820;
-    --muted: #455469;
-    --accent: #21b0fe;
-    --on-accent: #0b0d12;
-    --accent-ink: #0a62a0;
-    --focus: #0a62a0;
-    --ok-ink: #006b4e;
-    --caution-ink: #7b5400;
-    --warning-ink: #8a4700;
-    --critical-ink: #9f1832;
-    --unknown-ink: #505b6c;
-    --ok-tint: #dfefe9;
-    --caution-tint: #fff0cc;
-    --warning-tint: #ffe8cc;
-    --critical-tint: #fce5ea;
-    --unknown-tint: #e7ebf0;
-    --on-status: #121820;
-    --chart-baseline: #146471;
-    --grid-line: rgb(20 100 113 / 4%);
-    --shine: rgb(255 255 255 / 22%);
-    --lift-shadow: rgb(0 0 0 / 14%);
-    --glow-strength: 0%;
+    color-scheme: dark;
   }
 }
-
 :root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #f4f6fa;
-  --surface: #ffffff;
-  --surface-raised: #f5f7fb;
-  --surface-hover: #e8edf5;
-  --border: #c0cad8;
-  --border-strong: #8091a7;
-  --text: #121820;
-  --muted: #455469;
-  --accent: #21b0fe;
-  --on-accent: #0b0d12;
-  --accent-ink: #0a62a0;
-  --focus: #0a62a0;
-  --ok-ink: #006b4e;
-  --caution-ink: #7b5400;
-  --warning-ink: #8a4700;
-  --critical-ink: #9f1832;
-  --unknown-ink: #505b6c;
-  --ok-tint: #dfefe9;
-  --caution-tint: #fff0cc;
-  --warning-tint: #ffe8cc;
-  --critical-tint: #fce5ea;
-  --unknown-tint: #e7ebf0;
-  --on-status: #121820;
-  --chart-baseline: #146471;
-  --grid-line: rgb(20 100 113 / 4%);
-  --shine: rgb(255 255 255 / 22%);
-  --lift-shadow: rgb(0 0 0 / 14%);
-  --glow-strength: 0%;
+  color-scheme: dark;
 }

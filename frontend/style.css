@@ -55,12 +55,6 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .connection-meta { border-left: 1px solid var(--border); padding-left: var(--space-5); min-width: 170px; }
 .connection-meta > span { color: var(--muted); font-size: 12px; }
 .tone-unknown { color: var(--unknown-ink); }
-.theme-toggle {
-  display: inline-flex; align-items: center; gap: var(--space-2); color: var(--accent-ink); background: transparent;
-  border: 1px solid var(--accent-ink); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);
-  font-size: 12px; font-weight: 600; white-space: nowrap; transition: background var(--transition);
-}
-.theme-toggle:hover { background: var(--surface-hover); }
 /* The brand header has the same tested white-on-blue contrast as primary controls. */
 /* Header palette: exactly three tokens (base, gradient end, accent) plus white text. */
 .topbar { position: relative; background: linear-gradient(90deg, var(--topbar-bg-end), var(--topbar-bg) 45%); color: var(--on-header); }
@@ -70,8 +64,6 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .topbar .connection-meta > span, .topbar #connection[data-tone] { color: var(--on-header); }
 .topbar .connection-meta { border-color: var(--on-header); }
 .topbar .orbit { color: var(--topbar-bg); background: var(--on-header); border-color: var(--on-header); }
-.topbar .theme-toggle { color: var(--on-header); border-color: var(--on-header); background: transparent; }
-.topbar .theme-toggle:hover { background: var(--topbar-bg-end); text-decoration: underline; }
 
 
 /* Layout */
@@ -421,7 +413,6 @@ html { scrollbar-gutter: stable; }
 .topbar { position: relative; }
 .mission-meta { min-width: 0; }
 .connection-meta { min-inline-size: 22ch; }
-.theme-toggle { min-inline-size: 15ch; justify-content: center; }
 .crew-grid { align-items: stretch; }
 .crew-card { min-width: 0; }
 .decision { min-inline-size: 9ch; text-align: center; }
@@ -455,7 +446,7 @@ html { scrollbar-gutter: stable; }
 .detail-toolbar { min-block-size: 3.5rem; flex-wrap: wrap; }
 .detail-event-list { min-block-size: 6rem; }
 @media (max-height: 1049px) and (min-width: 1100px) {
-  .decision-list { block-size: 7rem; }
+  .decision-list { block-size: 6.5rem; }
   .crew-identity > div { min-block-size: 2.6em; }
   .reading-value { min-inline-size: 6ch; }
 }
@@ -563,14 +554,14 @@ html { scrollbar-gutter: stable; }
 .reading[data-tone="nominal"] .reading-status { color: var(--muted); }
 .decision-item.is-new, .alert-row.is-new, .earth-row.is-new { animation: finish-reveal 240ms ease-out both; }
 .badge, .reading-status, .reading-value { transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease; }
-.finish-button, .scenario-button, .crew-detail-button, .theme-toggle, .nasa-trigger, .why-button, .detail-control { transition: transform 80ms ease, background-color var(--transition), border-color var(--transition), filter var(--transition); }
-.finish-button:active:not(:disabled), .scenario-button:active:not(:disabled), .crew-detail-button:active, .theme-toggle:active,
+.finish-button, .scenario-button, .crew-detail-button, .nasa-trigger, .why-button, .detail-control { transition: transform 80ms ease, background-color var(--transition), border-color var(--transition), filter var(--transition); }
+.finish-button:active:not(:disabled), .scenario-button:active:not(:disabled), .crew-detail-button:active,
 .nasa-trigger:active, .why-button:active, .detail-control:active { transform: scale(.97); }
 .nasa-dialog[open], .crew-detail[open] { animation: dialog-fade 150ms ease-out both; }
 .nasa-dialog::backdrop, .crew-detail::backdrop { animation: dialog-fade 150ms ease-out both; }
 @keyframes dialog-fade { from { opacity: 0; } to { opacity: 1; } }
 
-/* Header focus ring stays visible on the dark header in both themes. */
+/* Header focus ring stays visible on the dark header in the single theme. */
 .topbar :focus-visible, .topbar .nasa-button:focus-visible { outline: 2px solid var(--on-header); outline-offset: 3px; }
 @media (max-width: 600px) {
   .finish-card { inset-inline: var(--space-2); inset-block-end: var(--space-2); padding: var(--space-2) var(--space-3); gap: var(--space-2); }
@@ -583,8 +574,8 @@ html { scrollbar-gutter: stable; }
 .earth-panel .empty-state, .earth-list { block-size: 132px; max-height: none; }
 @media (min-width: 1600px) and (min-height: 1050px) { .alerts-panel { block-size: 172px; } }
 @media (max-height: 1049px) and (min-width: 1100px) {
-  .alerts-panel { block-size: 98px; }
-  .earth-panel .empty-state, .earth-list { block-size: 104px; }
+  .alerts-panel { block-size: 78px; }
+  .earth-panel .empty-state, .earth-list { block-size: 84px; }
 }
 @media (max-width: 1150px) { .alerts-panel { block-size: 260px; } }
 /* Header numbers and scenario names change length; reserve their width so neighbours stay put. */
