@@ -29,6 +29,11 @@ for (const [width, height] of [[1920, 1080], [1366, 768], [640, 480], [400, 300]
     const doc = frame.contentDocument;
     const win = frame.contentWindow;
     const before = controls(doc);
+    const earth = doc.querySelector(".earth-panel");
+    assert(earth.checkVisibility(), "Earth link panel is hidden");
+    assert(doc.getElementById("earth-delay").textContent === "Light delay: 12 min", "Earth delay did not render");
+    const firstMessage = doc.querySelector(".earth-row");
+    assert(firstMessage?.querySelector(".earth-status").textContent.includes("In transit"), "Mock message is not in transit");
     assert(win.innerWidth === width && win.innerHeight === height, "Incorrect test viewport");
     for (let sample = 0; sample < 30; sample += 1) {
       await wait(500);
@@ -42,12 +47,15 @@ for (const [width, height] of [[1920, 1080], [1366, 768], [640, 480], [400, 300]
       });
       assert(doc.documentElement.scrollWidth <= width, "Horizontal page overflow");
     }
+    assert(earth.checkVisibility(), "Earth link panel became hidden");
+    assert(firstMessage.isConnected && firstMessage.querySelector(".earth-status").textContent.includes("Delivered"),
+      "Earth message did not transition to delivered with live telemetry");
     if (width >= 1366) assert(doc.documentElement.scrollHeight <= height, `Overview exceeds viewport: ${doc.documentElement.scrollHeight} > ${height}`);
     win.scrollTo(0, 500);
     await wait(50);
     const topbar = doc.querySelector(".topbar").getBoundingClientRect();
     assert(win.scrollY === 0 || topbar.bottom <= 0, "Header covers the scrolled readings");
-    results.push({ ok: true, name: `${width} × ${height}: stable controls, no horizontal overflow, no header overlap` });
+    results.push({ ok: true, name: `${width} × ${height}: visible Earth link and live delivery, stable controls, no horizontal overflow, no header overlap` });
   } catch (error) { results.push({ ok: false, name: `${width} × ${height}: ${error.message}` }); }
   const row = document.createElement("li"); const result = results.at(-1);
   row.textContent = `${result.ok ? "PASS" : "FAIL"} · ${result.name}`; rows.append(row);
