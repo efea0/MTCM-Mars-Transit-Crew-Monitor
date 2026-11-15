@@ -4,10 +4,14 @@ import { createFinishCard } from "./scenario-queue.js";
 import { createDecisionBand } from "./decisions.js";
 import { createSession, validFrame } from "./session.js";
 import { createCrewDetail } from "./crew-detail.js";
+import { createBeyondSpace } from "./beyond-space.js";
 
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
 const CONTROL_URL = "/api/control";
+const SPEED_URL = "/api/speed";
+// Demo-only presets (simulation seconds per real second). The team default is 600; the server owns the real value.
+const SPEED_PRESETS = [150, 300, 600, 1200];
 const HEALTH_URL = "/api/health";
 const HEALTH_CHECK_AFTER_MS = 2000;
 const WAKE_AFTER_MS = 3000;
@@ -27,7 +31,6 @@ const TREND_LEFT = 34;
 const TREND_RIGHT = 4;
 const TREND_TOP = 8;
 const TREND_BOTTOM = 16;
-const THEME_KEY = "theme";
 const ALERT_HIGHLIGHT_MS = 1600;
 const LABELS = {
   metric: {
@@ -54,9 +57,9 @@ const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }
 const readingFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const params = new URLSearchParams(window.location.search);
 const mockMode = params.get("mock") === "1";
+createBeyondSpace({ trigger: document.getElementById("beyond-trigger") });
 const nasaData = createNasaData({ trigger: document.getElementById("nasa-trigger"), banner: document.getElementById("nasa-storm-banner"), mock: mockMode });
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
 const crewViews = new Map();
 const alertViews = new Map();
 const histories = new Map();
@@ -103,21 +106,6 @@ function formatClock(iso) {
 }
 function showValue(node, value) {
   setText(node, numeric(value) ? readingFormat.format(value) : "no data");
-}
-function currentTheme() {
-  return document.documentElement.dataset.theme ?? (lightQuery.matches ? "light" : "dark");
-}
-function configureTheme() {
-  const button = document.getElementById("theme-toggle");
-  const sync = () => { button.textContent = currentTheme() === "light" ? "◐ Theme: Light" : "◐ Theme: Dark"; };
-  button.addEventListener("click", () => {
-    const next = currentTheme() === "light" ? "dark" : "light";
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem(THEME_KEY, next); } catch {}
-    sync();
-  });
-  lightQuery.addEventListener("change", sync);
-  sync();
 }
 function packetStale() {
   if (lastReceived === null || invalidPacket || (!mockMode && transportState !== "open")) return true;
@@ -583,6 +571,7 @@ const finishCard = createFinishCard({
   labels: LABELS.scenario,
   start: requestScenario,
   restart: requestRestart,
+  canControl: () => !controlLocked,
 });
 const crewDetail = createCrewDetail({
   session, labels: LABELS, format: number, evidenceList, sourceNode: ruleId => nasaData.sourceNode(ruleId),
@@ -660,10 +649,29 @@ function acceptFrame(incoming) {
   connectingSince = null;
   render();
 }
+function currentDemoKey() {
+  return document.getElementById("demo-key").value || params.get("key");
+}
+// True when the server guards demo controls with a key this viewer has not supplied.
+let controlLocked = false;
+async function probeControl() {
+  // An empty body fails validation (422) after the key check, so this never changes the simulation.
+  try {
+    const headers = { "Content-Type": "application/json" };
+    const demoKey = currentDemoKey();
+    if (demoKey) headers["X-Demo-Key"] = demoKey;
+    const response = await fetch(CONTROL_URL, {
+      method: "POST", headers, body: "{}",
+      signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
+    });
+    controlLocked = response.status === 401;
+  } catch { return; }
+  finishCard.hide();
+}
 async function demoRequest(url, body, subject) {
   try {
     const headers = {};
-    const demoKey = document.getElementById("demo-key").value || params.get("key");
+    const demoKey = currentDemoKey();
     if (demoKey) headers["X-Demo-Key"] = demoKey;
     if (body) headers["Content-Type"] = "application/json";
     const response = await fetch(url, {
@@ -694,6 +702,22 @@ function requestRestart() {
 function configureDemo() {
   if (params.get("demo") !== "1") return;
   document.getElementById("demo-panel").hidden = false;
+  const speedButtons = document.getElementById("speed-buttons");
+  for (const scale of SPEED_PRESETS) {
+    const button = el("button", "scenario-button speed-button", `×${scale}`);
+    button.type = "button";
+    button.title = `Run the simulation at ×${scale} (1 s = ${number(scale / 60)} simulated min)`;
+    button.addEventListener("click", async () => {
+      const result = document.getElementById("demo-result");
+      button.disabled = true;
+      result.textContent = "Changing speed…";
+      const outcome = await demoRequest(SPEED_URL, JSON.stringify({ time_scale: scale }), "change speed");
+      result.textContent = outcome.ok ? `Speed set to ×${scale}.` : outcome.message;
+      if (outcome.ok) for (const other of speedButtons.children) other.setAttribute("aria-pressed", String(other === button));
+      button.disabled = false;
+    });
+    speedButtons.append(button);
+  }
   const buttons = document.getElementById("scenario-buttons");
   for (const [scenario, label] of Object.entries(LABELS.scenario)) {
     const button = el("button", "scenario-button", label);
@@ -743,7 +767,15 @@ async function start() {
     cabinTrendViews.set(metric, view);
     document.getElementById("cabin-trends").append(view.root);
   }
-  configureTheme(); configureDemo(); render();
+  configureDemo(); render();
+  if (!mockMode) {
+    probeControl();
+    let probeTimer = null;
+    document.getElementById("demo-key").addEventListener("input", () => {
+      window.clearTimeout(probeTimer);
+      probeTimer = window.setTimeout(probeControl, 400);
+    });
+  }
   clockTimer = window.setInterval(updateClock, CLOCK_INTERVAL_MS);
   if (mockMode) {
     document.getElementById("source-label").textContent = "LOCAL MOCK · Decisions are fixed demo examples";

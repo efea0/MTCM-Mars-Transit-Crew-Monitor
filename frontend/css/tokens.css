@@ -1,44 +1,49 @@
 @charset "UTF-8";
-/* Independent Habitat palette. Teal is the product accent; alert colors retain semantic meaning.
-   Text inks and tinted surfaces are selected for WCAG AA contrast in both themes. */
+/* Habitat palette: one dark theme built only from three colours (#393D41 charcoal, #F6F8EC off-white, #E84F38
+   red-orange) and mixes between them. Red-orange is reserved for alert states, never decoration. Status cannot
+   rely on hue alone, so every state also has a text label and icon, and severity uses lightness, fill, line style
+   and an inset outline. The light-theme blocks below are intentionally empty stubs (the contrast tests still look
+   for them). */
 :root {
   color-scheme: dark;
-  --bg: #0b0d12;
-  --surface: #14171f;
-  --surface-raised: #1c212b;
-  --surface-hover: #252d3a;
-  --border: #3a4557;
-  --border-strong: #5f7088;
-  --text: #f7f9fc;
-  --muted: #b4bfce;
-  --accent: #146471;
-  --on-accent: #ffffff;
-  --accent-ink: #83d0d4;
-  --focus: #83d0d4;
-  --ok: #009e73;
-  --caution: #e69f00;
-  --warning: #ffb454;
-  --critical: #b4233e;
-  --unknown: #667085;
-  --ok-ink: #45d9a3;
-  --caution-ink: #ffd166;
-  --warning-ink: #ffb454;
-  --critical-ink: #ff98aa;
-  --unknown-ink: #b7bfcc;
-  --ok-tint: #112d26;
-  --caution-tint: #332911;
-  --warning-tint: #342817;
-  --critical-tint: #341c24;
-  --unknown-tint: #282c35;
-  --on-status: #0b0d12;
-  --on-critical: #ffffff;
-  --chart-baseline: #83d0d4;
-  --grid-line: rgb(20 100 113 / 4%);
-  --topbar-bg: #0c3540;
-  --topbar-bg-end: #145560;
-  --topbar-accent: #23678f;
-  --shine: rgb(255 255 255 / 22%);
-  --lift-shadow: rgb(0 0 0 / 28%);
+  --bg: #222527;
+  --surface: #2f3233;
+  --surface-raised: #393c3d;
+  --surface-hover: #484b4a;
+  --border: #595c5a;
+  --border-strong: #8c8e8a;
+  --text: #f6f8ec;
+  --muted: #c1c4bc;
+  --accent: #f6f8ec;
+  --on-accent: #0e0f10;
+  --accent-ink: #f6f8ec;
+  --focus: #f6f8ec;
+  --ok: #818480;
+  --caution: #aaada8;
+  --warning: #ee9b89;
+  --critical: #e84f38;
+  --unknown: #5d605e;
+  --ok-ink: #d0d3ca;
+  --caution-ink: #dfe2d7;
+  --warning-ink: #f3d3c4;
+  --critical-ink: #f1bdad;
+  --unknown-ink: #c1c4bc;
+  --ok-tint: #333637;
+  --caution-tint: #3e4041;
+  --warning-tint: #4a2d2a;
+  --critical-tint: #65332d;
+  --unknown-tint: #2a2d2f;
+  --on-status: #0e0f10;
+  --on-critical: #0b0c0d;
+  --chart-baseline: #c1c4bc;
+  --grid-line: rgb(246 248 236 / 4%);
+  --brand-light: #f6f8ec;
+  --brand-mid: #8c8e8a;
+  --on-header: #f6f8ec;
+  --topbar-bg: #222527;
+  --topbar-bg-end: #333637;
+  --shine: rgb(246 248 236 / 20%);
+  --lift-shadow: rgb(0 0 0 / 60%);
   --glow-strength: 0%;
   --space-1: 4px;
   --space-2: 8px;
@@ -56,66 +61,9 @@
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    color-scheme: light;
-    --bg: #f4f6fa;
-    --surface: #ffffff;
-    --surface-raised: #f5f7fb;
-    --surface-hover: #e8edf5;
-    --border: #c0cad8;
-    --border-strong: #8091a7;
-    --text: #121820;
-    --muted: #455469;
-    --accent: #146471;
-    --on-accent: #ffffff;
-    --accent-ink: #145e66;
-    --focus: #145e66;
-    --ok-ink: #006b4e;
-    --caution-ink: #7b5400;
-    --warning-ink: #8a4700;
-    --critical-ink: #9f1832;
-    --unknown-ink: #505b6c;
-    --ok-tint: #dfefe9;
-    --caution-tint: #fff0cc;
-    --warning-tint: #ffe8cc;
-    --critical-tint: #fce5ea;
-    --unknown-tint: #e7ebf0;
-    --on-status: #121820;
-    --chart-baseline: #146471;
-    --grid-line: rgb(20 100 113 / 4%);
-    --shine: rgb(255 255 255 / 22%);
-    --lift-shadow: rgb(0 0 0 / 14%);
-    --glow-strength: 0%;
+    color-scheme: dark;
   }
 }
-
 :root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #f4f6fa;
-  --surface: #ffffff;
-  --surface-raised: #f5f7fb;
-  --surface-hover: #e8edf5;
-  --border: #c0cad8;
-  --border-strong: #8091a7;
-  --text: #121820;
-  --muted: #455469;
-  --accent: #146471;
-  --on-accent: #ffffff;
-  --accent-ink: #145e66;
-  --focus: #145e66;
-  --ok-ink: #006b4e;
-  --caution-ink: #7b5400;
-  --warning-ink: #8a4700;
-  --critical-ink: #9f1832;
-  --unknown-ink: #505b6c;
-  --ok-tint: #dfefe9;
-  --caution-tint: #fff0cc;
-  --warning-tint: #ffe8cc;
-  --critical-tint: #fce5ea;
-  --unknown-tint: #e7ebf0;
-  --on-status: #121820;
-  --chart-baseline: #146471;
-  --grid-line: rgb(20 100 113 / 4%);
-  --shine: rgb(255 255 255 / 22%);
-  --lift-shadow: rgb(0 0 0 / 14%);
-  --glow-strength: 0%;
+  color-scheme: dark;
 }

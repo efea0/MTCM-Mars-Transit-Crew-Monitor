@@ -53,3 +53,14 @@ export function chartRange(svg, values, tick) {
 }
 
 export function resetChartRange(svg) { chartRanges.delete(svg); }
+
+/** Close a modal <dialog> when the backdrop is clicked. The press must also start on the backdrop,
+ *  so selecting text inside the dialog and releasing outside does not close it. */
+export function closeOnBackdrop(dialog) {
+  let pressedOnBackdrop = false;
+  dialog.addEventListener("pointerdown", event => { pressedOnBackdrop = event.target === dialog; });
+  dialog.addEventListener("click", event => {
+    if (event.target === dialog && pressedOnBackdrop) dialog.close();
+    pressedOnBackdrop = false;
+  });
+}

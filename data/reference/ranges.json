@@ -7,6 +7,14 @@
     {"id": "ppco2-caution", "metric": "pp_co2", "severity": "caution", "comparator": ">", "threshold": 2.5, "consecutive_required": 3, "source": "NASA OCHMO-TB-004", "status": "kısmen"}
   ],
 
+  "uyku_kurallari": {
+    "not": "Kept apart from kurallar: uyku_suresi is not in the Metric contract enum yet, so the loader would reject it. Moves into kurallar after delivery with the contract and simulator (sleep_hours) change. Requested by Barış, approved by Efe (2026-11-15, freeze exception).",
+    "kurallar": [
+      {"id": "sleep-short-caution", "metric": "uyku_suresi", "severity": "caution", "comparator": "<", "threshold": 6, "consecutive_required": 2, "source": "varsayım", "status": "doğrulanmadı"},
+      {"id": "sleep-short-critical", "metric": "uyku_suresi", "severity": "critical", "comparator": "<", "threshold": 5, "consecutive_required": 2, "source": "varsayım", "status": "doğrulanmadı"}
+    ]
+  },
+
   "meta": {
     "proje": "NASA Space Apps 2026 – MTCM: Mars Transit Crew Monitor",
     "surum": "1.2",
@@ -16,6 +24,7 @@
     "si_kullanimi": "Prepared with SI (Claude Code): file draft, unit conversions and source audit. Values were compared with the listed sources; rows whose source is an assumption are team decisions. Details: docs/AI_USE_DECLARATION.md",
     "dondurma": "2026-11-14T19:30:00+03:00",
     "dondurma_istisnalari": [
+      "2026-11-15: refuge failure description now states the initial conditions (21% O2, ~0.04% CO2, 295 K, average metabolic rate). Requested by Barış, approved by Efe. No existing threshold changed.",
       "2026-11-14: exercise exception added to the vital_karar_parametreleri.kararlar.olasi_hipoksi condition (requested by Barış, approved by Efe). No numeric value changed; for consistency with the kalp_yuku rule and the hypoxia scenario.",
       "2026-11-14: Source audit (Efe). NASA-STD-3001 Vol 2 Rev F (approved 2026-07-14) supersedes Rev E; Table 6.2-1, [V2 6003], [V2 6004], [V2 6006] are unchanged in Rev F. Only numeric change: giysi.pico2_limitleri 4.0–7.0 mmHg tier 7.0 → 8.0 h/day (Rev F Table 11.3-1). giyside_toplam_sure_max (14 h) is not in Rev F → kısmen. Metabolic rates differ 2–4% from the OCHMO-TB-004 Rev D table → kısmen (numbers unchanged). mars_yuzeyi_orani applies to absorbed dose only → kısmen. Submarine CO2 0.8% verified against NRC 2007 Table S-1. No threshold used by the engine or the rules changed.",
       "2026-11-14: olcum_araligi unit corrected from seconds (demo) to mission minutes; no threshold or decision changed (approved by Efe).",
@@ -296,7 +305,7 @@
     "yeralti_siginagi": {
       "ad": "Underground refuge chamber (US coal mine)",
       "hacim_m3": 30, "kisi": 10, "toplam_basinc_mmHg": 760, "co2_giderme_kg_gun": 10.0, "o2_uretim_kg_gun": 8.4,
-      "ariza_senaryosu": { "co2_giderme_kg_gun": 0, "o2_uretim_kg_gun": 0, "aciklama": "Scrubber and O2 supply offline: about 1.3 h to the CO2 limit, about 2.8 h to the O2 lower limit." },
+      "ariza_senaryosu": { "co2_giderme_kg_gun": 0, "o2_uretim_kg_gun": 0, "aciklama": "Scrubber and O2 supply offline: about 1.3 h to the CO2 limit, about 2.8 h to the O2 lower limit. Computed (1.26 h and 2.83 h, verified by Barış) with the average metabolic rate, an initial atmosphere of 21% O2 and about 0.04% CO2, and T = 295 K." },
       "co2_limit": {
         "ortalama_yuzde": 1.0, "ortalama_mmHg": 7.6, "sapma_max_yuzde": 2.5,
         "kaynak": "30 CFR 7.506 (ecfr.gov)", "status": "doğrulandı"
