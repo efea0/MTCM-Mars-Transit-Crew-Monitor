@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+import socket
 import threading
 import time
 import warnings
 from collections.abc import Generator
+from pathlib import Path
+from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
 import uvicorn
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="starlette")
 
@@ -18,11 +24,17 @@ from backend.main import (  # noqa: E402
     CONTRACT_VERSION,
     DEFAULT_SCENARIO_NAME,
     DEFAULT_TIME_SCALE,
+    MAX_TIME_SCALE,
+    MIN_TIME_SCALE,
+    RELEASE_AFTER_ABSENT_FRAMES,
     Pipeline,
+    SimulationManager,
     app,
+    get_stream,
+    load_default_time_scale,
     manager,
 )
-from backend.models import Scenario, TelemetryFrame  # noqa: E402
+from backend.models import Scenario, Severity, TelemetryFrame  # noqa: E402
 from backend.simulator import SimulationFinished  # noqa: E402
 
 
@@ -51,8 +63,11 @@ def test_pipeline_hypoxia_alerts_and_messages() -> None:
 
 def test_pipeline_alert_deduplication() -> None:
     pipeline = Pipeline(Scenario.hypoxia)
-    while not pipeline.step().alerts:
-        pass
+    for _ in range(50):
+        if pipeline.step().alerts:
+            break
+    else:
+        pytest.fail("Hypoxia senaryosunda 50 adımda uyarı üretilmedi")
     frame_with_alert = pipeline.step()
     msg_count_1 = len(frame_with_alert.messages)
     assert msg_count_1 > 0
@@ -79,6 +94,271 @@ def test_pipeline_finished_raises() -> None:
         pipeline.step()
     with pytest.raises(SimulationFinished):
         pipeline.step()
+
+
+def test_pipeline_hypoxia_message_hysteresis() -> None:
+    pipeline = Pipeline(Scenario.hypoxia)
+    while not pipeline.finished:
+        pipeline.step()
+    messages = [
+        message for message in pipeline.link.messages() if message.key[:2] == ("crew-1", "karar-kalp_yuku")
+    ]
+    # Histerezissiz tam koşu 31 mesajdı; belirgin azalmalı, tam sayıya bağlanmamalı.
+    assert 1 <= len(messages) <= 10
+
+
+@pytest.mark.parametrize(
+    "absent_frames",
+    [1, RELEASE_AFTER_ABSENT_FRAMES - 1, RELEASE_AFTER_ABSENT_FRAMES, RELEASE_AFTER_ABSENT_FRAMES + 1],
+)
+def test_pipeline_release_after_consecutive_absence(
+    monkeypatch: pytest.MonkeyPatch, absent_frames: int
+) -> None:
+    pipeline = Pipeline(Scenario.hypoxia)
+    for _ in range(50):
+        frame = pipeline.step()
+        if frame.alerts:
+            break
+    else:
+        pytest.fail("Test için uyarı bulunamadı")
+    alert = frame.alerts[0]
+    pipeline.reset(Scenario.hypoxia)
+    frames = iter(
+        [
+            frame.model_copy(update={"alerts": alerts})
+            for alerts in [[alert], *([[]] * absent_frames), [alert]]
+        ]
+    )
+    monkeypatch.setattr(pipeline.rules, "evaluate", lambda *args, **kwargs: next(frames))
+    for _ in range(absent_frames + 2):
+        pipeline.step()
+    expected = 2 if absent_frames >= RELEASE_AFTER_ABSENT_FRAMES else 1
+    assert len(pipeline.link.messages()) == expected
+
+
+def test_pipeline_severity_changes_send_immediately(monkeypatch: pytest.MonkeyPatch) -> None:
+    pipeline = Pipeline(Scenario.hypoxia)
+    for _ in range(50):
+        frame = pipeline.step()
+        if frame.alerts:
+            break
+    else:
+        pytest.fail("Test için uyarı bulunamadı")
+    alert = frame.alerts[0]
+    pipeline.reset(Scenario.hypoxia)
+    severities = (Severity.caution, Severity.critical, Severity.caution)
+    frames = iter(
+        frame.model_copy(update={"alerts": [alert.model_copy(update={"severity": severity})]})
+        for severity in severities
+    )
+    monkeypatch.setattr(pipeline.rules, "evaluate", lambda *args, **kwargs: next(frames))
+    for _ in severities:
+        pipeline.step()
+    assert [message.key[-1] for message in pipeline.link.messages()] == [s.value for s in severities]
+    pipeline.reset(Scenario.hypoxia)
+    assert not pipeline._active_keys
+    assert not pipeline._absent_frames
+
+
+@pytest.mark.parametrize("value", ["inf", "-inf", "nan", "1e9", "1e-300", "0", "-1", "bad"])
+def test_invalid_env_time_scale_falls_back(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    monkeypatch.delenv("MARS_TIME_SCALE", raising=False)
+    fallback = load_default_time_scale()
+    monkeypatch.setenv("MARS_TIME_SCALE", value)
+    assert load_default_time_scale() == fallback
+
+
+@pytest.mark.parametrize("value", [MIN_TIME_SCALE, DEFAULT_TIME_SCALE, MAX_TIME_SCALE])
+def test_valid_env_time_scale(monkeypatch: pytest.MonkeyPatch, value: float) -> None:
+    monkeypatch.setenv("MARS_TIME_SCALE", str(value))
+    assert load_default_time_scale() == value
+
+
+def test_invalid_config_time_scale_falls_back(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("MARS_TIME_SCALE", raising=False)
+    ranges = tmp_path / "ranges.json"
+    ranges.write_text(json.dumps({"iletisim": {"demo_zaman_carpani": {"deger": 1e9}}}), encoding="utf-8")
+    assert load_default_time_scale(ranges) == DEFAULT_TIME_SCALE
+
+
+def test_manager_slowdown_preserves_elapsed_simulation_time() -> None:
+    async def check() -> None:
+        local = SimulationManager()
+        local.set_time_scale(600.0)
+        queue: asyncio.Queue[str] = asyncio.Queue()
+        local.add_subscriber(queue)
+        local.start()
+        try:
+            await asyncio.wait_for(queue.get(), timeout=1.0)
+            loop = asyncio.get_running_loop()
+            started = loop.time()
+            await asyncio.sleep(0.2)
+            elapsed = loop.time() - started
+            local.set_time_scale(60.0)
+            await asyncio.wait_for(queue.get(), timeout=4.5)
+            actual = loop.time() - started
+            interval_s = local.pipeline.measurement_interval_min * 60.0
+            expected = elapsed + (interval_s - elapsed * 600.0) / 60.0
+            assert actual == pytest.approx(expected, abs=0.4)
+        finally:
+            await local.stop()
+
+    asyncio.run(check())
+
+
+def test_manager_start_pause_start_resume() -> None:
+    async def check() -> None:
+        local = SimulationManager()
+        local.set_time_scale(MAX_TIME_SCALE)
+        queue: asyncio.Queue[str] = asyncio.Queue()
+        local.add_subscriber(queue)
+        local.start()
+        try:
+            await asyncio.wait_for(queue.get(), timeout=1.0)
+            local.pause()
+            await asyncio.sleep(0.02)
+            task, unpaused, interrupt = local._task, local._unpaused_event, local._interrupt_event
+            local.start()
+            assert local._task is task
+            assert local._unpaused_event is unpaused
+            assert local._interrupt_event is interrupt
+            assert not local.running
+            local.resume()
+            msg = await asyncio.wait_for(queue.get(), timeout=0.5)
+            assert json.loads(msg.split("data: ", 1)[1])["tick"] == 1
+        finally:
+            await local.stop()
+
+    asyncio.run(check())
+
+
+@pytest.fixture
+def isolated_manager(monkeypatch: pytest.MonkeyPatch) -> SimulationManager:
+    local = SimulationManager()
+    monkeypatch.setattr("backend.main.manager", local)
+    return local
+
+
+@pytest.fixture
+def stream_request(monkeypatch: pytest.MonkeyPatch) -> Request:
+    request = Request({"type": "http"})
+    monkeypatch.setattr(request, "is_disconnected", AsyncMock(return_value=False))
+    return request
+
+
+@pytest.mark.parametrize("endpoint", ["/api/control", "/api/scenario/hypoxia"])
+def test_reset_clears_state_and_sse_replay(
+    isolated_manager: SimulationManager, stream_request: Request, endpoint: str
+) -> None:
+    async def check() -> None:
+        local = isolated_manager
+        local.last_frame = local.pipeline.step()
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(endpoint, json={"action": "restart"})
+            assert response.status_code == 200
+            assert local.last_frame is None
+            assert (await client.get("/api/state")).status_code == 404
+        response = await get_stream(stream_request)
+        assert all(queue.empty() for queue in local._subscribers)
+        pending = asyncio.create_task(anext(response.body_iterator))
+        await asyncio.sleep(0)
+        pending.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await pending
+        assert not local._subscribers
+
+    asyncio.run(check())
+
+
+def test_stream_end_event(
+    isolated_manager: SimulationManager, stream_request: Request, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def check() -> None:
+        local = isolated_manager
+        frame = local.pipeline.step()
+        monkeypatch.setattr(local.pipeline, "step", Mock(side_effect=[frame, SimulationFinished]))
+        local.set_time_scale(MAX_TIME_SCALE)
+        response = await get_stream(stream_request)
+        local.start()
+        try:
+            msg = await asyncio.wait_for(anext(response.body_iterator), timeout=1.0)
+            assert msg.startswith("event: telemetry\n")
+            end = await asyncio.wait_for(anext(response.body_iterator), timeout=1.0)
+            assert end == 'event: end\ndata: {"scenario": "nominal"}\n\n'
+            assert local.finished
+            assert not local.running
+            assert all(queue.empty() for queue in local._subscribers)
+        finally:
+            await response.body_iterator.aclose()
+            await local.stop()
+
+    asyncio.run(check())
+
+
+def test_stream_pause_resume(isolated_manager: SimulationManager, stream_request: Request) -> None:
+    async def check() -> None:
+        local = isolated_manager
+        local.set_time_scale(MAX_TIME_SCALE)
+        response = await get_stream(stream_request)
+        local.start()
+        try:
+            first = await asyncio.wait_for(anext(response.body_iterator), timeout=1.0)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                assert (await client.post("/api/control", json={"action": "pause"})).json() == {
+                    "running": False
+                }
+                pending = asyncio.create_task(anext(response.body_iterator))
+                await asyncio.sleep(0.15)
+                assert not pending.done()
+                assert (await client.post("/api/control", json={"action": "resume"})).json() == {
+                    "running": True
+                }
+                second = await asyncio.wait_for(pending, timeout=1.0)
+            assert first.startswith("event: telemetry\n")
+            assert second.startswith("event: telemetry\n")
+            assert (
+                json.loads(second.split("data: ", 1)[1])["tick"]
+                > json.loads(first.split("data: ", 1)[1])["tick"]
+            )
+        finally:
+            await response.body_iterator.aclose()
+            await local.stop()
+
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize("disconnect", ["cancel", "close", "disconnect"])
+def test_stream_disconnect_cleanup(
+    isolated_manager: SimulationManager,
+    stream_request: Request,
+    monkeypatch: pytest.MonkeyPatch,
+    disconnect: str,
+) -> None:
+    async def check() -> None:
+        local = isolated_manager
+        local.last_frame = local.pipeline.step()
+        response = await get_stream(stream_request)
+        assert (await anext(response.body_iterator)).startswith("event: telemetry\n")
+        assert len(local._subscribers) == 1
+        if disconnect == "cancel":
+            pending = asyncio.create_task(anext(response.body_iterator))
+            await asyncio.sleep(0)
+            pending.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await pending
+        elif disconnect == "close":
+            await response.body_iterator.aclose()
+        else:
+            monkeypatch.setattr(stream_request, "is_disconnected", AsyncMock(return_value=True))
+            with pytest.raises(StopAsyncIteration):
+                await anext(response.body_iterator)
+        assert not local._subscribers
+
+    asyncio.run(check())
 
 
 @pytest.fixture
@@ -123,6 +403,13 @@ def test_api_scenario_invalid(client: TestClient) -> None:
     assert "bulunamadı" in data["detail"].lower()
 
 
+def test_api_scenario_valid_enum_missing_file(client: TestClient) -> None:
+    # Scenario enum'unda olan fakat json dosyası bulunmayan senaryo (sleep_deprivation) 404 dönmeli
+    res = client.post("/api/scenario/sleep_deprivation")
+    assert res.status_code == 404
+    assert "bulunamadı" in res.json()["detail"].lower()
+
+
 def test_api_scenario_change(client: TestClient) -> None:
     res = client.post("/api/scenario/hypoxia")
     assert res.status_code == 200
@@ -164,6 +451,87 @@ def test_api_speed(client: TestClient) -> None:
     assert res_too_high.status_code == 422
 
 
+@pytest.mark.parametrize("raw_value", ["NaN", "Infinity", "-Infinity", "1e9", "1e-300"])
+def test_api_speed_invalid_raw_json(client: TestClient, raw_value: str) -> None:
+    original_scale = manager.time_scale
+    response = client.post(
+        "/api/speed",
+        content='{"time_scale": ' + raw_value + "}",
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 422
+    error = response.json()["detail"][0]
+    assert error["loc"] == ["body", "time_scale"]
+    assert isinstance(error["input"], str)
+    assert manager.time_scale == original_scale
+
+
+@pytest.mark.parametrize("scale", [MIN_TIME_SCALE, MAX_TIME_SCALE])
+def test_api_speed_accepts_boundaries(client: TestClient, scale: float) -> None:
+    response = client.post("/api/speed", json={"time_scale": scale})
+    assert response.status_code == 200
+    assert response.json() == {"time_scale": scale}
+
+
+def test_api_speed_does_not_trigger_early_tick(client: TestClient) -> None:
+    # Hız değişikliği uyku süresi dolmadan erken tick tetiklememeli
+    client.post("/api/control", json={"action": "restart"})
+    client.post("/api/control", json={"action": "pause"})
+    tick1 = client.get("/api/state").json()["tick"]
+    for scale in (1000.0, 2000.0, 500.0, 3000.0):
+        client.post("/api/speed", json={"time_scale": scale})
+    tick2 = client.get("/api/state").json()["tick"]
+    assert tick1 == tick2
+
+
+def test_api_restart_and_scenario_change_after_finished(client: TestClient) -> None:
+    # Senaryo bittikten sonra restart ve scenario change döngüyü yeniden uyandırmalı
+    manager.pause()
+    pipeline = manager.pipeline
+    while not pipeline.finished:
+        pipeline.step()
+    manager.finished = True
+    manager.running = False
+
+    # restart bittikten sonra çalışmalı
+    res_restart = client.post("/api/control", json={"action": "restart"})
+    assert res_restart.status_code == 200
+    assert res_restart.json() == {"running": True}
+    health = client.get("/api/health").json()
+    assert health["running"] is True
+    assert health["finished"] is False
+
+    # Bitirip başka senaryoya geçiş
+    manager.pause()
+    while not manager.pipeline.finished:
+        manager.pipeline.step()
+    manager.finished = True
+    manager.running = False
+
+    res_change = client.post("/api/scenario/hypoxia")
+    assert res_change.status_code == 200
+    assert res_change.json() == {"scenario": "hypoxia", "status": "started"}
+    health2 = client.get("/api/health").json()
+    assert health2["scenario"] == "hypoxia"
+    assert health2["running"] is True
+    assert health2["finished"] is False
+    client.post("/api/scenario/nominal")
+
+
+def test_pipeline_all_scenarios_to_end() -> None:
+    for sc in ("nominal", "hypoxia", "hypercapnia", "solar_storm", "sensor_dropout"):
+        p = Pipeline(sc)
+        ticks = 0
+        while not p.finished:
+            frame = p.step()
+            ticks += 1
+            assert isinstance(frame, TelemetryFrame)
+            assert (frame.scenario.value if hasattr(frame.scenario, "value") else str(frame.scenario)) == sc
+        with pytest.raises(SimulationFinished):
+            p.step()
+        assert ticks > 0
+
+
 def test_api_state(client: TestClient) -> None:
     res = client.get("/api/state")
     assert res.status_code == 200
@@ -188,9 +556,12 @@ def test_api_state_empty() -> None:
 
 
 def test_api_stream_sse() -> None:
-    config = uvicorn.Config(app, host="127.0.0.1", port=8001, log_level="error", ws="none")
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    port = listener.getsockname()[1]
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error", ws="none")
     server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True)
+    thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=True)
     thread.start()
 
     for _ in range(50):
@@ -198,34 +569,38 @@ def test_api_stream_sse() -> None:
             break
         time.sleep(0.02)
 
-    manager.set_time_scale(6000.0)
-    manager.set_scenario("nominal")
-
     frames: list[TelemetryFrame] = []
     event_names: list[str] = []
     try:
-        with (
-            httpx.Client(base_url="http://127.0.0.1:8001", timeout=5.0) as client,
-            client.stream("GET", "/api/stream") as resp,
-        ):
-            assert resp.status_code == 200
-            assert resp.headers["content-type"].startswith("text/event-stream")
-            for line in resp.iter_lines():
-                if line.startswith("event:"):
-                    event_names.append(line[len("event:") :].strip())
-                if line.startswith("data:"):
-                    raw_json = line[len("data:") :].strip()
-                    if "scenario" in raw_json and "contract_version" in raw_json:
-                        frame = TelemetryFrame.model_validate_json(raw_json)
-                        frames.append(frame)
-                        if len(frames) >= 3:
-                            break
+        assert server.started
+        with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=5.0) as client:
+            client.post("/api/speed", json={"time_scale": MAX_TIME_SCALE}).raise_for_status()
+            client.post("/api/scenario/nominal").raise_for_status()
+            with client.stream("GET", "/api/stream") as resp:
+                assert resp.status_code == 200
+                assert resp.headers["content-type"].startswith("text/event-stream")
+                for line in resp.iter_lines():
+                    if line.startswith("event:"):
+                        event_names.append(line[len("event:") :].strip())
+                    if line.startswith("data:"):
+                        raw_json = line[len("data:") :].strip()
+                        if "scenario" in raw_json and "contract_version" in raw_json:
+                            frame = TelemetryFrame.model_validate_json(raw_json)
+                            frames.append(frame)
+                            if len(frames) >= 3:
+                                break
+            for _ in range(50):
+                if not manager._subscribers:
+                    break
+                time.sleep(0.02)
+            assert not manager._subscribers
     finally:
         server.should_exit = True
         thread.join(timeout=2.0)
+        listener.close()
 
     assert len(frames) == 3
-    assert event_names[:3] == ["telemetry"] * 3  # docs/contract.json: event: telemetry
+    assert event_names[:3] == ["telemetry"] * 3
     for frame in frames:
         assert frame.scenario == Scenario.nominal
         assert frame.simulated is True
