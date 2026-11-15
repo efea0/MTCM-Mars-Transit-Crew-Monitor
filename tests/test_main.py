@@ -1,4 +1,4 @@
-"""backend/main.py için birim, HTTP ve SSE akış testleri."""
+"""Unit, HTTP and SSE stream tests for backend/main.py."""
 
 from __future__ import annotations
 
@@ -58,11 +58,10 @@ def test_pipeline_hypoxia_alerts_and_messages() -> None:
             found_alerts = True
             assert len(frame.messages) > 0
             break
-    assert found_alerts, "Hypoxia senaryosunda 50 adımda uyarı üretilmedi"
+    assert found_alerts, "No alert produced in 50 steps of the hypoxia scenario"
 
 
 def test_pipeline_solar_storm_warns_before_dose_is_received() -> None:
-    """SEP bağlamı simülatörden gelir: radyasyon uyarısı 200 mSv alınmadan önce, beklenen pencerede çıkar."""
     pipeline = Pipeline(Scenario.solar_storm)
     first_minute: float | None = None
     while first_minute is None:
@@ -81,11 +80,10 @@ def test_pipeline_alert_deduplication() -> None:
         if pipeline.step().alerts:
             break
     else:
-        pytest.fail("Hypoxia senaryosunda 50 adımda uyarı üretilmedi")
+        pytest.fail("No alert produced in 50 steps of the hypoxia scenario")
     frame_with_alert = pipeline.step()
     msg_count_1 = len(frame_with_alert.messages)
     assert msg_count_1 > 0
-    # Aynı uyarı aktif kaldığı sürece yeni mesaj eklenmemeli
     frame_with_alert_2 = pipeline.step()
     assert len(frame_with_alert_2.messages) == msg_count_1
 
@@ -117,7 +115,6 @@ def test_pipeline_hypoxia_message_hysteresis() -> None:
     messages = [
         message for message in pipeline.link.messages() if message.key[:2] == ("crew-1", "karar-kalp_yuku")
     ]
-    # Histerezissiz tam koşu 31 mesajdı; belirgin azalmalı, tam sayıya bağlanmamalı.
     assert 1 <= len(messages) <= 10
 
 
@@ -134,7 +131,7 @@ def test_pipeline_release_after_consecutive_absence(
         if frame.alerts:
             break
     else:
-        pytest.fail("Test için uyarı bulunamadı")
+        pytest.fail("No alert found for the test")
     alert = frame.alerts[0]
     pipeline.reset(Scenario.hypoxia)
     frames = iter(
@@ -157,7 +154,7 @@ def test_pipeline_severity_changes_send_immediately(monkeypatch: pytest.MonkeyPa
         if frame.alerts:
             break
     else:
-        pytest.fail("Test için uyarı bulunamadı")
+        pytest.fail("No alert found for the test")
     alert = frame.alerts[0]
     pipeline.reset(Scenario.hypoxia)
     severities = (Severity.caution, Severity.critical, Severity.caution)
@@ -376,7 +373,8 @@ def test_stream_disconnect_cleanup(
 
 
 @pytest.fixture
-def client() -> Generator[TestClient, None, None]:
+def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, None, None]:
+    monkeypatch.delenv("DEMO_CONTROL_KEY", raising=False)
     manager.set_scenario(DEFAULT_SCENARIO_NAME)
     manager.set_time_scale(DEFAULT_TIME_SCALE)
     with TestClient(app) as test_client:
@@ -414,14 +412,13 @@ def test_api_scenario_invalid(client: TestClient) -> None:
     assert res.status_code == 404
     data = res.json()
     assert "detail" in data
-    assert "bulunamadı" in data["detail"].lower()
+    assert "not found" in data["detail"].lower()
 
 
 def test_api_scenario_valid_enum_missing_file(client: TestClient) -> None:
-    # Scenario enum'unda olan fakat json dosyası bulunmayan senaryo (sleep_deprivation) 404 dönmeli
     res = client.post("/api/scenario/sleep_deprivation")
     assert res.status_code == 404
-    assert "bulunamadı" in res.json()["detail"].lower()
+    assert "not found" in res.json()["detail"].lower()
 
 
 def test_api_scenario_change(client: TestClient) -> None:
@@ -488,7 +485,6 @@ def test_api_speed_accepts_boundaries(client: TestClient, scale: float) -> None:
 
 
 def test_api_speed_does_not_trigger_early_tick(client: TestClient) -> None:
-    # Hız değişikliği uyku süresi dolmadan erken tick tetiklememeli
     client.post("/api/control", json={"action": "restart"})
     client.post("/api/control", json={"action": "pause"})
     tick1 = client.get("/api/state").json()["tick"]
@@ -499,7 +495,6 @@ def test_api_speed_does_not_trigger_early_tick(client: TestClient) -> None:
 
 
 def test_api_restart_and_scenario_change_after_finished(client: TestClient) -> None:
-    # Senaryo bittikten sonra restart ve scenario change döngüyü yeniden uyandırmalı
     manager.pause()
     pipeline = manager.pipeline
     while not pipeline.finished:
@@ -507,7 +502,6 @@ def test_api_restart_and_scenario_change_after_finished(client: TestClient) -> N
     manager.finished = True
     manager.running = False
 
-    # restart bittikten sonra çalışmalı
     res_restart = client.post("/api/control", json={"action": "restart"})
     assert res_restart.status_code == 200
     assert res_restart.json() == {"running": True}
@@ -515,7 +509,6 @@ def test_api_restart_and_scenario_change_after_finished(client: TestClient) -> N
     assert health["running"] is True
     assert health["finished"] is False
 
-    # Bitirip başka senaryoya geçiş
     manager.pause()
     while not manager.pipeline.finished:
         manager.pipeline.step()
@@ -533,7 +526,6 @@ def test_api_restart_and_scenario_change_after_finished(client: TestClient) -> N
 
 
 def test_pipeline_solar_storm_radiation_alert_and_decisions() -> None:
-    """SEP bağlamı simülatörden gelir: kişi radyasyon uyarısı çıkar, karar unknown kalmaz."""
     pipeline = Pipeline(Scenario.solar_storm)
     rule_ids: set[str] = set()
     sep_decisions: set[str] = set()
@@ -576,7 +568,7 @@ def test_api_state_empty() -> None:
         with TestClient(app) as test_client:
             res = test_client.get("/api/state")
             assert res.status_code == 404
-            assert "Henüz telemetri karesi üretilmedi." in res.json()["detail"]
+            assert "No telemetry frame has been produced yet." in res.json()["detail"]
     finally:
         manager.last_frame = original_frame
         if original_running:
@@ -634,3 +626,75 @@ def test_api_stream_sse() -> None:
         assert frame.simulated is True
         assert len(frame.crew) == 4
         assert frame.cabin.status is not None
+
+
+@pytest.mark.parametrize(
+    ("method_path", "body"),
+    [
+        ("/api/scenario/hypoxia", None),
+        ("/api/control", {"action": "pause"}),
+        ("/api/speed", {"time_scale": 600.0}),
+    ],
+)
+def test_control_endpoints_require_demo_key_when_configured(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, method_path: str, body: dict[str, object] | None
+) -> None:
+    monkeypatch.setenv("DEMO_CONTROL_KEY", "test-anahtari")
+    assert client.post(method_path, json=body).status_code == 401
+    assert client.post(method_path, json=body, headers={"X-Demo-Key": "yanlis"}).status_code == 401
+    assert client.post(method_path, json=body, headers={"X-Demo-Key": "test-anahtari"}).status_code == 200
+
+
+def test_read_endpoints_stay_open_with_demo_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEMO_CONTROL_KEY", "test-anahtari")
+    assert client.get("/api/health").status_code == 200
+    assert client.get("/api/scenarios").status_code == 200
+
+
+def test_empty_demo_key_leaves_control_open(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEMO_CONTROL_KEY", "")
+    assert client.post("/api/control", json={"action": "resume"}).status_code == 200
+
+
+def test_finished_scenario_restarts_nominal_after_delay(
+    isolated_manager: SimulationManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def check() -> None:
+        local = isolated_manager
+        local.set_scenario("hypoxia")
+        frame = local.pipeline.step()
+        steps = [frame, SimulationFinished, *([frame] * 50)]
+        monkeypatch.setattr(local.pipeline, "step", Mock(side_effect=steps))
+        local.finish_restart_delay_s = 0.05
+        local.set_time_scale(MAX_TIME_SCALE)
+        local.start()
+        try:
+            for _ in range(100):
+                await asyncio.sleep(0.02)
+                if local.pipeline.scenario == Scenario.nominal and not local.finished:
+                    break
+            assert local.pipeline.scenario == Scenario.nominal
+            assert not local.finished
+            assert local.running
+        finally:
+            await local.stop()
+
+    asyncio.run(check())
+
+
+def test_finished_scenario_stays_finished_without_delay(
+    isolated_manager: SimulationManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def check() -> None:
+        local = isolated_manager
+        monkeypatch.setattr(local.pipeline, "step", Mock(side_effect=SimulationFinished))
+        local.finish_restart_delay_s = None
+        local.start()
+        try:
+            await asyncio.sleep(0.2)
+            assert local.finished
+            assert not local.running
+        finally:
+            await local.stop()
+
+    asyncio.run(check())

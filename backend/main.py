@@ -1,8 +1,9 @@
-"""FastAPI tabanlı telemetri sunucusu ve SSE yayını — sahibi: Aydın (backend)."""
+"""FastAPI telemetry server with SSE streaming."""
 
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import math
 import os
@@ -12,7 +13,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Final
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,13 +28,15 @@ DEFAULT_SCENARIO_NAME: Final[str] = "nominal"
 DEFAULT_TIME_SCALE: Final[float] = 600.0
 MAX_TIME_SCALE: Final[float] = 6000.0
 MIN_TIME_SCALE: Final[float] = 0.01
-# HİPOTEZ: uyarı ancak 12 ardışık kare (5 dk adımla 1 görev saati) yokluktan sonra serbest bırakılır;
-# kural motorundaki kısa titreşimler Dünya paneline mesaj yağdırmaz (hypoxia: 31 -> 6 mesaj).
 RELEASE_AFTER_ABSENT_FRAMES: Final[int] = 12
 SUBSCRIBER_QUEUE_MAXSIZE: Final[int] = 100
 KEEPALIVE_INTERVAL_S: Final[float] = 15.0
 SECONDS_PER_MINUTE: Final[float] = 60.0
 HTTP_NOT_FOUND: Final[int] = 404
+HTTP_UNAUTHORIZED: Final[int] = 401
+DEMO_KEY_ENV: Final[str] = "DEMO_CONTROL_KEY"
+DEMO_KEY_HEADER: Final[str] = "X-Demo-Key"
+FINISH_RESTART_DELAY_S: Final[float] = 30.0
 
 DATA_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "data"
 RANGES_PATH: Final[Path] = DATA_DIR / "reference" / "ranges.json"
@@ -43,7 +46,7 @@ FRONTEND_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "frontend"
 
 def validate_time_scale(scale: float) -> float:
     if not math.isfinite(scale) or not MIN_TIME_SCALE <= scale <= MAX_TIME_SCALE:
-        raise ValueError(f"time_scale sonlu ve {MIN_TIME_SCALE}-{MAX_TIME_SCALE} aralığında olmalı")
+        raise ValueError(f"time_scale must be finite and within {MIN_TIME_SCALE}-{MAX_TIME_SCALE}")
     return scale
 
 
@@ -62,8 +65,6 @@ def load_default_time_scale(ranges_path: Path = RANGES_PATH) -> float:
 
 
 class Pipeline:
-    """HTTP ve FastAPI'den bağımsız simülasyon ve kural motoru hattı."""
-
     def __init__(
         self,
         scenario: Scenario | str = Scenario.nominal,
@@ -125,7 +126,6 @@ class Pipeline:
         current_rules = {key[:2] for key in current_keys}
         for key in self._active_keys - current_keys:
             absent = self._absent_frames.get(key, 0) + 1
-            # Severity değişimi ayrı bir bildirimdir; eski seviyeyi hemen serbest bırak.
             if key[:2] in current_rules or absent >= RELEASE_AFTER_ABSENT_FRAMES:
                 self.link.release(key)
                 self._active_keys.remove(key)
@@ -145,8 +145,6 @@ class Pipeline:
 
 
 class SimulationManager:
-    """Arka plan zaman döngüsü ve SSE yayın yöneticisi."""
-
     def __init__(
         self,
         scenario: Scenario | str = DEFAULT_SCENARIO_NAME,
@@ -162,6 +160,7 @@ class SimulationManager:
             scenarios_dir=self.scenarios_dir,
         )
         self.time_scale: float = load_default_time_scale(self.ranges_path)
+        self.finish_restart_delay_s: float | None = FINISH_RESTART_DELAY_S
         self.running: bool = True
         self.finished: bool = False
         self.last_frame: TelemetryFrame | None = None
@@ -248,6 +247,15 @@ class SimulationManager:
         payload = json.dumps({"scenario": scenario_name})
         self._broadcast(f"event: end\ndata: {payload}\n\n")
 
+    async def _restart_nominal_after_delay(self) -> None:
+        if self.finish_restart_delay_s is None:
+            return
+        try:
+            await asyncio.wait_for(self._unpaused_event.wait(), timeout=self.finish_restart_delay_s)
+        except TimeoutError:
+            if not self._shutdown:
+                self.set_scenario(DEFAULT_SCENARIO_NAME)
+
     async def _run_loop(self) -> None:
         loop = asyncio.get_running_loop()
         while not self._shutdown:
@@ -265,6 +273,7 @@ class SimulationManager:
                 self.running = False
                 self._unpaused_event.clear()
                 self._broadcast_end(self.pipeline.scenario.value)
+                await self._restart_nominal_after_delay()
                 continue
 
             interval_min = self.pipeline.measurement_interval_min
@@ -301,6 +310,18 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await manager.stop()
+
+
+def require_demo_key(x_demo_key: str | None = Header(default=None)) -> None:
+    expected = os.getenv(DEMO_KEY_ENV, "")
+    if not expected:
+        return
+    provided = x_demo_key or ""
+    if not hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
+        raise HTTPException(
+            status_code=HTTP_UNAUTHORIZED,
+            detail=f"A valid {DEMO_KEY_HEADER} header is required for this endpoint.",
+        )
 
 
 class ControlAction(str, Enum):
@@ -355,7 +376,6 @@ app: Final[FastAPI] = FastAPI(
 
 @app.exception_handler(RequestValidationError)
 async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-    # NaN/Infinity girdileri ve ValueError bağlamı JSON'a güvenle yazılabilmeli.
     errors = [
         {
             **error,
@@ -398,26 +418,30 @@ async def get_scenarios() -> list[ScenarioInfo]:
     return items
 
 
-@app.post("/api/scenario/{name}", response_model=ScenarioChangeResponse)
+@app.post(
+    "/api/scenario/{name}",
+    response_model=ScenarioChangeResponse,
+    dependencies=[Depends(require_demo_key)],
+)
 async def post_scenario(name: str) -> ScenarioChangeResponse:
     valid_names = {s.value for s in Scenario}
     scenario_path = SCENARIOS_DIR / f"{name}.json"
     if name not in valid_names or not scenario_path.is_file():
         raise HTTPException(
             status_code=HTTP_NOT_FOUND,
-            detail=f"'{name}' senaryosu bulunamadı.",
+            detail=f"Scenario '{name}' not found.",
         )
     try:
         manager.set_scenario(name)
     except (FileNotFoundError, ValueError, OSError) as err:
         raise HTTPException(
             status_code=HTTP_NOT_FOUND,
-            detail=f"'{name}' senaryosu yüklenemedi: {err}",
+            detail=f"Scenario '{name}' could not be loaded: {err}",
         ) from err
     return ScenarioChangeResponse(scenario=name, status="started")
 
 
-@app.post("/api/control")
+@app.post("/api/control", dependencies=[Depends(require_demo_key)])
 async def post_control(req: ControlRequest) -> dict[str, bool]:
     if req.action == ControlAction.pause:
         manager.pause()
@@ -428,7 +452,7 @@ async def post_control(req: ControlRequest) -> dict[str, bool]:
     return {"running": manager.running}
 
 
-@app.post("/api/speed")
+@app.post("/api/speed", dependencies=[Depends(require_demo_key)])
 async def post_speed(req: SpeedRequest) -> dict[str, float]:
     manager.set_time_scale(req.time_scale)
     return {"time_scale": manager.time_scale}
@@ -440,7 +464,7 @@ async def get_state() -> Response:
     if frame is None:
         raise HTTPException(
             status_code=HTTP_NOT_FOUND,
-            detail="Henüz telemetri karesi üretilmedi.",
+            detail="No telemetry frame has been produced yet.",
         )
     return Response(content=frame.model_dump_json(), media_type="application/json")
 

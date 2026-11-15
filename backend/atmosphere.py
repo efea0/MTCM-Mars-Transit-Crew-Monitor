@@ -1,8 +1,9 @@
-"""Simüle atmosferin saf kütle dengesi ve anlık sınır değerlendirmesi.
+"""Pure mass balance and instantaneous limit evaluation for the simulated atmosphere.
 
-HİPOTEZ: Nabızdan metabolik yük kestirimi ve sabit akışlı geri sayım ekip
-modelidir. Anlık CO2 karşılaştırması, kaynaklardaki maruziyet ortalamalarını
-hesaplamaz. Art arda ölçüm kararı bu modülün dışındadır; tıbbi tanı üretilmez.
+HYPOTHESIS: Estimating metabolic load from heart rate and the constant-flow
+countdown are team models. The instantaneous CO2 comparison does not compute
+the exposure averages used in the sources. The consecutive-measurement decision
+lives outside this module; no medical diagnosis is produced.
 """
 
 import json
@@ -13,7 +14,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-# Görevde verilen ideal gaz formülünün fiziksel sabitleri ve birim dönüşümleri.
 GAS_CONSTANT = 8.314
 PASCALS_PER_MMHG = 133.322
 GRAMS_PER_KG = 1000.0
@@ -31,7 +31,6 @@ class Rule:
     source: str
 
     def matches(self, value: float | None, *, converted_threshold: float | None = None) -> bool:
-        """Dosyadaki yönü, gerekirse aynı birime çevrilmiş eşikle uygular."""
         compare = {"<": operator.lt, ">": operator.gt}[self.comparator]
         threshold = self.threshold if converted_threshold is None else converted_threshold
         return value is not None and compare(value, threshold)
@@ -61,11 +60,10 @@ class Ranges:
     water_vapour_mmhg: float
 
     def rule(self, rule_id: str) -> Rule:
-        """Kuralı listedeki sırasından bağımsız olarak kimliğiyle bulur."""
         for rule in self.rules:
             if rule.id == rule_id:
                 return rule
-        raise ValueError(f"kurallar: {rule_id} eksik")
+        raise ValueError(f"kurallar: {rule_id} missing")
 
 
 @dataclass(frozen=True)
@@ -86,11 +84,9 @@ class Profile:
 
     @property
     def o2_min_mmhg(self) -> float:
-        """Solunan O2 alt sınırını kabin kısmi basıncına dönüştürür."""
         return self.pp_o2_from_pio2(self.pio2_min_mmhg)
 
     def pp_o2_from_pio2(self, pio2_mmhg: float) -> float:
-        """PIO2 değerini profilin toplam basıncında kabin birimine çevirir."""
         total = self.total_pressure_mmhg
         return pio2_mmhg * total / (total - self.ranges.water_vapour_mmhg)
 
@@ -114,21 +110,21 @@ class Result:
 
 def _number(name: str, value: object, *, positive: bool = False) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
-        raise ValueError(f"{name}: sonlu bir sayı olmalı")
+        raise ValueError(f"{name}: must be a finite number")
     if value < 0 or (positive and value == 0):
-        raise ValueError(f"{name}: {'pozitif' if positive else 'negatif olmayan'} olmalı")
+        raise ValueError(f"{name}: {'positive' if positive else 'non-negative'}")
     return float(value)
 
 
 def _mapping(value: object, name: str) -> Mapping[str, object]:
     if not isinstance(value, dict):
-        raise ValueError(f"{name}: nesne olmalı")
+        raise ValueError(f"{name}: must be an object")
     return value
 
 
 def _required(data: Mapping[str, object], key: str, name: str) -> object:
     if key not in data:
-        raise ValueError(f"{name}.{key}: eksik alan")
+        raise ValueError(f"{name}.{key}: missing field")
     return data[key]
 
 
@@ -143,7 +139,7 @@ def _field(data: Mapping[str, object], key: str, name: str, *, positive: bool = 
 def _text(data: Mapping[str, object], key: str, name: str) -> str:
     value = _required(data, key, name)
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{name}.{key}: boş olmayan metin olmalı")
+        raise ValueError(f"{name}.{key}: must be non-empty text")
     return value
 
 
@@ -152,7 +148,7 @@ def _read(path: str | Path) -> Mapping[str, object]:
         with open(path, encoding="utf-8") as stream:
             return _mapping(json.load(stream), "ranges")
     except json.JSONDecodeError as exc:
-        raise ValueError(f"ranges: geçersiz JSON: {exc.msg}") from exc
+        raise ValueError(f"ranges: invalid JSON: {exc.msg}") from exc
 
 
 def _load_rules(data: Mapping[str, object]) -> tuple[Rule, ...]:
@@ -165,21 +161,21 @@ def _load_rules(data: Mapping[str, object]) -> tuple[Rule, ...]:
     }
     rows = _required(data, "kurallar", "ranges")
     if not isinstance(rows, list):
-        raise ValueError("kurallar: liste olmalı")
+        raise ValueError("kurallar: must be a list")
     rules: dict[str, Rule] = {}
     for row in rows:
-        record = _mapping(row, "kurallar satırı")
-        rule_id = _text(record, "id", "kurallar satırı")
+        record = _mapping(row, "kurallar row")
+        rule_id = _text(record, "id", "kurallar row")
         if rule_id not in expected:
             continue
         if rule_id in rules:
-            raise ValueError(f"kurallar: yinelenen kimlik {rule_id}")
+            raise ValueError(f"kurallar: duplicate id {rule_id}")
         metric, severity = expected[rule_id]
         if record.get("metric") != metric or record.get("severity") != severity:
-            raise ValueError(f"kurallar.{rule_id}: metric veya severity yanlış")
+            raise ValueError(f"kurallar.{rule_id}: wrong metric or severity")
         comparator = _text(record, "comparator", rule_id)
         if comparator not in ("<", ">"):
-            raise ValueError(f"kurallar.{rule_id}.comparator: yalnızca < veya > desteklenir")
+            raise ValueError(f"kurallar.{rule_id}.comparator: only < or > is supported")
         rules[rule_id] = Rule(
             rule_id,
             comparator,
@@ -188,7 +184,7 @@ def _load_rules(data: Mapping[str, object]) -> tuple[Rule, ...]:
         )
     missing = expected.keys() - rules.keys()
     if missing:
-        raise ValueError(f"kurallar: eksik kimlikler: {', '.join(sorted(missing))}")
+        raise ValueError(f"kurallar: missing ids: {', '.join(sorted(missing))}")
     return tuple(rules.values())
 
 
@@ -201,26 +197,25 @@ def _load_metabolism(data: Mapping[str, object]) -> Metabolism:
             *(_field(row, field, key, positive=True) for field in ("ortalama", "min", "max"))
         )
         if not result.minimum <= result.average <= result.maximum:
-            raise ValueError(f"metabolik.{key}: min ≤ ortalama ≤ max olmalı")
+            raise ValueError(f"metabolik.{key}: must satisfy min <= ortalama <= max")
         return result
 
     scaling = _record(record, "nabiz_o2_olcekleme", "metabolik")
     r_min = _field(scaling, "r_min", "nabiz_o2_olcekleme", positive=True)
     r_max = _field(scaling, "r_max", "nabiz_o2_olcekleme", positive=True)
     if r_min >= r_max:
-        raise ValueError("nabiz_o2_olcekleme: r_min < r_max olmalı")
+        raise ValueError("nabiz_o2_olcekleme: r_min must be less than r_max")
     sources = [
         _text(_record(record, key, "metabolik"), "kaynak", key) for key in ("o2_tuketimi", "co2_uretimi")
     ]
-    source = "; ".join((*sources, f"HİPOTEZ: {_text(scaling, 'kaynak', 'nabiz_o2_olcekleme')}"))
+    source = "; ".join((*sources, f"HYPOTHESIS: {_text(scaling, 'kaynak', 'nabiz_o2_olcekleme')}"))
     return Metabolism(rate("o2_tuketimi"), rate("co2_uretimi"), r_min, r_max, source)
 
 
 def _formula_number(text: str, pattern: str, name: str) -> float:
-    """Yapılandırılmış sayı alanı bulunmayan referans notunu açıkça çözümler."""
     matches = re.findall(pattern, text)
     if len(matches) != 1:
-        raise ValueError(f"{name}: referans formülünde tek bir sayısal değer bulunmalı")
+        raise ValueError(f"{name}: reference formula must contain exactly one numeric value")
     return _number(name, float(matches[0].replace(",", ".")), positive=True)
 
 
@@ -236,13 +231,12 @@ def _load_ranges(data: Mapping[str, object]) -> Ranges:
     vapour = _formula_number(
         _text(pio2_formula, "formul", "pio2_formulu"),
         r"\bPB\s*[-−]\s*(\d+(?:[.,]\d+)?)",
-        "kabin.pio2_formulu.su_buharı",
+        "kabin.pio2_formulu.water_vapour",
     )
     return Ranges(_load_rules(data), _load_metabolism(data), temperature, vapour)
 
 
 def load_ranges(path: str | Path) -> Ranges:
-    """İç içe referanstan kuralları, metabolik ölçeği ve sıcaklığı yükler."""
     return _load_ranges(_read(path))
 
 
@@ -251,25 +245,16 @@ def _validate_profile(profile: Profile) -> None:
         _number(name, getattr(profile, name), positive=True)
     count = profile.crew_count
     if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
-        raise ValueError("crew_count: pozitif tam sayı olmalı")
+        raise ValueError("crew_count: must be a positive integer")
     for name in ("o2_supply_kg_per_day", "co2_removal_kg_per_day", "pio2_min_mmhg", "co2_max_mmhg"):
         _number(name, getattr(profile, name))
     if profile.total_pressure_mmhg <= profile.ranges.water_vapour_mmhg:
-        raise ValueError("toplam_basinc_mmHg: su buharı basıncından büyük olmalı")
+        raise ValueError("toplam_basinc_mmHg: must exceed the water vapour pressure")
     if max(profile.o2_min_mmhg, profile.co2_max_mmhg) > profile.total_pressure_mmhg:
-        raise ValueError("profil: kısmi basınç limitleri toplam basıncı aşamaz")
+        raise ValueError("profile: partial pressure limits cannot exceed total pressure")
 
 
 def load_profile(path: str | Path, name: str) -> Profile:
-    """Adı verilen profili ve kullandığı referansları aynı belgeden yükler.
-
-    Yalnızca "mars_transit" gibi o2_limit.pio2_min ve co2_limit.deger alanları olan
-    profilleri destekler. denizalti ve yeralti_siginagi profilleri limitlerini yüzde
-    cinsinden taşıdığı için farklı biçimdedir; profil seçici (P3) aşamasında ayrıca
-    desteklenecek. Kabin sıcaklığı (295 K) ve su buharı basıncı (47 mmHg) değerleri
-    ranges.json açıklama metinlerinden regex ile okunur. Dosya dondurulduğu için bu
-    bilinçli bir kısıttır.
-    """
     data = _read(path)
     ranges = _load_ranges(data)
     profiles = _record(data, "profiller", "ranges")
@@ -286,7 +271,7 @@ def load_profile(path: str | Path, name: str) -> Profile:
         co2_max_mmhg=_field(co2_limit, "deger", f"{name}.co2_limit", positive=True),
         limit_source=(
             f"{_text(o2_limit, 'kaynak', 'o2_limit')}; {_text(co2_limit, 'kaynak', 'co2_limit')}; "
-            "HİPOTEZ: profil kapasiteleri ve anlık sınır değerlendirmesi"
+            "HYPOTHESIS: profile capacities and instantaneous limit evaluation"
         ),
         ranges=ranges,
     )
@@ -295,9 +280,8 @@ def load_profile(path: str | Path, name: str) -> Profile:
 
 
 def pressure_change_mmhg(mass_kg: float, molar_mass: float, profile: Profile) -> float:
-    """İşaretli gaz kütlesini kg'dan mmHg basınç değişimine dönüştürür."""
     if not math.isfinite(mass_kg):
-        raise ValueError("mass_kg: sonlu olmalı")
+        raise ValueError("mass_kg: must be finite")
     _number("molar_mass", molar_mass, positive=True)
     return (
         mass_kg
@@ -320,7 +304,6 @@ def _valid_measurement(value: float | None, *, positive: bool = True) -> bool:
 def metabolic_rates(
     heart_rate: float | None, baseline: float | None, metabolism: Metabolism
 ) -> tuple[float, float]:
-    """HİPOTEZ: Kişisel nabız oranından iki gazın günlük yükünü kestirir."""
     if not _valid_measurement(heart_rate) or not _valid_measurement(baseline):
         return metabolism.o2.average, metabolism.co2.average
     ratio = heart_rate / baseline
@@ -357,11 +340,9 @@ def _countdown(now: float | None, limit: float, daily: float, *, upper: bool) ->
 
 
 def _status(state: CabinState, profile: Profile, *, inconsistent: bool, missing: bool) -> str:
-    """Öncelik: critical > unknown > caution > nominal."""
     ranges = profile.ranges
 
     def pio2_matches(rule_id: str) -> bool:
-        # Eşik kabin birimine çevrilir; gidiş-dönüş yuvarlaması sınırı kaydırmaz.
         rule = ranges.rule(rule_id)
         return rule.matches(state.pp_o2_mmhg, converted_threshold=profile.pp_o2_from_pio2(rule.threshold))
 
@@ -386,18 +367,12 @@ def step(
     *,
     o2_supply_failed: bool = False,
 ) -> Result:
-    """Kişisel nabız/baz nabız çiftleriyle atmosferi ilerletir.
-
-    Eksik ölçüm ortalama tüketimle sürdürülür ve bilinen tehlikeyi gizlemez.
-    O2 ünitesi arızası yalnız O2 üretimini durdurur. Geri sayım dönen durumdan
-    başlar. HİPOTEZ: Tükenen gaz sıfırda tutulur; akışlar adım boyunca sabittir.
-    """
     _validate_profile(profile)
     _number("dt_seconds", dt_seconds)
     if len(crew_rates) != profile.crew_count:
-        raise ValueError("crew_rates: her kişi için bir (nabız, baz nabız) çifti gerekli")
+        raise ValueError("crew_rates: one (heart rate, baseline) pair per crew member is required")
     if any(not isinstance(pair, tuple | list) or len(pair) != 2 for pair in crew_rates):
-        raise ValueError("crew_rates: her kayıt (nabız, baz nabız) çifti olmalı")
+        raise ValueError("crew_rates: each entry must be a (heart rate, baseline) pair")
     missing = any(not _valid_measurement(value) for pair in crew_rates for value in pair)
     state, inconsistent_before = _normalize_state(state, profile.total_pressure_mmhg)
     rates = tuple(
