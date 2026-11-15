@@ -1,8 +1,9 @@
-// API paths aligned with main.py (POST /api/scenario/{name}, GET /api/health) and the SSE event name.
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
 const HEALTH_URL = "/api/health";
 const HEALTH_CHECK_AFTER_MS = 2000;
+const WAKE_AFTER_MS = 3000;
+const RECONNECT_AFTER_MS = 3000;
 const TELEMETRY_EVENT = "telemetry";
 const STALE_AFTER_MS = 5000;
 const CLOCK_INTERVAL_MS = 250;
@@ -23,15 +24,15 @@ const THEME_KEY = "theme";
 const ALERT_HIGHLIGHT_MS = 1600;
 const LABELS = {
   metric: {
-    heart_rate: "Heart rate", spo2: "SpO₂", resp_rate: "Resp. rate", core_temp: "Core temp",
+    heart_rate: "Heart rate", spo2: "SpO₂", resp_rate: "Respiration", core_temp: "Core temperature",
     hrv_rmssd: "HRV · RMSSD", systolic_bp: "Systolic BP", diastolic_bp: "Diastolic BP",
     pp_o2: "O₂ partial pressure", pp_co2: "CO₂ partial pressure", cabin_pressure: "Cabin pressure",
-    cabin_temp: "Cabin temp", rel_humidity: "Rel. humidity", radiation_dose_rate: "Radiation rate",
+    cabin_temp: "Cabin temperature", rel_humidity: "Relative humidity", radiation_dose_rate: "Radiation rate",
     pio2: "Inspired O₂ pressure", event_dose: "Event dose",
   },
   status: { nominal: "● Normal", caution: "◉ Watch", warning: "▲ Warning", critical: "! Action", unknown: "? Unknown" },
   decision: { normal: "✓ Normal", watch: "◉ Watch", action: "! Action", unknown: "? Unknown" },
-  activity: { resting: "Resting", exercise: "Exercise", sleep: "Sleep", unknown: "Unknown" },
+  activity: { resting: "Resting", exercise: "Exercise", sleep: "Sleeping", unknown: "Unknown" },
   quality: { ok: "Valid", stale: "stale", missing: "missing", sensor_fault: "sensor fault" },
   scenario: { nominal: "Nominal cruise", hypoxia: "O₂ failure", hypercapnia: "CO₂ rise", solar_storm: "Solar storm", sensor_dropout: "Sensor dropout" },
   sender: { crew: "Crew", mission_control: "Mission Control", system: "System" },
@@ -39,6 +40,10 @@ const LABELS = {
 const PRIMARY_METRICS = ["heart_rate", "spo2", "resp_rate", "core_temp"];
 const SECONDARY_METRICS = ["hrv_rmssd", "systolic_bp", "diastolic_bp"];
 const CABIN_METRICS = ["pp_o2", "pp_co2", "cabin_pressure", "cabin_temp", "rel_humidity", "radiation_dose_rate"];
+const CREW_NAMES = {
+  Ayşe: "Neil Armsted", Can: "Sally Ryder", Ece: "Katherine Johnston", Mert: "John Glennard",
+};
+const UNIT_LABELS = { "nefes/dk": "breaths/min", "µGy/saat": "µGy/h" };
 const DECISION_TONE = { normal: "nominal", watch: "caution", action: "critical", unknown: "unknown" };
 const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
 const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
@@ -56,6 +61,9 @@ const earthViews = new Map();
 let frame = null;
 let lastReceived = null;
 let transportState = "connecting";
+let connectingSince = performance.now();
+let retryTimer = null;
+let pageHidden = false;
 let invalidPacket = false;
 let wasStale = true;
 let scenarioFinished = false;
@@ -74,13 +82,15 @@ function el(tag, className = "", text = "") {
 function tone(node, value) {
   node.dataset.tone = Object.hasOwn(LABELS.status, value) ? value : "unknown";
 }
+function crewText(value) {
+  return typeof value === "string" ? value.replace(/\b(?:Ayşe|Can|Ece|Mert)\b/g, name => CREW_NAMES[name]) : value;
+}
 function numeric(value) { return typeof value === "number" && Number.isFinite(value); }
 function number(value) { return numeric(value) ? numberFormat.format(value) : "—"; }
 function formatClock(iso) {
   const time = new Date(iso);
   return Number.isNaN(time.getTime()) ? "—" : `${time.toISOString().slice(11, 19)}Z`;
 }
-// A short number transition when a value really changes; written directly when reduced motion is preferred.
 function showValue(node, value) {
   const running = valueTweens.get(node);
   if (running) cancelAnimationFrame(running);
@@ -107,28 +117,29 @@ function configureTheme() {
   button.addEventListener("click", () => {
     const next = currentTheme() === "light" ? "dark" : "light";
     document.documentElement.dataset.theme = next;
-    try { localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable: applies to this session only */ }
+    try { localStorage.setItem(THEME_KEY, next); } catch {}
     sync();
   });
   lightQuery.addEventListener("change", sync);
   sync();
 }
 function packetStale() {
-  if (lastReceived === null || invalidPacket) return true;
-  // When the scenario is over the backend stops sending frames; that is the final state, not data loss.
+  if (lastReceived === null || invalidPacket || (!mockMode && transportState !== "open")) return true;
   return !scenarioFinished && performance.now() - lastReceived > STALE_AFTER_MS;
 }
 async function checkScenarioFinished() {
   healthCheckedAt = performance.now();
+  const checkedFrame = frame;
   try {
     const response = await fetch(HEALTH_URL, {
       signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
     });
     if (!response.ok) return;
     const health = await response.json();
+    if (frame !== checkedFrame || transportState !== "open") return;
     const finished = health.finished === true && health.scenario === frame?.scenario;
     if (finished !== scenarioFinished) { scenarioFinished = finished; render(); }
-  } catch { /* backend unreachable: the usual NO DATA behaviour */ }
+  } catch {}
 }
 function validReading(reading) { return reading && numeric(reading.value) && reading.quality === "ok"; }
 function missionTime(seconds) {
@@ -162,14 +173,15 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   showValue(view.value, usable ? reading.value : null);
   view.root.title = usable ? `${LABELS.metric[view.root.dataset.metric]} · ${formatClock(reading.ts)}` : "";
   view.value.classList.toggle("no-value", !usable);
-  view.unit.textContent = usable ? reading.unit : "";
+  const unit = Object.hasOwn(UNIT_LABELS, reading?.unit) ? UNIT_LABELS[reading.unit] : reading?.unit;
+  view.unit.textContent = usable ? unit : "";
   view.status.textContent = LABELS.status[state] ?? LABELS.status.unknown;
   const delta = usable && numeric(reading.baseline_delta) ? reading.baseline_delta : null;
-  view.delta.textContent = delta === null ? "vs baseline: —"
-    : `${delta < 0 ? "−" : "+"}${number(Math.abs(delta))} ${reading.unit} vs baseline`;
+  view.delta.textContent = delta === null ? "Compared with baseline: —"
+    : `${delta < 0 ? "−" : "+"}${number(Math.abs(delta))} ${unit} compared with baseline`;
   const quality = stale ? "stale" : reading?.quality ?? "missing";
   view.quality.hidden = quality === "ok";
-  view.quality.textContent = LABELS.quality[quality] ?? "yok";
+  view.quality.textContent = LABELS.quality[quality] ?? "missing";
 }
 function createCrew(index) {
   const root = el("article", "crew-card");
@@ -177,12 +189,12 @@ function createCrew(index) {
   const identity = el("div", "crew-identity");
   const avatar = el("span", "crew-number", String(index + 1).padStart(2, "0"));
   const identityText = el("div");
-  const name = el("h3", "crew-name", `Crew member ${index + 1}`);
-  const role = el("p", "crew-role", "Role pending");
+  const name = el("h3", "crew-name", `Crew ${index + 1}`);
+  const role = el("p", "crew-role", "Waiting for role");
   identityText.append(name, role);
   identity.append(avatar, identityText);
   const decision = el("span", "badge decision", LABELS.decision.unknown);
-  const activity = el("span", "activity", "Bilinmiyor");
+  const activity = el("span", "activity", "Unknown");
   header.append(identity, decision, activity);
   const primary = el("div", "primary-readings");
   const secondary = el("div", "secondary-readings");
@@ -193,11 +205,11 @@ function createCrew(index) {
     (SECONDARY_METRICS.includes(metric) ? secondary : primary).append(view.root);
   }
   const trendArea = el("div", "trend-area");
-  const trendLabel = el("span", "trend-label", `HEART RATE · LAST ${HISTORY_TICKS} TICKS`);
+  const trendLabel = el("span", "trend-label", "HEART RATE · LAST 60 TICKS");
   const trend = document.createElementNS(SVG_NS, "svg");
   trend.setAttribute("viewBox", `0 0 ${TREND_WIDTH} ${TREND_HEIGHT}`);
   trend.setAttribute("role", "img");
-  trend.setAttribute("aria-label", "Heart-rate trend: no data yet");
+  trend.setAttribute("aria-label", "Heart rate trend: no data yet");
   trend.classList.add("trend");
   trendArea.append(trendLabel, trend);
   const why = el("button", "why-button", "Why? ↗");
@@ -211,7 +223,7 @@ function createCrew(index) {
     evidence.hidden = !evidence.hidden;
     why.setAttribute("aria-expanded", String(!evidence.hidden));
   });
-  const stamp = el("time", "reading-time", "Measured: no data");
+  const stamp = el("time", "reading-time", "Reading: no data");
   root.append(header, primary, secondary, trendArea, stamp, why, evidence);
   tone(root, "unknown");
   return { root, name, role, decision, activity, readings, trend, stamp, evidence, why, evidenceKey: null };
@@ -226,7 +238,7 @@ function drawTrend(svg, entries, unavailable) {
   svg.replaceChildren();
   const values = unavailable ? [] : entries.filter(entry => numeric(entry.value));
   svg.setAttribute("aria-label", values.length
-    ? "Heart-rate trend, dashed line is the personal baseline, gaps are missing readings" : "Heart-rate trend: no data");
+    ? "Heart rate trend; dashed line is personal baseline; gaps indicate missing readings" : "Heart rate trend: no data");
   if (!values.length) return;
   const baseline = [...entries].reverse().find(entry => numeric(entry.baseline))?.baseline ?? null;
   const all = numeric(baseline) ? [...values.map(entry => entry.value), baseline] : values.map(entry => entry.value);
@@ -238,7 +250,7 @@ function drawTrend(svg, entries, unavailable) {
   const top = TREND_TOP;
   const bottom = TREND_HEIGHT - TREND_BOTTOM;
   const yOf = value => (span === 0 ? (top + bottom) / 2 : bottom - (value - minimum) / span * (bottom - top));
-  const label = value => String(Math.round(value * 10) / 10);
+  const label = value => number(value);
   svg.append(svgNode("text", { x: left - 3, y: top + 3, class: "trend-axis trend-axis-end" }, label(maximum)),
     svgNode("text", { x: left - 3, y: bottom, class: "trend-axis trend-axis-end" }, label(minimum)),
     svgNode("text", { x: left, y: TREND_HEIGHT - 3, class: "trend-axis" }, `−${HISTORY_TICKS}`),
@@ -275,7 +287,7 @@ function evidenceList(why) {
     const values = `${item.metric} · ${item.value === null ? "no data" : number(item.value)} ${item.comparator} ${item.threshold === null ? "—" : number(item.threshold)}`;
     const time = el("time", "evidence-time", item.ts);
     time.dateTime = item.ts;
-    row.append(el("strong", "evidence-values", values), el("p", "evidence-note", item.note), time);
+    row.append(el("strong", "evidence-values", values), el("p", "evidence-note", crewText(item.note)), time);
     list.append(row);
   }
   return list;
@@ -289,13 +301,13 @@ function crewEvidence(view, member, alerts, stale) {
     view.evidence.append(el("p", "empty-state", "NO DATA · Waiting for current evidence."));
   } else if (!alerts.length) {
     view.evidence.append(el("p", "empty-state", member.decision === "unknown"
-      ? "Insufficient data, no decision possible" : "No active alerts"));
+      ? "Insufficient data to make a decision" : "No active alerts"));
   } else {
     for (const alert of alerts) {
       const block = el("section", "evidence-block");
       const badge = el("span", "badge", LABELS.status[alert.severity]);
       tone(badge, alert.severity);
-      block.append(badge, el("p", "alert-message", alert.message),
+      block.append(badge, el("p", "alert-message", crewText(alert.message)),
         el("p", "alert-meta", `${alert.consecutive_count} consecutive readings`), evidenceList(alert.why));
       view.evidence.append(block);
     }
@@ -308,13 +320,13 @@ function updateCrew(stale) {
     const decision = stale ? "unknown" : member?.decision ?? "unknown";
     tone(view.root, DECISION_TONE[decision]);
     tone(view.decision, DECISION_TONE[decision]);
-    view.name.textContent = member?.name ?? `Crew member ${index + 1}`;
-    view.role.textContent = member?.role ?? "Role pending";
+    view.name.textContent = crewText(member?.name) ?? `Crew ${index + 1}`;
+    view.role.textContent = member?.role ?? "Waiting for role";
     view.decision.textContent = stale ? "? NO DATA" : LABELS.decision[decision] ?? LABELS.decision.unknown;
     view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}`;
-    view.why.setAttribute("aria-label", `${member?.name ?? `Crew member ${index + 1}`}: Why?`);
+    view.why.setAttribute("aria-label", `${crewText(member?.name) ?? `Crew ${index + 1}`}: Why?`);
     const stamped = !stale && member?.vitals?.heart_rate?.ts;
-    view.stamp.textContent = stamped ? `Measured ${formatClock(stamped)} · SIMULATED` : "Measured: no data";
+    view.stamp.textContent = stamped ? `Reading ${formatClock(stamped)} · SIMULATED` : "Reading: no data";
     if (stamped) view.stamp.dateTime = stamped; else view.stamp.removeAttribute("datetime");
     view.root.classList.toggle("stale-data", stale);
     for (const [metric, reading] of view.readings) updateReading(reading, member?.vitals[metric], stale, decision === "unknown");
@@ -331,7 +343,7 @@ function updateCabin(stale) {
   for (const [metric, view] of cabinViews) updateReading(view, cabin?.[metric], stale);
   const cabinStamp = document.getElementById("cabin-time");
   const cabinTs = !stale && cabin?.pp_o2?.ts;
-  cabinStamp.textContent = cabinTs ? `Measured ${formatClock(cabinTs)} · SIMULATED` : "Measured: no data";
+  cabinStamp.textContent = cabinTs ? `Reading ${formatClock(cabinTs)} · SIMULATED` : "Reading: no data";
   if (cabinTs) cabinStamp.dateTime = cabinTs; else cabinStamp.removeAttribute("datetime");
   document.getElementById("cabin-readings").classList.toggle("stale-data", stale);
   for (const field of ["hours_until_o2_limit", "hours_until_co2_limit"]) {
@@ -342,7 +354,7 @@ function updateCabin(stale) {
     tone(root, stale || !numeric(hours) ? "unknown" : hours === 0 ? "critical" : state);
     root.classList.toggle("neutral-countdown", !stale && !numeric(hours));
     if (stale) { output.textContent = "NO DATA"; note.textContent = "Waiting for current telemetry"; }
-    else if (!numeric(hours)) { output.textContent = "—"; note.textContent = "Not approaching limit / cannot be computed"; }
+    else if (!numeric(hours)) { output.textContent = "—"; note.textContent = "Not approaching the limit / unavailable"; }
     else if (hours === 0) { output.textContent = "LIMIT EXCEEDED"; note.textContent = "Simulation time"; }
     else {
       const minutes = Math.round(hours * MINUTES_PER_HOUR);
@@ -359,7 +371,7 @@ function updateAlerts(stale) {
     || Date.parse(b.last_seen) - Date.parse(a.last_seen));
   document.getElementById("alert-count").textContent = stale ? "—" : `${alerts.length} ACTIVE`;
   notice.hidden = alerts.length > 0;
-  notice.textContent = stale ? "NO DATA · Current alert status unknown." : "✓ No active alerts";
+  notice.textContent = stale ? "NO DATA · Current alert status is unknown." : "✓ No active alerts";
   container.hidden = stale;
   if (stale) return;
   const activeIds = new Set(alerts.map(alert => alert.id));
@@ -385,9 +397,9 @@ function updateAlerts(stale) {
     }
     tone(view.root, alert.severity);
     view.root.classList.toggle("new-alert", performance.now() - (freshAlertIds.get(alert.id) ?? -Infinity) < ALERT_HIGHLIGHT_MS);
-    view.owner.textContent = alert.crew_id === null ? "Cabin" : frame.crew.find(member => member.id === alert.crew_id)?.name ?? alert.crew_id;
+    view.owner.textContent = alert.crew_id === null ? "Cabin" : crewText(frame.crew.find(member => member.id === alert.crew_id)?.name) ?? alert.crew_id;
     view.severity.textContent = LABELS.status[alert.severity];
-    view.message.textContent = alert.message;
+    view.message.textContent = crewText(alert.message);
     view.meta.textContent = `${alert.consecutive_count} consecutive readings · Last: ${formatClock(alert.last_seen)}`;
     const key = JSON.stringify(alert.why);
     if (key !== view.key) { view.body.replaceChildren(evidenceList(alert.why)); view.key = key; }
@@ -454,8 +466,8 @@ function updateEarth(stale) {
 }
 function render() {
   const stale = packetStale();
-  document.getElementById("simulated").hidden = frame?.simulated === false;
-  document.getElementById("scenario").textContent = LABELS.scenario[frame?.scenario] ?? "Waiting for packet";
+  document.getElementById("simulated").hidden = false;
+  document.getElementById("scenario").textContent = LABELS.scenario[frame?.scenario] ?? "Waiting for packets";
   document.getElementById("mission_elapsed_s").textContent = missionTime(frame?.mission_elapsed_s);
   document.getElementById("mission_elapsed_s").classList.toggle("muted", stale);
   updateCrew(stale); updateCabin(stale); updateAlerts(stale); updateEarth(stale);
@@ -466,22 +478,24 @@ function updateClock() {
   const stale = packetStale();
   if (stale !== wasStale) { render(); return; }
   const seconds = lastReceived === null ? null : (performance.now() - lastReceived) / 1000;
-  if (!mockMode && !scenarioFinished && seconds !== null && seconds * 1000 > HEALTH_CHECK_AFTER_MS
+  if (!mockMode && transportState === "open" && !scenarioFinished && seconds !== null && seconds * 1000 > HEALTH_CHECK_AFTER_MS
     && performance.now() - healthCheckedAt > HEALTH_CHECK_AFTER_MS) checkScenarioFinished();
-  document.getElementById("packet-age").textContent = seconds === null ? "No packet yet" : `Last packet: ${number(Math.floor(seconds))} s ago`;
+  document.getElementById("packet-age").textContent = seconds === null ? "No packets yet" : `Last packet: ${number(Math.floor(seconds))} s ago`;
   const connection = document.getElementById("connection");
   const connected = transportState === "open" && !stale;
-  connection.textContent = scenarioFinished ? "■ Scenario complete"
-    : connected ? "● Connected" : transportState === "closed" ? "× Disconnected" : "◌ Reconnecting";
-  tone(connection, connected || scenarioFinished ? "nominal" : "unknown");
+  const waitingSeconds = connectingSince === null ? 0 : Math.floor((performance.now() - connectingSince) / 1000);
+  const waking = !mockMode && transportState !== "open" && waitingSeconds >= WAKE_AFTER_MS / 1000;
+  connection.textContent = waking ? `Server is waking up… (${waitingSeconds} s)`
+    : scenarioFinished && transportState === "open" ? "■ Simulation finished"
+    : connected ? "● Connected" : transportState === "open" ? "◌ Waiting for telemetry" : "◌ Reconnecting";
+  tone(connection, connected ? "nominal" : "unknown");
   const notice = document.getElementById("data-notice");
   notice.hidden = !stale && !scenarioFinished;
-  notice.textContent = scenarioFinished ? "Scenario complete · showing the last packet. Choose a new scenario."
-    : invalidPacket ? "NO DATA · Telemetry packet unreadable; waiting for a valid packet."
-    : "NO DATA · Waiting for current telemetry. Old readings are never treated as normal.";
+  notice.textContent = scenarioFinished && !stale ? "Simulation finished · Showing the final packet. Waiting for the next scenario."
+    : invalidPacket ? "NO DATA · Could not read telemetry packet; waiting for a valid packet."
+    : "NO DATA · Waiting for current telemetry. Old readings are not treated as normal.";
 }
 function acceptFrame(incoming) {
-  // The full schema belongs to the backend; a malformed or other-version packet must never look normal.
   if (!incoming || incoming.contract_version !== "0.2.0" || !Number.isInteger(incoming.tick)
     || !Array.isArray(incoming.crew) || incoming.crew.length !== CREW_SIZE
     || !incoming.cabin || !Array.isArray(incoming.alerts)
@@ -515,6 +529,7 @@ function acceptFrame(incoming) {
   scenarioFinished = false;
   invalidPacket = false;
   transportState = "open";
+  connectingSince = null;
   render();
 }
 function configureDemo() {
@@ -530,16 +545,26 @@ function configureDemo() {
       result.textContent = "Requesting scenario…";
       try {
         const headers = {};
-        const demoKey = document.getElementById("demo-key").value;
+        const demoKey = document.getElementById("demo-key").value || params.get("key");
         if (demoKey) headers["X-Demo-Key"] = demoKey;
         const response = await fetch(`${SCENARIO_URL}/${encodeURIComponent(scenario)}`, {
           method: "POST", headers,
           signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
         });
-        if (response.status === 401) { result.textContent = "Demo key required or incorrect."; return; }
-        if (!response.ok) throw new Error("scenario unavailable");
-        result.textContent = mockMode ? "Request sent. The local mock stream runs on its own schedule." : "Scenario requested; waiting for telemetry.";
-      } catch { result.textContent = "Backend not ready yet"; }
+        if (response.status === 401) { result.textContent = "Demo key is required or incorrect (401)."; return; }
+        if (!response.ok) {
+          const reason = response.status === 404 ? "Scenario endpoint or scenario not found"
+            : response.status === 405 ? "Scenario endpoint does not allow POST"
+            : response.status >= 500 ? "Server error" : "Request rejected";
+          result.textContent = `Could not start scenario (${response.status}): ${reason}.`;
+          return;
+        }
+        result.textContent = mockMode ? "Request sent. The local mock stream continues its own sequence." : "Scenario requested; waiting for telemetry.";
+      } catch (error) {
+        result.textContent = error.name === "TimeoutError" || error.name === "AbortError"
+          ? "Could not start scenario: request timed out. The server may be waking up; try again."
+          : "Could not start scenario: network error. Check your connection and try again.";
+      }
       finally { button.disabled = false; }
     });
     buttons.append(button);
@@ -565,20 +590,48 @@ async function start() {
       stopMock = startMock(acceptFrame);
     } catch { transportState = "closed"; invalidPacket = true; render(); }
   } else {
-    try {
-      stream = new EventSource(STREAM_URL);
-      stream.addEventListener("open", () => { transportState = "open"; updateClock(); });
-      stream.addEventListener(TELEMETRY_EVENT, event => {
-        try { acceptFrame(JSON.parse(event.data)); }
-        catch { invalidPacket = true; render(); }
-      });
-      stream.addEventListener("error", () => {
-        transportState = stream.readyState === EventSource.CLOSED ? "closed" : "connecting";
-        updateClock();
-      });
-    } catch { transportState = "closed"; updateClock(); }
+    connectStream();
   }
 }
-window.addEventListener("pagehide", () => { stream?.close(); stopMock?.(); window.clearInterval(clockTimer); });
+function retryStream() {
+  if (pageHidden || retryTimer !== null) return;
+  retryTimer = window.setTimeout(() => { retryTimer = null; connectStream(); }, RECONNECT_AFTER_MS);
+}
+function connectStream() {
+  if (pageHidden) return;
+  stream?.close();
+  transportState = "connecting";
+  connectingSince ??= performance.now();
+  try {
+    stream = new EventSource(STREAM_URL);
+    stream.addEventListener("open", () => {
+      transportState = "open"; connectingSince = null; updateClock();
+    });
+    stream.addEventListener(TELEMETRY_EVENT, event => {
+      try { acceptFrame(JSON.parse(event.data)); }
+      catch { invalidPacket = true; render(); }
+    });
+    stream.addEventListener("end", () => {
+      scenarioFinished = true;
+      render();
+    });
+    stream.addEventListener("error", () => {
+      transportState = "connecting";
+      connectingSince ??= performance.now();
+      scenarioFinished = false;
+      if (stream.readyState === EventSource.CLOSED) retryStream();
+      render();
+    });
+  } catch {
+    transportState = "closed";
+    retryStream();
+    updateClock();
+  }
+}
+window.addEventListener("pagehide", () => {
+  pageHidden = true;
+  stream?.close(); stopMock?.();
+  window.clearInterval(clockTimer); window.clearTimeout(retryTimer);
+});
 window.addEventListener("pageshow", event => { if (event.persisted) window.location.reload(); });
 start();
