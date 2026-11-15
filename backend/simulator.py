@@ -21,6 +21,7 @@ from backend.models import (
     CrewVitals,
     Reading,
     Scenario,
+    SleepSummary,
     TelemetryFrame,
 )
 
@@ -248,6 +249,9 @@ class Simulator:
         self._ramps: dict[str, dict[str, _Ramp]] = {person.id: {} for person in self._spec.crew}
         self._sensor_overrides: dict[tuple[str | None, str], _Event] = {}
         self._activities = {person.id: Activity.resting for person in self._spec.crew}
+        # Sleep periods: a period starts when activity becomes 'sleep' and is measured when it ends.
+        self._sleep_started: dict[str, float] = {}
+        self._sleep_last: dict[str, tuple[int, float, float]] = {}  # id -> (period, hours, ended at minute)
         self._o2_factor: float | None = None
         self._co2_factor: float | None = None
         self._sep_active = False
@@ -268,10 +272,27 @@ class Simulator:
             self._apply_event(event)
             self._event_index += 1
 
+    def _track_sleep(self, person_id: str, before: Activity, after: Activity, minute: float) -> None:
+        if after == Activity.sleep and before != Activity.sleep:
+            self._sleep_started[person_id] = minute
+        elif before == Activity.sleep and after != Activity.sleep and person_id in self._sleep_started:
+            started = self._sleep_started.pop(person_id)
+            period = self._sleep_last.get(person_id, (0, 0.0, 0.0))[0] + 1
+            self._sleep_last[person_id] = (period, (minute - started) / MINUTES_PER_HOUR, minute)
+
+    def _sleep_summary(self, person_id: str) -> SleepSummary | None:
+        last = self._sleep_last.get(person_id)
+        if last is None:
+            return None
+        period, hours, ended = last
+        ended_ts = SIMULATION_EPOCH + timedelta(minutes=ended)
+        return SleepSummary(period=period, hours=Reading(value=round(hours, 2), unit="h", ts=ended_ts))
+
     def _apply_event(self, event: _Event) -> None:
         if event.type in ("activity", "vital_ramp"):
             person = next(person for person in self._spec.crew if person.id == event.crew_id)
             if event.type == "activity":
+                self._track_sleep(person.id, self._activities[person.id], event.activity, event.t_min)
                 self._activities[person.id] = event.activity
             for metric, target in event.targets.items():
                 current = self._vital_mean(person, metric, event.t_min)
@@ -347,6 +368,7 @@ class Simulator:
                     role=person.role,
                     vitals=CrewVitals(**readings),
                     activity=self._activities[person.id],
+                    sleep=self._sleep_summary(person.id),
                     event_dose_msv=(
                         self._event_doses[person.id]
                         if self._sep_active or self._sep_ended_this_tick

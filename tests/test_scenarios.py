@@ -856,7 +856,7 @@ KNOWN_ENGINE_RULE_IDS = {
     "pio2-normoxia-low",
     "pio2-hypoxia-low",
     "pio2-normoxia-high",
-    "sleep-short-caution",  # ranges.json uyku_kurallari; the engine does not produce them yet
+    "sleep-short-caution",  # ranges.json uyku_kurallari, produced by the engine since the sleep rule PR
     "sleep-short-critical",
 }
 
@@ -926,7 +926,9 @@ def engine_first_alerts(name: str) -> dict[tuple[Any, str, str, str], float]:
 
 @pytest.mark.skipif(RulesEngine is None, reason="simulator and rules engine are not on develop (#35, #43)")
 @pytest.mark.skipif(RulesEngine is None, reason="simulator and rules engine are not on develop (#35, #43)")
-@pytest.mark.parametrize("name", ["hypoxia", "hypercapnia", "solar_storm", "sensor_dropout"])
+@pytest.mark.parametrize(
+    "name", ["hypoxia", "hypercapnia", "solar_storm", "sensor_dropout", "sleep_deprivation"]
+)
 def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
     s = load(name)
     first = engine_first_alerts(name)
@@ -949,6 +951,7 @@ def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
         pytest.param("solar_storm", id="solar_storm"),
         pytest.param("sensor_dropout", id="sensor_dropout"),
         pytest.param("hypoxia", id="hypoxia"),
+        pytest.param("sleep_deprivation", id="sleep_deprivation"),
     ],
 )
 def test_engine_end_status_matches_expected(name: str) -> None:
