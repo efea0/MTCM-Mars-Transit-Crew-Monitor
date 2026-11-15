@@ -730,28 +730,31 @@ function configureScenarioSelect() {
     select.disabled = false;
   });
 }
+function configureSpeedControls() {
+  const speedButtons = document.getElementById("speed-buttons");
+  if (!speedButtons) return;
+  for (const scale of SPEED_PRESETS) {
+    const button = el("button", "scenario-button speed-button", `×${scale}`);
+    button.type = "button";
+    button.title = `Run the simulation at ×${scale} (1 s = ${number(scale / 60)} simulated min)`;
+    button.addEventListener("click", async () => {
+      const note = document.getElementById("speed-note");
+      button.disabled = true;
+      if (note) note.textContent = "Changing speed…";
+      const outcome = await demoRequest(SPEED_URL, JSON.stringify({ time_scale: scale }), "change speed");
+      if (note) note.textContent = outcome.ok ? `Speed ×${scale}` : outcome.message;
+      if (outcome.ok) for (const other of speedButtons.children) other.setAttribute("aria-pressed", String(other === button));
+      button.disabled = false;
+    });
+    speedButtons.append(button);
+  }
+}
 function configureDemo() {
   if (params.get("demo") !== "1") return;
   document.getElementById("demo-panel").hidden = false;
   const demoKeyInput = document.getElementById("demo-key");
   if (demoKeyInput && urlDemoKey && !demoKeyInput.value) {
     demoKeyInput.value = urlDemoKey;
-  }
-  const speedButtons = document.getElementById("speed-buttons");
-  for (const scale of SPEED_PRESETS) {
-    const button = el("button", "scenario-button speed-button", `×${scale}`);
-    button.type = "button";
-    button.title = `Run the simulation at ×${scale} (1 s = ${number(scale / 60)} simulated min)`;
-    button.addEventListener("click", async () => {
-      const result = document.getElementById("demo-result");
-      button.disabled = true;
-      result.textContent = "Changing speed…";
-      const outcome = await demoRequest(SPEED_URL, JSON.stringify({ time_scale: scale }), "change speed");
-      result.textContent = outcome.ok ? `Speed set to ×${scale}.` : outcome.message;
-      if (outcome.ok) for (const other of speedButtons.children) other.setAttribute("aria-pressed", String(other === button));
-      button.disabled = false;
-    });
-    speedButtons.append(button);
   }
   const buttons = document.getElementById("scenario-buttons");
   for (const [scenario, label] of Object.entries(LABELS.scenario)) {
@@ -802,7 +805,7 @@ async function start() {
     cabinTrendViews.set(metric, view);
     document.getElementById("cabin-trends").append(view.root);
   }
-  configureScenarioSelect(); configureDemo(); render();
+  configureScenarioSelect(); configureSpeedControls(); configureDemo(); render();
   if (!mockMode) {
     probeControl();
     let probeTimer = null;
