@@ -17,8 +17,8 @@ const MOCK_UNITS = {
   cabin_pressure: "mmHg", cabin_temp: "°C", rel_humidity: "%", radiation_dose_rate: "µGy/saat",
 };
 const MOCK_CREW = [
-  { name: "Ayşe", role: "Commander" }, { name: "Can", role: "Flight Engineer" },
-  { name: "Ece", role: "Mission Specialist" }, { name: "Mert", role: "Flight Surgeon" },
+  { name: "Neil Armsted", role: "Commander" }, { name: "Sally Ryder", role: "Flight Engineer" },
+  { name: "Katherine Johnston", role: "Mission Specialist" }, { name: "John Glennard", role: "Flight Surgeon" },
 ];
 const MOCK_WAVE = [0, 1, 0, -1, 0, 2, 1, 0];
 
@@ -52,8 +52,8 @@ function makeFrame(tick, clock) {
       if (index === 0) {
         member.decision = "watch"; member.status = "caution";
         alerts.push(mockAlert("ayse-baseline", member.id, "heart_rate", "caution",
-          "MOCK: Watch decision for Ayşe's personal baseline deviation.",
-          16, null, ">", "MOCK: Heart rate 80 bpm, personal baseline 64 bpm; difference +16. This is a fixed demo decision. Mert also has 80 bpm, with a +13 difference and a Normal decision.",
+          "MOCK: Watch decision for Neil Armsted's personal baseline deviation.",
+          16, null, ">", "MOCK: Heart rate 80 bpm, personal baseline 64 bpm; difference +16. This is a fixed demo decision. John Glennard also has 80 bpm, with a +13 difference and a Normal decision.",
           ts, at(6), phase - 5));
       }
     }
@@ -63,10 +63,10 @@ function makeFrame(tick, clock) {
       member.status = actionDemo ? "critical" : "caution";
       vitals.spo2 = reading("spo2", actionDemo ? 93 : 96, ts, baseline.spo2, member.status);
       alerts.push(mockAlert("ece-spo2", member.id, "spo2", member.status,
-        actionDemo ? "MOCK: Action decision for Ece; SpO₂ is 6 points below baseline."
-          : "MOCK: Watch decision for Ece; SpO₂ is 3 points below baseline.",
+        actionDemo ? "MOCK: Action decision for Katherine Johnston; SpO₂ is 6 points below baseline."
+          : "MOCK: Watch decision for Katherine Johnston; SpO₂ is 3 points below baseline.",
         actionDemo ? -6 : -3, null, "<",
-        "MOCK: Ece is exercising. Only the SpO₂ baseline deviation is shown; exercise heart rate and respiration are not evidence. No threshold or decision was calculated.",
+        "MOCK: Katherine Johnston is exercising. Only the SpO₂ baseline deviation is shown; exercise heart rate and respiration are not evidence. No threshold or decision was calculated.",
         ts, at(12), phase - 11));
     }
     if (missingDemo && index === 1) {
@@ -75,7 +75,7 @@ function makeFrame(tick, clock) {
       vitals.hrv_rmssd = reading("hrv_rmssd", 51, at(29), 51, "unknown", "stale");
       vitals.spo2 = reading("spo2", 98, ts, 98, "unknown", "sensor_fault");
       alerts.push(mockAlert("can-missing", member.id, "heart_rate", "caution",
-        "MOCK: Insufficient data to make a decision for Can.", null, null, "missing",
+        "MOCK: Insufficient data to make a decision for Sally Ryder.", null, null, "missing",
         "MOCK: No heart rate sensor data. Missing readings are not treated as normal; HRV is stale and SpO₂ has a sensor fault in this example.",
         ts, at(30), phase - 29));
     }
