@@ -21,9 +21,6 @@
 html { background: var(--bg); }
 body {
   margin: 0; min-width: 320px; color: var(--text); background: var(--bg);
-  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: var(--grid-size) var(--grid-size);
-  background-attachment: fixed;
   line-height: 1.4;
 }
 [hidden] { display: none !important; }
@@ -65,13 +62,14 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 }
 .theme-toggle:hover { background: var(--surface-hover); }
 /* The brand header has the same tested white-on-blue contrast as primary controls. */
-.topbar { background: var(--accent); color: var(--on-accent); }
+/* Header palette: exactly three tokens (base, gradient end, accent) plus white text. */
+.topbar { background: linear-gradient(90deg, var(--topbar-bg-end), var(--topbar-bg) 45%); color: var(--on-accent); }
 .topbar h1, .topbar .eyebrow, .topbar .meta-label, .topbar .mission-meta strong,
 .topbar .connection-meta > span, .topbar #connection[data-tone] { color: var(--on-accent); }
 .topbar .connection-meta { border-color: var(--on-accent); }
-.topbar .orbit { color: var(--accent); background: var(--on-accent); border-color: var(--on-accent); }
+.topbar .orbit { color: var(--topbar-bg); background: var(--on-accent); border-color: var(--on-accent); }
 .topbar .theme-toggle { color: var(--on-accent); border-color: var(--on-accent); background: transparent; }
-.topbar .theme-toggle:hover { background: var(--accent); text-decoration: underline; }
+.topbar .theme-toggle:hover { background: var(--topbar-bg-end); text-decoration: underline; }
 
 
 /* Layout */
@@ -87,7 +85,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .crew-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); align-items: start; }
 
 /* Decision band: every non-normal decision with its strongest alert and evidence notes. */
-.decisions-panel { padding: var(--space-3) var(--space-4); border-left: 3px solid var(--accent); }
+.decisions-panel { padding: var(--space-3) var(--space-4); border-left: 3px solid var(--border-strong); }
 .decisions-heading { margin-bottom: var(--space-2); }
 .decisions-heading h2 { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
 .decision-list { display: flex; gap: var(--space-3); overflow-x: auto; scrollbar-width: thin; padding-bottom: var(--space-1); }
@@ -97,7 +95,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .decision-message { font-size: 13px; line-height: 1.4; margin-top: var(--space-1); overflow-wrap: anywhere; }
 .decision-meta { color: var(--muted); font-size: 10px; margin-top: var(--space-1); }
 .decision-why { display: flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; padding: 0; margin: var(--space-2) 0 0; }
-.decision-note { font-size: 10px; line-height: 1.35; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 1px var(--space-2); }
+.decision-note { font-size: 10px; line-height: 1.35; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px var(--space-2); }
 
 /* Cards use a subtle border glow; the border tone represents the current status. */
 .crew-card, .panel {
@@ -109,7 +107,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .panel { padding: var(--space-3) var(--space-4); }
 .crew-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-2); align-items: center; }
 .crew-identity { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.crew-number { color: var(--muted); font-size: 11px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); }
+.crew-number { color: var(--muted); font-size: 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); }
 .crew-name { font-size: 18px; font-weight: 600; line-height: 1.1; }
 .crew-role { color: var(--muted); font-size: 11px; margin-top: 1px; overflow-wrap: anywhere; }
 .badge { display: inline-block; border: 1px solid var(--tone, var(--unknown-ink)); background: var(--tone-tint, var(--unknown-tint)); color: var(--tone, var(--unknown-ink)); font-size: 12px; font-weight: 600; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); white-space: nowrap; }
@@ -117,7 +115,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .badge[data-tone="critical"] { color: var(--on-critical); }
 /* The decision badge is the most prominent card element; vital readings are secondary. */
 .decision { align-self: center; font-size: 13px; padding: var(--space-2) var(--space-3); letter-spacing: .02em; }
-.deviation { color: var(--muted); font-size: 11px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 1px var(--space-2); align-self: start; }
+.deviation { color: var(--muted); font-size: 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px var(--space-2); align-self: start; }
 .activity { color: var(--muted); font-size: 11px; grid-column: 1 / -1; }
 .primary-readings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); }
 .reading { min-width: 0; position: relative; }
@@ -167,7 +165,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .countdown > span { display: block; color: var(--muted); font-size: 11px; }
 .countdown strong { display: block; color: var(--tone, var(--unknown-ink)); font-size: 21px; font-weight: 600; letter-spacing: -.02em; margin: 1px 0; }
 .countdown small { display: block; color: var(--muted); font-size: 11px; }
-.count-label { font-size: 11px; letter-spacing: .08em; color: var(--text); background: var(--surface-raised); border: 1px solid var(--border-strong); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); white-space: nowrap; }
+.count-label { font-size: 11px; letter-spacing: .08em; color: var(--text); background: var(--surface-raised); border: 1px solid var(--border); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); white-space: nowrap; }
 .alerts-panel { display: flex; flex-direction: column; max-height: 230px; min-height: 120px; }
 .alert-list { overflow: auto; min-height: 0; scrollbar-color: var(--border-strong) var(--surface); scrollbar-width: thin; padding: 2px var(--space-1) var(--space-1) 2px; }
 .alert-row { border-left: 3px solid var(--tone, var(--unknown-ink)); border-bottom: 1px solid var(--border); padding: var(--space-2) var(--space-3); background: var(--surface-raised); margin-bottom: var(--space-2); border-radius: 2px var(--radius-sm) var(--radius-sm) 2px; }
@@ -205,12 +203,15 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .scenario-button:hover { filter: brightness(.88); }
 .scenario-button:disabled { opacity: .55; cursor: wait; }
 /* These selectors also apply to the crew-detail component once its PR is integrated. */
-.crew-card .crew-detail-button, .scenario-buttons .scenario-button, .crew-detail .detail-download {
+.scenario-buttons .scenario-button, .crew-detail .detail-download {
   color: var(--on-accent); background: var(--accent); border-color: var(--accent);
 }
-.crew-card .crew-detail-button:hover, .scenario-buttons .scenario-button:hover, .crew-detail .detail-download:hover {
+.scenario-buttons .scenario-button:hover, .crew-detail .detail-download:hover {
   color: var(--on-accent); background: var(--accent); outline: 1px solid var(--accent-ink);
 }
+/* One primary colour per screen: card shortcuts stay neutral. */
+.crew-card .crew-detail-button { color: var(--text); background: var(--surface-raised); border-color: var(--border-strong); }
+.crew-card .crew-detail-button:hover { border-color: var(--accent-ink); background: var(--surface-hover); }
 .crew-detail .detail-control:not(.detail-download) { color: var(--text); background: var(--surface-raised); border-color: var(--border-strong); }
 .crew-card .why-button { color: var(--text); }
 
@@ -502,7 +503,7 @@ html { scrollbar-gutter: stable; }
 
 
 /* Independent Habitat wordmark; no agency logo or insignia. */
-.habitat-mark { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; border: 1px solid var(--on-accent); border-radius: var(--radius-sm); color: var(--on-accent); font: 600 24px var(--font-mono); }
+.habitat-mark { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; background: var(--topbar-accent); border: 1px solid var(--on-accent); border-radius: var(--radius-sm); color: var(--on-accent); font: 600 24px var(--font-mono); }
 /* Tactile button treatment inspired by 21st.dev Hero Button; native CSS, no runtime package. */
 .mission-meta .nasa-trigger, .nasa-dialog .nasa-button { transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
 .mission-meta .nasa-trigger:hover, .nasa-dialog .nasa-button:hover { box-shadow: inset 0 -2px 0 currentColor; }
@@ -517,7 +518,7 @@ html { scrollbar-gutter: stable; }
 }
 
 /* Finish card: countdown to the next scenario with two shortcuts. Transform/opacity animation only. */
-.finish-card { position: relative; overflow: hidden; display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; background: var(--surface-raised); border: 1px solid var(--accent-ink); border-left-width: 4px; border-radius: var(--radius); padding: var(--space-3) var(--space-4); animation: finish-reveal 240ms ease-out both; }
+.finish-card { position: fixed; inset-inline: var(--space-4); inset-block-end: var(--space-4); z-index: 20; margin-inline: auto; max-inline-size: 760px; box-shadow: 0 10px 28px var(--lift-shadow); overflow: hidden; display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; background: var(--surface-raised); border: 1px solid var(--accent-ink); border-left-width: 4px; border-radius: var(--radius); padding: var(--space-3) var(--space-4); animation: finish-reveal 240ms ease-out both; }
 .finish-card[hidden] { display: none; }
 .finish-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
 .finish-title { font-size: 14px; }
@@ -551,15 +552,17 @@ html { scrollbar-gutter: stable; }
   .alerts-panel { max-height: 104px; min-height: 80px; }
 }
 
-/* Light polish inspired by reactbits.dev (Shiny Text, Fade Content, Pulse dot), re-implemented in CSS only. */
-.finish-button::after, .scenario-button::after, .crew-card .crew-detail-button::after {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: linear-gradient(105deg, transparent 35%, var(--shine) 50%, transparent 65%);
-  transform: translateX(-120%); transition: transform 520ms ease;
-}
-.finish-button:hover:not(:disabled)::after, .scenario-button:hover:not(:disabled)::after,
-.crew-card .crew-detail-button:hover::after { transform: translateX(120%); }
-.crew-card .crew-detail-button, .scenario-button { position: relative; overflow: hidden; isolation: isolate; }
-.decision-item.is-new { animation: finish-reveal 260ms ease-out both; }
-.crew-card { transition: transform 160ms ease, box-shadow 160ms ease; }
-@media (hover: hover) { .crew-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px var(--lift-shadow); } }
+/* Restrained polish (reactbits.dev-inspired timing, CSS only, opacity/transform, reduced-motion safe). */
+/* Stripe diet: a coloured edge appears only when the state is not routine. */
+.countdown[data-tone="nominal"], .countdown[data-tone="unknown"],
+.earth-row[data-tone="nominal"], .earth-row[data-tone="unknown"] { border-left-color: var(--border-strong); }
+/* Routine status text stays quiet so amber and red stand out. */
+.reading[data-tone="nominal"] .reading-status { color: var(--muted); }
+.decision-item.is-new, .alert-row, .earth-row { animation: finish-reveal 240ms ease-out both; }
+.badge, .reading-status, .reading-value { transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease; }
+.finish-button, .scenario-button, .crew-detail-button, .theme-toggle, .nasa-trigger, .why-button, .detail-control { transition: transform 80ms ease, background-color var(--transition), border-color var(--transition), filter var(--transition); }
+.finish-button:active:not(:disabled), .scenario-button:active:not(:disabled), .crew-detail-button:active, .theme-toggle:active,
+.nasa-trigger:active, .why-button:active, .detail-control:active { transform: scale(.97); }
+.nasa-dialog[open], .crew-detail[open] { animation: dialog-fade 150ms ease-out both; }
+.nasa-dialog::backdrop, .crew-detail::backdrop { animation: dialog-fade 150ms ease-out both; }
+@keyframes dialog-fade { from { opacity: 0; } to { opacity: 1; } }
