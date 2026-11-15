@@ -8,69 +8,69 @@
   ],
 
   "meta": {
-    "proje": "NASA Space Apps 2026 – Astronot Sağlık ve Hava İzleme Sistemi",
+    "proje": "NASA Space Apps 2026 – MTCM: Mars Transit Crew Monitor",
     "surum": "1.2",
-    "degisiklik_1_2": "Kaynak denetimi (2026-11-14): NASA-STD-3001 Vol 2 Rev F (2026-07-14) Rev E'nin yerini aldı; atıflar Rev F'e çevrildi. Giysi PICO2 4,0–7,0 mmHg kademesi 8,0 saat/gün oldu. 14 saatlik giysi süresi, metabolik oranlar ve Mars yüzeyi oranı 'kısmen' oldu; denizaltı %0,8 NRC 2007 ile doğrulandı.",
-    "degisiklik_1_1": "Radyasyon kararı projeksiyona bağlandı; kalp yükü yalnızca dinlenmede; nabız-O2 ölçeği tanımlandı, CO2 aynı oranla ölçeklenir; sığınak normal profili yıkayıcı ve O2 stoku ile; demo zaman çarpanı eklendi; CO2 sarı eşiği genel %80 kuralının istisnası olarak işaretlendi.",
+    "degisiklik_1_2": "Source audit (2026-11-14): NASA-STD-3001 Vol 2 Rev F (2026-07-14) supersedes Rev E; citations moved to Rev F. Suit PICO2 4.0–7.0 mmHg tier became 8.0 h/day. The 14-hour suit time, metabolic rates and Mars surface ratio became 'kısmen' (partial); submarine 0.8% verified against NRC 2007.",
+    "degisiklik_1_1": "Radiation decision tied to the projection; cardiac load only at rest; heart rate–O2 scale defined, CO2 scales with the same ratio; refuge chamber normal profile with scrubber and O2 supply; demo time multiplier added; CO2 yellow threshold marked as an exception to the general 80% rule.",
     "hazirlayan": "Efe",
-    "si_kullanimi": "SI (Claude Code) yardımıyla hazırlandı: dosya taslağı, birim çevirileri ve kaynak denetimi. Değerler belirtilen kaynaklarla karşılaştırıldı; kaynağı varsayım olan satırlar ekip kararıdır. Ayrıntı: docs/AI_USE_DECLARATION.md",
+    "si_kullanimi": "Prepared with SI (Claude Code): file draft, unit conversions and source audit. Values were compared with the listed sources; rows whose source is an assumption are team decisions. Details: docs/AI_USE_DECLARATION.md",
     "dondurma": "2026-11-14T19:30:00+03:00",
     "dondurma_istisnalari": [
-      "2026-11-14: vital_karar_parametreleri.kararlar.olasi_hipoksi koşuluna egzersiz istisnası eklendi (Barış'ın isteği, Efe'nin onayı). Hiçbir sayısal değer değişmedi; kalp_yuku kuralıyla ve hypoxia senaryosuyla tutarlılık için.",
-      "2026-11-14: Kaynak denetimi (Efe). NASA-STD-3001 Vol 2 Rev F (onay 2026-07-14) Rev E'nin yerini aldı; Tablo 6.2-1, [V2 6003], [V2 6004], [V2 6006] Rev F metninde aynı. Tek sayısal değişiklik: giysi.pico2_limitleri 4,0–7,0 mmHg kademesi 7,0 → 8,0 saat/gün (Rev F Tablo 11.3-1). giyside_toplam_sure_max (14 saat) Rev F'te yok → kısmen. Metabolik oranlar OCHMO-TB-004 Rev D tablosundan %2–4 farklı → kısmen (sayılar aynı). mars_yuzeyi_orani yalnızca emilen doz için → kısmen. Denizaltı CO2 %0,8 NRC 2007 Tablo S-1 ile doğrulandı. Motorun ve kuralların kullandığı hiçbir eşik değişmedi.",
-      "2026-11-14: olcum_araligi birimi saniye (demo) yerine görev dakikası olarak düzeltildi; hiçbir eşik veya karar değişmedi (Efe'nin onayı).",
-      "2026-11-15: meta.kurallar_notu güncellendi: pio2 artık sözleşme 0.2.0 (#26) ile Metric listesinde. Yalnızca not; hiçbir değer değişmedi (Aydın'ın isteği, Efe'nin onayı)."
+      "2026-11-14: exercise exception added to the vital_karar_parametreleri.kararlar.olasi_hipoksi condition (requested by Barış, approved by Efe). No numeric value changed; for consistency with the kalp_yuku rule and the hypoxia scenario.",
+      "2026-11-14: Source audit (Efe). NASA-STD-3001 Vol 2 Rev F (approved 2026-07-14) supersedes Rev E; Table 6.2-1, [V2 6003], [V2 6004], [V2 6006] are unchanged in Rev F. Only numeric change: giysi.pico2_limitleri 4.0–7.0 mmHg tier 7.0 → 8.0 h/day (Rev F Table 11.3-1). giyside_toplam_sure_max (14 h) is not in Rev F → kısmen. Metabolic rates differ 2–4% from the OCHMO-TB-004 Rev D table → kısmen (numbers unchanged). mars_yuzeyi_orani applies to absorbed dose only → kısmen. Submarine CO2 0.8% verified against NRC 2007 Table S-1. No threshold used by the engine or the rules changed.",
+      "2026-11-14: olcum_araligi unit corrected from seconds (demo) to mission minutes; no threshold or decision changed (approved by Efe).",
+      "2026-11-15: meta.kurallar_notu updated: pio2 is now in the Metric list with contract 0.2.0 (#26). Note only; no value changed (requested by Aydın, approved by Efe)."
     ],
-    "kural": "Bu dosya motorun ve uyarıların tek kaynağıdır. Dondurmadan sonra değer değişmez. Her kayıtta 'kaynak' ve 'status' alanı zorunludur. Doğrulanamayan kayıtta kaynak 'varsayım' ile başlar.",
+    "kural": "This file is the single source for the engine and the alerts. Values do not change after the freeze. Every record must have a 'kaynak' (source) and a 'status' field. For a record that cannot be verified, the source starts with 'varsayım' (assumption).",
     "status_degerleri": {
-      "doğrulandı": "Değer kaynak metinden okundu.",
-      "kısmen": "Kaynak doğrulandı; yorum veya birim dönüşümü ekibe ait.",
-      "doğrulanmadı": "NASA veya resmi kaynakta karşılığı yok; demo parametresi. Tıbbi eşik değildir, sunumda böyle söylenir."
+      "doğrulandı": "Value read from the source text.",
+      "kısmen": "Source verified; the interpretation or unit conversion is the team's.",
+      "doğrulanmadı": "No NASA or official source; demo parameter. Not a medical threshold, and the presentation says so."
     },
-    "kurallar_notu": "kurallar listesi AGENTS.md §5 ThresholdRule biçimidir; değerler aşağıdaki iç içe kayıtlarla birebir aynıdır. Birim mmHg. metric 'pio2' sözleşme 0.2.0 (#26) ile models.py Metric listesinde var.",
-    "birim_notu": "Basınçlar mmHg. 1 atm = 760 mmHg. ppCO2 (mmHg) = toplam basınç (mmHg) × CO2 oranı."
+    "kurallar_notu": "The kurallar list uses the AGENTS.md §5 ThresholdRule format; values are identical to the nested records below. Unit mmHg. metric 'pio2' is in the models.py Metric list with contract 0.2.0 (#26).",
+    "birim_notu": "Pressures in mmHg. 1 atm = 760 mmHg. ppCO2 (mmHg) = total pressure (mmHg) × CO2 fraction."
   },
 
   "kabin": {
     "ppco2_limit_1saat_ort": {
       "deger": 3.0, "birim": "mmHg",
-      "aciklama": "Kabinde 1 saatlik ortalama ppCO2 üst sınırı. Kırmızı eşik.",
+      "aciklama": "Upper limit for the 1-hour average cabin ppCO2. Red threshold.",
       "kaynak": "NASA-STD-3001 Vol 2, [V2 6004]; OCHMO-TB-004",
       "status": "doğrulandı"
     },
     "ppco2_sari_esik": {
       "deger": 2.5, "birim": "mmHg",
-      "aciklama": "Sarı kademe. NASA: baş ağrısı riskini %1'in altında tutmak için 7 günlük ortalama 2,5 mmHg altında olmalı. Genel %80 sarı kuralının (3 × 0,8 = 2,4) istisnasıdır; kabin CO2 için bu değer kullanılır.",
+      "aciklama": "Yellow tier. NASA: to keep headache risk below 1%, the 7-day average must stay below 2.5 mmHg. An exception to the general 80% yellow rule (3 × 0.8 = 2.4); this value is used for cabin CO2.",
       "kaynak": "NASA OCHMO-TB-004",
       "status": "kısmen"
     },
     "co2_belirti_bas_agrisi": {
       "min": 2.8, "max": 4.5, "birim": "mmHg",
-      "aciklama": "Bu aralıkta baş ağrısı bildirilmiş.",
+      "aciklama": "Headache has been reported in this range.",
       "kaynak": "NASA OCHMO-TB-004",
       "status": "doğrulandı"
     },
     "co2_belirti_yorgunluk_bulanti": {
       "min": 4.5, "birim": "mmHg",
-      "aciklama": "4,5 mmHg üstünde yorgunluk, halsizlik, uyku azalması ve bulantı bildirilmiş.",
+      "aciklama": "Above 4.5 mmHg, fatigue, malaise, reduced sleep and nausea have been reported.",
       "kaynak": "NASA OCHMO-TB-004",
       "status": "doğrulandı"
     },
     "pio2_normoksi_hedef": {
       "min": 145, "max": 155, "birim": "mmHg",
-      "aciklama": "Normoksi hedef aralığı, süresiz. Yeşil bölge.",
+      "aciklama": "Normoxia target range, unlimited duration. Green zone.",
       "kaynak": "NASA-STD-3001 Vol 2 Rev F, [V2 6003], Tablo 6.2-1",
       "status": "doğrulandı"
     },
     "pio2_hafif_hipoksi_alt": {
       "deger": 127, "birim": "mmHg",
-      "aciklama": "Hafif hipoksi alt sınırı; 1 saatlik zaman ağırlıklı ortalama, süresiz ama izleme şartıyla. Altı kırmızı.",
+      "aciklama": "Lower limit of mild hypoxia; 1-hour time-weighted average, unlimited duration but with monitoring. Below it is red.",
       "kaynak": "NASA-STD-3001 Vol 2 Rev F, Tablo 6.2-1",
       "status": "doğrulandı"
     },
     "pio2_mutlak_alt": {
       "deger": 122, "birim": "mmHg",
-      "aciklama": "Hafif hipoksi aralığının mutlak alt sınırı. Anlık değer bunun altına inmemeli.",
+      "aciklama": "Absolute lower limit of the mild hypoxia range. The instantaneous value must not go below it.",
       "kaynak": "NASA-STD-3001 Vol 2 Rev F, Tablo 6.2-1 dipnotu",
       "status": "doğrulandı"
     },
@@ -86,13 +86,13 @@
     },
     "pio2_formulu": {
       "formul": "PIO2 = (PB - 47) × FIO2",
-      "aciklama": "PB toplam basınç (mmHg), 47 vücut ısısında su buharı basıncı, FIO2 solunan O2 oranı.",
-      "kaynak": "NASA-STD-3001 Vol 2 Rev B Tablo 1 başlığı (sunum: NTRS 20220019130)",
+      "aciklama": "PB is total pressure (mmHg), 47 is water vapor pressure at body temperature, FIO2 is the inspired O2 fraction.",
+      "kaynak": "NASA-STD-3001 Vol 2 Rev B Table 1 heading (presentation: NTRS 20220019130)",
       "status": "doğrulandı"
     },
     "toplam_basinc_suresiz": {
       "min_haric": 258.8, "max": 772.6, "birim": "mmHg",
-      "aciklama": "34,5 kPa < basınç ≤ 103 kPa (5 < psia ≤ 15,0). mmHg değerleri kPa'dan çevrildi.",
+      "aciklama": "34.5 kPa < pressure ≤ 103 kPa (5 < psia ≤ 15.0). mmHg values converted from kPa.",
       "kaynak": "NASA-STD-3001 Vol 2, [V2 6006]",
       "status": "kısmen"
     }
@@ -100,14 +100,14 @@
 
   "giysi": {
     "pico2_limitleri": {
-      "aciklama": "Giysi içi solunan CO2 için günlük toplam süre sınırları. Kabin eşiği (3 mmHg) giysiye uygulanmaz.",
+      "aciklama": "Daily total time limits for inspired CO2 inside the suit. The cabin threshold (3 mmHg) does not apply to the suit.",
       "kademeler": [
-        { "pico2_max": 4.0,  "gunluk_sure_saat": null, "not": "Süresiz. Yeşil." },
+        { "pico2_max": 4.0,  "gunluk_sure_saat": null, "not": "Unlimited duration. Green." },
         { "pico2_min": 4.0,  "pico2_max": 7.0,  "gunluk_sure_saat": 8.0 },
         { "pico2_min": 7.0,  "pico2_max": 10.0, "gunluk_sure_saat": 2.5 },
         { "pico2_min": 10.0, "pico2_max": 12.5, "gunluk_sure_saat": 1.0 },
         { "pico2_min": 12.5, "pico2_max": 15.0, "gunluk_sure_saat": 0.5 },
-        { "pico2_min": 15.0, "gunluk_sure_saat": 0, "not": "Aşılmaz. Kırmızı, hava kilidine dön." }
+        { "pico2_min": 15.0, "gunluk_sure_saat": 0, "not": "Must not be exceeded. Red: return to the airlock." }
       ],
       "birim": "mmHg",
       "kaynak": "NASA-STD-3001 Vol 2 Rev F, [V2 11039], Tablo 11.3-1",
@@ -115,20 +115,20 @@
     },
     "giyside_toplam_sure_max": {
       "deger": 14, "birim": "saat",
-      "aciklama": "Rev E'de Tablo 11.3-1 dipnotunda vardı; Rev F'te bu cümle yok. Yalnızca bilgi; NASA limiti olarak sunulmaz.",
-      "kaynak": "NASA-STD-3001 Vol 2 Rev E, Bölüm 11.3 (Rev F'te yer almıyor)",
+      "aciklama": "In Rev E this was in the Table 11.3-1 footnote; Rev F does not have this sentence. Information only; not presented as a NASA limit.",
+      "kaynak": "NASA-STD-3001 Vol 2 Rev E, Section 11.3 (not in Rev F)",
       "status": "kısmen"
     },
     "pio2_normoksi_hedef": {
       "min": 145, "max": 155, "birim": "mmHg",
-      "aciklama": "Tablo 6.2-1'de 'habitat ve giysi minimumu' örneği.",
+      "aciklama": "The 'habitat and suit minimum' example in Table 6.2-1.",
       "kaynak": "NASA-STD-3001 Vol 2 Rev F, Tablo 6.2-1",
       "status": "doğrulandı"
     },
     "emu_referans": {
       "toplam_basinc_psia": 4.3, "o2_orani": 1.0, "pio2_mmHg": 175,
-      "aciklama": "NASA EMU 4,3 psia %100 O2 ile çalışır; PIO2 yaklaşık 175 mmHg.",
-      "kaynak": "NASA-STD-3001 Vol 2, Bölüm 6 gerekçe metni",
+      "aciklama": "The NASA EMU runs at 4.3 psia with 100% O2; PIO2 is about 175 mmHg.",
+      "kaynak": "NASA-STD-3001 Vol 2, Section 6 rationale text",
       "status": "doğrulandı"
     }
   },
@@ -136,59 +136,59 @@
   "radyasyon": {
     "kariyer_limiti": {
       "deger": 600, "birim": "mSv",
-      "aciklama": "Bireysel astronotun toplam kariyer etkin dozu bunun altında olmalı. Astronota uygulanan gerçek limit.",
+      "aciklama": "An individual astronaut's total career effective dose must stay below this. The actual limit applied to astronauts.",
       "kaynak": "NASA-STD-3001 Vol 1, [V1 4030]",
       "status": "doğrulandı"
     },
     "spe_tasarim_esigi": {
       "deger": 250, "birim": "mSv",
-      "aciklama": "Tasarım referans güneş parçacık olayı (Ekim 1989 olaylarının toplamı) için etkin doz bunun altında tutulmalı. Araç tasarımı gereksinimi; biz uyarı eşiği olarak kullanıyoruz. 'Astronota uygulanan kural' olarak sunulmaz.",
+      "aciklama": "Effective dose for the design reference solar particle event (sum of the October 1989 events) must be kept below this. A vehicle design requirement; we use it as an alert threshold. Not presented as a rule applied to astronauts.",
       "kaynak": "NASA-STD-3001 Vol 1, [V1 4031]",
       "status": "doğrulandı"
     },
     "taban_doz_hizi_yolculuk": {
-      "deger": 1.8, "birim": "mSv/gün",
+      "deger": 1.8, "birim": "mSv/day",
       "saatlik": 0.075,
-      "aciklama": "MSL RAD'in Mars yolculuğunda ölçtüğü ortalama GCR doz hızı. Simülasyonun taban hızı.",
-      "kaynak": "Zeitlin vd., Science 2013 (SwRI basın bülteni)",
+      "aciklama": "Average GCR dose rate measured by MSL RAD during the cruise to Mars. The simulation's base rate.",
+      "kaynak": "Zeitlin et al., Science 2013 (SwRI press release)",
       "status": "doğrulandı"
     },
     "gcr_tasarim_gereksinimi_serbest_uzay": {
-      "deger": 1.3, "birim": "mSv/gün",
-      "aciklama": "NASA'nın araç tasarımı için GCR gereksinimi. Ölçüm (1,8) ile karıştırılmasın.",
+      "deger": 1.3, "birim": "mSv/day",
+      "aciklama": "NASA's GCR requirement for vehicle design. Not to be confused with the measurement (1.8).",
       "kaynak": "NASA OCHMO standartlar sunumu (2021)",
       "status": "doğrulandı"
     },
     "mars_yuzeyi_orani": {
       "deger": 0.5,
-      "aciklama": "Mars yüzeyinde emilen doz yolculuktakinin yaklaşık yarısı (0,21 / 0,48 mGy/gün). Eşdeğer dozda oran yaklaşık üçte bir (0,67 / 1,8 mSv/gün). 0,5 yalnızca emilen doz için yaklaşık orandır.",
-      "kaynak": "MSL RAD: Hassler vd., Science 2014 (0,21 mGy/gün yüzey, 0,48 mGy/gün yolculuk); SwRI basın bültenleri (0,67 ve 1,8 mSv/gün)",
+      "aciklama": "Absorbed dose on the Mars surface is about half of the cruise dose (0.21 / 0.48 mGy/day). For equivalent dose the ratio is about one third (0.67 / 1.8 mSv/day). 0.5 is an approximate ratio for absorbed dose only.",
+      "kaynak": "MSL RAD: Hassler et al., Science 2014 (0.21 mGy/day surface, 0.48 mGy/day cruise); SwRI press releases (0.67 and 1.8 mSv/day)",
       "status": "kısmen"
     },
     "doz_modeli_notu": {
-      "aciklama": "DONKI olay zamanını ve türünü verir, doz vermez. Ekrandaki doz = taban hız + olay etkisi; 'simüle' etiketiyle gösterilir.",
-      "kaynak": "varsayım (NASA DONKI API)",
+      "aciklama": "DONKI gives the event time and type, not the dose. Dose on screen = base rate + event effect, shown with a 'simulated' label.",
+      "kaynak": "assumption (NASA DONKI API)",
       "status": "doğrulanmadı"
     }
   },
 
   "metabolik": {
     "o2_tuketimi": {
-      "ortalama": 0.84, "min": 0.49, "max": 1.25, "birim": "kg/kişi-gün",
-      "aciklama": "Egzersizli standart görev günü için astronot ortalaması. Aktiviteye göre aralık içinde ölçeklenir. OCHMO-TB-004 Rev D tablosu (kaynağı HIDH 2014) egzersizli gün için 0,82, egzersizsiz gün için 0,72 kg/kişi-gün verir; ekip 0,84 kullanır (yaklaşık %2 fark). 0,49–1,25 aralığı bu NASA tablosunda yok.",
+      "ortalama": 0.84, "min": 0.49, "max": 1.25, "birim": "kg/person-day",
+      "aciklama": "Astronaut average for a standard mission day with exercise. Scaled within the range by activity. The OCHMO-TB-004 Rev D table (source HIDH 2014) gives 0.82 kg/person-day with exercise and 0.72 without; the team uses 0.84 (about 2% difference). The 0.49–1.25 range is not in this NASA table.",
       "kaynak": "NASA-STD-3001 metabolik yük tabloları (OCHMO-TB-004 Rev D, HIDH 2014: 0,82 kg/kişi-gün)",
       "status": "kısmen"
     },
     "co2_uretimi": {
-      "ortalama": 1.0, "min": 0.52, "max": 1.5, "birim": "kg/kişi-gün",
-      "aciklama": "OCHMO-TB-004 Rev D tablosu (kaynağı HIDH 2014) egzersizli gün için 1,04, egzersizsiz gün için 0,91 kg/kişi-gün verir; ekip 1,0 kullanır (yaklaşık %4 fark). 0,52–1,5 aralığı bu NASA tablosunda yok.",
+      "ortalama": 1.0, "min": 0.52, "max": 1.5, "birim": "kg/person-day",
+      "aciklama": "The OCHMO-TB-004 Rev D table (source HIDH 2014) gives 1.04 kg/person-day with exercise and 0.91 without; the team uses 1.0 (about 4% difference). The 0.52–1.5 range is not in this NASA table.",
       "kaynak": "NASA-STD-3001 metabolik yük tabloları (OCHMO-TB-004 Rev D, HIDH 2014: 1,04 kg/kişi-gün)",
       "status": "kısmen"
     },
     "nabiz_o2_olcekleme": {
-      "aciklama": "Kişinin O2 tüketimi nabzın baz çizgiye oranıyla (r = nabız / baz nabız) doğrusal ölçeklenir: r ≤ 1,0 → 0,49; r ≥ 1,8 → 1,25 kg/gün; arası doğrusal. CO2 üretimi aynı oranla 0,52–1,5 aralığında ölçeklenir (beden-hava bağı iki gaz için de geçerli).",
+      "aciklama": "A person's O2 use scales linearly with heart rate over baseline (r = heart rate / baseline heart rate): r ≤ 1.0 → 0.49; r ≥ 1.8 → 1.25 kg/day; linear in between. CO2 output scales with the same ratio in the 0.52–1.5 range (the body–air link applies to both gases).",
       "r_min": 1.0, "r_max": 1.8,
-      "kaynak": "varsayım (Ekip modeli)",
+      "kaynak": "assumption (team model)",
       "status": "doğrulanmadı"
     }
   },
@@ -206,22 +206,22 @@
     },
     "demo_zaman_carpani": {
       "deger": 600,
-      "aciklama": "Atmosfer ve doz simülasyonu demoda 600 kat hızlı akar (1 sn = 10 dk). O2 arızasının 145 mmHg'ye inmesi yaklaşık 26 sn sürer. Ekranda 'Simülasyon saati ×600' yazar; geri sayımlar simülasyon saatiyle gösterilir.",
-      "kaynak": "varsayım (Ekip kararı)",
+      "aciklama": "In the demo the atmosphere and dose simulation runs 600× faster (1 s = 10 min). After an O2 failure, reaching 145 mmHg takes about 26 s. The screen says 'Simulation clock ×600'; countdowns are shown in simulation time.",
+      "kaynak": "assumption (team decision)",
       "status": "doğrulanmadı"
     },
     "demo_gecikme": {
       "deger": 20, "birim": "saniye",
-      "aciklama": "Demoda gerçek dakikalar beklenmez; 20 saniye 'temsili 20 dakika' olarak gösterilir ve ekranda yazılır.",
-      "kaynak": "varsayım (Ekip kararı)",
+      "aciklama": "The demo does not wait real minutes; 20 seconds stand for 20 minutes, and the screen says so.",
+      "kaynak": "assumption (team decision)",
       "status": "doğrulanmadı"
     }
   },
 
   "vital_karar_parametreleri": {
-    "_not": "Hepsi demo parametresidir, tıbbi eşik değildir. Karar tek ölçümle değil, art_arda_olcum kadar ardışık ölçümle tetiklenir.",
-    "art_arda_olcum": { "deger": 3, "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
-    "olcum_araligi": { "deger": 5, "birim": "görev dakikası (demoda gerçek 0,5 sn, ×600)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
+    "_not": "All are demo parameters, not medical thresholds. A decision is triggered not by one reading but by art_arda_olcum consecutive readings.",
+    "art_arda_olcum": { "deger": 3, "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
+    "olcum_araligi": { "deger": 5, "birim": "mission minutes (0.5 s real time in the demo, ×600)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
     "baz_cizgi": {
       "astronotlar": [
         { "id": 1, "nabiz": 64, "spo2": 98, "isi": 36.6, "solunum": 14 },
@@ -229,74 +229,74 @@
         { "id": 3, "nabiz": 58, "spo2": 98, "isi": 36.5, "solunum": 13 },
         { "id": 4, "nabiz": 67, "spo2": 97, "isi": 36.7, "solunum": 14 }
       ],
-      "birimler": { "nabiz": "atım/dk", "spo2": "%", "isi": "°C", "solunum": "nefes/dk" },
-      "kaynak": "varsayım (Ekip kararı (sabit seed))",
+      "birimler": { "nabiz": "bpm", "spo2": "%", "isi": "°C", "solunum": "nefes/dk" },
+      "kaynak": "assumption (team decision (fixed seed))",
       "status": "doğrulanmadı"
     },
-    "spo2_dusus": { "izle": 3, "eylem": 6, "birim": "puan (baz çizgiden)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
-    "nabiz_artis_dinlenme": { "izle": 15, "eylem": 30, "birim": "atım/dk (baz çizgiden)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
-    "solunum_artis": { "izle": 4, "eylem": 8, "birim": "nefes/dk (baz çizgiden)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
-    "isi_artis": { "izle": 0.5, "eylem": 1.0, "birim": "°C (baz çizgiden)", "kaynak": "varsayım (Ekip kararı)", "status": "doğrulanmadı" },
+    "spo2_dusus": { "izle": 3, "eylem": 6, "birim": "% points (from baseline)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
+    "nabiz_artis_dinlenme": { "izle": 15, "eylem": 30, "birim": "bpm (from baseline)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
+    "solunum_artis": { "izle": 4, "eylem": 8, "birim": "breaths/min (from baseline)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
+    "isi_artis": { "izle": 0.5, "eylem": 1.0, "birim": "°C (from baseline)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
     "kararlar": {
       "olasi_hipoksi": {
-        "kosul": "spo2_dusus ≥ izle VE kabin PIO2 < 145; aktivite == 'dinlenme' ise ek olarak (nabiz_artis ≥ izle VEYA solunum_artis ≥ izle). Egzersizde nabız/solunum şartı aranmaz ve kanıt olarak yazılmaz.",
-        "oneri": "Egzersizi durdur, O2 kaynağını ve kabin PIO2'yi kontrol et, yedek O2'ye geç.",
-        "dayanak": "Tablo 6.2-1 normoksi aralığı (doğrulandı) + vital sapması (doğrulanmadı)"
+        "kosul": "spo2_dusus ≥ izle AND cabin PIO2 < 145; if aktivite == 'dinlenme' (resting), also (nabiz_artis ≥ izle OR solunum_artis ≥ izle). During exercise the heart-rate/breathing condition is not required and is not listed as evidence.",
+        "oneri": "Stop exercise, check the O2 supply and cabin PIO2, switch to backup O2.",
+        "dayanak": "Table 6.2-1 normoxia range (verified) + vital-sign deviation (unverified)"
       },
       "olasi_co2_etkisi": {
         "kosul": "kabin ppCO2 > 2.5 VE solunum_artis ≥ izle",
-        "oneri": "Egzersizi durdur, CO2 gidermeyi güçlendir, 3 mmHg altına inene kadar izle.",
-        "dayanak": "OCHMO-TB-004 belirti aralıkları (doğrulandı) + vital sapması (doğrulanmadı)"
+        "oneri": "Stop exercise, increase CO2 removal, monitor until below 3 mmHg.",
+        "dayanak": "OCHMO-TB-004 symptom ranges (verified) + vital-sign deviation (unverified)"
       },
       "isi_sapmasi": {
-        "kosul": "isi_artis ≥ izle, art arda ölçümde kalıcı",
-        "oneri": "İzle, dinlen, Dünya'ya raporla; ek ölçüm iste. Tanı değil.",
+        "kosul": "isi_artis ≥ izle, sustained over consecutive readings",
+        "oneri": "Monitor, rest, report to Earth; request extra measurements. Not a diagnosis.",
         "dayanak": "doğrulanmadı"
       },
       "kalp_yuku": {
-        "kosul": "aktivite == 'dinlenme' VE nabiz_artis ≥ izle, art arda ölçümde kalıcı. Egzersizdeki kişide nabız artışı kalp yükü sayılmaz (yanlış alarm olmasın).",
-        "oneri": "Eforu azalt, izle, Dünya'ya raporla.",
+        "kosul": "aktivite == 'dinlenme' (resting) AND nabiz_artis ≥ izle, sustained over consecutive readings. For a person exercising, a heart-rate rise is not counted as cardiac load (no false alarm).",
+        "oneri": "Reduce exertion, monitor, report to Earth.",
         "dayanak": "doğrulanmadı"
       },
       "radyasyon_etkisi": {
-        "kosul": "SEP olayı başladı VE (olay sonu tahmini doz ≥ 0.8 × spe_tasarim_esigi VEYA olay dozu ≥ 0.8 × spe_tasarim_esigi) VEYA kümülatif ≥ 0.8 × kariyer_limiti. Tahmini doz = şimdiki olay dozu + doz hızı × kalan olay süresi. Sığınak uyarısı dozu almadan ÖNCE verilir; 200 mSv alındıktan sonra değil.",
-        "oneri": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
-        "dayanak": "[V1 4030], [V1 4031] (doğrulandı); %80 sarı kademe (doğrulanmadı)"
+        "kosul": "SEP event started AND (projected end-of-event dose ≥ 0.8 × spe_tasarim_esigi OR event dose ≥ 0.8 × spe_tasarim_esigi) OR cumulative ≥ 0.8 × kariyer_limiti. Projected dose = current event dose + dose rate × remaining event time. The shelter warning is given BEFORE the dose is received, not after 200 mSv is received.",
+        "oneri": "Go to the storm shelter; after the event, record each person's dose and report to Earth.",
+        "dayanak": "[V1 4030], [V1 4031] (verified); 80% yellow tier (unverified)"
       }
     },
-    "durum_rengi": "Kişinin durumu en ağır kararına göre: Normal (yeşil) / İzle (sarı) / Eylem (kırmızı).",
+    "durum_rengi": "A person's status follows their most severe decision: Normal (green) / Watch (yellow) / Action (red).",
     "sari_kademe_genel": {
       "oran": 0.8,
-      "aciklama": "Resmi limitin %80'ine ulaşınca sarı. Resmi sınır yalnızca limit değeridir.",
-      "kaynak": "varsayım (Ekip kararı)",
+      "aciklama": "Yellow at 80% of the official limit. The official boundary is only the limit value.",
+      "kaynak": "assumption (team decision)",
       "status": "doğrulanmadı"
     }
   },
 
   "profiller": {
     "mars_transit": {
-      "ad": "Mars transit aracı",
+      "ad": "Mars transit vehicle",
       "hacim_m3": 75, "kisi": 4, "toplam_basinc_mmHg": 760, "co2_giderme_kg_gun": 4.0, "o2_uretim_kg_gun": 3.4,
       "co2_limit": { "deger": 3.0, "birim": "mmHg", "kaynak": "NASA-STD-3001 [V2 6004]", "status": "doğrulandı" },
       "o2_limit": { "pio2_min": 127, "birim": "mmHg", "kaynak": "Tablo 6.2-1", "status": "doğrulandı" },
-      "parametre_durumu": "Hacim, giderme ve üretim kapasiteleri demo varsayımı; limitler doğrulandı."
+      "parametre_durumu": "Volume, removal and generation capacities are demo assumptions; the limits are verified."
     },
     "denizalti": {
-      "ad": "Denizaltı",
+      "ad": "Submarine",
       "hacim_m3": 2000, "kisi": 100, "toplam_basinc_mmHg": 760, "co2_giderme_kg_gun": 110, "o2_uretim_kg_gun": 90,
       "co2_limit": {
         "deger_yuzde": 0.8, "deger_mmHg": 6.1,
-        "aciklama": "90 günlük sürekli maruziyet için NRC'nin ÖNERDİĞİ değer (8.000 ppm). Donanmanın o tarihteki değeri 5.000 ppm (%0,5); resmi Navy değeri olarak sunulmaz. 2018 çalışması da 90 gün için %0,8 önerir.",
-        "kaynak": "NRC 2007, Tablo S-1 (90 günlük CEGL, NRC önerisi 8.000 ppm); PubMed 30511437 (2018)",
+        "aciklama": "Value RECOMMENDED by the NRC for 90-day continuous exposure (8,000 ppm). The Navy value at that time was 5,000 ppm (0.5%); not presented as an official Navy value. The 2018 study also recommends 0.8% for 90 days.",
+        "kaynak": "NRC 2007, Table S-1 (90-day CEGL, NRC recommendation 8,000 ppm); PubMed 30511437 (2018)",
         "status": "doğrulandı"
       },
-      "o2_kaynagi": "Deniz suyu elektrolizi; CO2 amin yıkayıcı (NRC 2007).",
-      "parametre_durumu": "Hacim, kişi, kapasiteler demo varsayımı; metabolik oranlar astronot ortalaması (varsayım)."
+      "o2_kaynagi": "Seawater electrolysis; amine CO2 scrubber (NRC 2007).",
+      "parametre_durumu": "Volume, crew size and capacities are demo assumptions; metabolic rates are an astronaut average (assumption)."
     },
     "yeralti_siginagi": {
-      "ad": "Yeraltı kurtarma sığınağı (ABD kömür madeni)",
+      "ad": "Underground refuge chamber (US coal mine)",
       "hacim_m3": 30, "kisi": 10, "toplam_basinc_mmHg": 760, "co2_giderme_kg_gun": 10.0, "o2_uretim_kg_gun": 8.4,
-      "ariza_senaryosu": { "co2_giderme_kg_gun": 0, "o2_uretim_kg_gun": 0, "aciklama": "Yıkayıcı ve O2 stoku devre dışı: CO2 sınırına yaklaşık 1,3 saat, O2 alt sınırına yaklaşık 2,8 saat." },
+      "ariza_senaryosu": { "co2_giderme_kg_gun": 0, "o2_uretim_kg_gun": 0, "aciklama": "Scrubber and O2 supply offline: about 1.3 h to the CO2 limit, about 2.8 h to the O2 lower limit." },
       "co2_limit": {
         "ortalama_yuzde": 1.0, "ortalama_mmHg": 7.6, "sapma_max_yuzde": 2.5,
         "kaynak": "30 CFR 7.506 (ecfr.gov)", "status": "doğrulandı"
@@ -304,16 +304,16 @@
       "o2_limit": { "min_yuzde": 18.5, "max_yuzde": 23.0, "kaynak": "30 CFR 7.506", "status": "doğrulandı" },
       "hedef_sure": { "deger": 96, "birim": "saat", "kaynak": "30 CFR 7.506", "status": "doğrulandı" },
       "kapsam_disi": "CO ve metan modellenmez; ekranda belirtilir.",
-      "parametre_durumu": "Hacim, kişi, yıkayıcı ve O2 stok hızı demo varsayımı. Normalde yıkayıcı ve tüplü O2 dengeyi korur (96 saatlik stok; stok tükenmesi modellenmez). Arıza senaryosunda geri sayım saatlere iner."
+      "parametre_durumu": "Volume, crew size, scrubber and O2 supply rate are demo assumptions. Normally the scrubber and bottled O2 keep the balance (96-hour supply; running out is not modeled). In the failure scenario the countdown drops to hours."
     }
   },
 
   "kalan_sure_formulu": {
     "co2": "kalan_saat = V × (limit_kg_m3 − simdiki_kg_m3) ÷ ((N × co2_uretim − co2_giderme) / 24)",
     "o2": "kalan_saat = V × (simdiki_kg_m3 − alt_sinir_kg_m3) ÷ ((N × o2_tuketim − o2_uretim) / 24)",
-    "not": "Payda ≤ 0 ise kalan süre 'sınırsız' gösterilir. O2 arızasında yalnızca o2_uretim düşer; CO2 sayacı değişmez. Limitler mmHg'dir; kg/m3'e ideal gaz ile çevrilir: ρ = p(Pa) × M ÷ (8,314 × T), T = 295 K, M(O2) = 0,032, M(CO2) = 0,044 kg/mol.",
+    "not": "If the denominator is ≤ 0, the remaining time is shown as 'unlimited'. In an O2 failure only o2_uretim drops; the CO2 countdown does not change. Limits are in mmHg and are converted to kg/m3 with the ideal gas law: ρ = p(Pa) × M ÷ (8.314 × T), T = 295 K, M(O2) = 0.032, M(CO2) = 0.044 kg/mol.",
     "ornek_hesap": "Mars transit, O2 arızası (üretim 0, 4 kişi × 0,84 = 3,36 kg/gün): PIO2 149 → 145 mmHg yaklaşık 4,4 saat, → 127 mmHg yaklaşık 22 saat (gerçek zaman). Demoda bu yüzden zaman çarpanı gerekir.",
-    "kaynak": "varsayım (Ekip modeli (kütle dengesi))",
+    "kaynak": "assumption (team model (mass balance))",
     "status": "doğrulanmadı"
   }
 }
