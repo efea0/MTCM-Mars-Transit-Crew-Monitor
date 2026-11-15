@@ -1,4 +1,4 @@
-"""Gerçek referansla atmosfer dengesi, sınırlar ve eksik veri davranışı."""
+"""Atmosphere balance, limits and missing-data behaviour against the real reference."""
 
 import json
 import math
@@ -40,13 +40,11 @@ def profile(reference_path: Path) -> Profile:
 
 @pytest.fixture
 def crew(reference: dict[str, Any]) -> list[tuple[float, float]]:
-    """HİPOTEZ: Referanstaki demo baz nabızları dinlenme girdisidir."""
     people = reference["vital_karar_parametreleri"]["baz_cizgi"]["astronotlar"]
     return [(person["nabiz"], person["nabiz"]) for person in people]
 
 
 def pp_from_pio2(pio2: float, profile: Profile) -> float:
-    """Test girdisindeki solunan basıncı kabin kısmi basıncına çevirir."""
     return (
         pio2 * profile.total_pressure_mmhg / (profile.total_pressure_mmhg - profile.ranges.water_vapour_mmhg)
     )
@@ -59,7 +57,6 @@ def state(profile: Profile) -> CabinState:
 
 @pytest.fixture
 def balanced(profile: Profile) -> Profile:
-    """HİPOTEZ: Denge sınaması için kapasiteleri dinlenme yüküne eşitler."""
     metabolism = profile.ranges.metabolism
     return replace(
         profile,
@@ -75,7 +72,6 @@ def write_reference(tmp_path: Path, data: object) -> Path:
 
 
 def change(data: dict[str, Any], keys: tuple[str | int, ...], value: object) -> None:
-    """Geçersiz yapı sınamaları için yalnızca fixture kopyasını değiştirir."""
     parent = data
     for key in keys[:-1]:
         parent = parent[key]
@@ -93,7 +89,7 @@ def test_real_reference(profile: Profile, reference: dict[str, Any], reference_p
     assert profile.co2_max_mmhg == row["co2_limit"]["deger"]
     assert profile.temperature_k == 295.0
     assert profile.ranges == load_ranges(reference_path)
-    assert "HİPOTEZ" in profile.limit_source
+    assert "HYPOTHESIS" in profile.limit_source
 
 
 def test_nominal_balance(balanced: Profile, state: CabinState, crew: list[tuple[float, float]]) -> None:
@@ -104,7 +100,7 @@ def test_nominal_balance(balanced: Profile, state: CabinState, crew: list[tuple[
     assert result.hours_until_o2_limit is None
     assert result.pio2_mmhg == pytest.approx(149.0)
     assert result.estimated is True
-    assert "HİPOTEZ" in result.consumption_source
+    assert "HYPOTHESIS" in result.consumption_source
     assert "NASA-STD-3001 metabolik yük tabloları" in result.consumption_source
 
 
@@ -162,9 +158,6 @@ def test_personal_scaling(profile: Profile, ratio: float, o2: float, co2: float)
     assert metabolic_rates(50.0 * ratio, 50.0, profile.ranges.metabolism) == pytest.approx((o2, co2))
 
 
-# Referansta CO2 giderimi (4,0 kg/gün) üretimden büyüktür; net CO2 akışı limitten
-# uzağa doğru olduğu için limit altında geri sayım yoktur (None). Limit ve üstünde
-# geri sayım sıfırdır.
 @pytest.mark.parametrize(
     ("co2", "expected", "hours"),
     [
@@ -383,8 +376,8 @@ def test_reference_parameters_are_not_hardcoded(
     ("keys", "value", "message"),
     [
         (("kurallar",), {}, "kurallar"),
-        (("kurallar",), [], "eksik kimlikler"),
-        (("kurallar", 0), None, "nesne"),
+        (("kurallar",), [], "missing ids"),
+        (("kurallar", 0), None, "must be an object"),
         (("kurallar", 0, "id"), None, "id"),
         (("kurallar", 0, "comparator"), ">=", "comparator"),
         (("kurallar", 0, "threshold"), -1, "threshold"),
@@ -394,13 +387,13 @@ def test_reference_parameters_are_not_hardcoded(
         (("kurallar", 0, "severity"), "warning", "severity"),
         (("metabolik",), [], "metabolik"),
         (("metabolik", "o2_tuketimi", "ortalama"), None, "ortalama"),
-        (("metabolik", "o2_tuketimi", "min"), 2, "min ≤ ortalama"),
+        (("metabolik", "o2_tuketimi", "min"), 2, "min <= ortalama"),
         (("metabolik", "co2_uretimi", "max"), True, "max"),
-        (("metabolik", "nabiz_o2_olcekleme", "r_min"), 1.8, "r_min < r_max"),
+        (("metabolik", "nabiz_o2_olcekleme", "r_min"), 1.8, "r_min must be less than r_max"),
         (("metabolik", "nabiz_o2_olcekleme", "r_max"), float("inf"), "r_max"),
         (("kalan_sure_formulu", "not"), "Sıcaklık belirtilmemiş.", "not.T"),
         (("kalan_sure_formulu", "not"), "T = 295 K; T = 300 K", "not.T"),
-        (("kabin", "pio2_formulu", "formul"), "PIO2 belirsiz", "su_buharı"),
+        (("kabin", "pio2_formulu", "formul"), "PIO2 belirsiz", "water_vapour"),
     ],
 )
 def test_invalid_ranges(
@@ -420,10 +413,10 @@ def test_invalid_ranges(
         (("kisi",), -1, "crew_count"),
         (("kisi",), 4.5, "crew_count"),
         (("kisi",), True, "crew_count"),
-        (("toplam_basinc_mmHg",), 47, "su buharı"),
+        (("toplam_basinc_mmHg",), 47, "water vapour"),
         (("co2_giderme_kg_gun",), -1, "co2_giderme"),
         (("o2_uretim_kg_gun",), None, "o2_uretim"),
-        (("o2_limit", "pio2_min"), 800, "toplam basıncı"),
+        (("o2_limit", "pio2_min"), 800, "total pressure"),
         (("co2_limit", "deger"), float("inf"), "deger"),
         (("co2_limit",), [], "co2_limit"),
     ],
@@ -438,28 +431,28 @@ def test_invalid_profile(
 
 def test_missing_fields_and_duplicate_rules(reference: dict[str, Any], tmp_path: Path) -> None:
     reference["kurallar"].append(reference["kurallar"][0].copy())
-    with pytest.raises(ValueError, match="yinelenen"):
+    with pytest.raises(ValueError, match="duplicate"):
         load_ranges(write_reference(tmp_path, reference))
     reference["kurallar"].pop()
     del reference["metabolik"]["o2_tuketimi"]["min"]
-    with pytest.raises(ValueError, match="min: eksik"):
+    with pytest.raises(ValueError, match="min: missing"):
         load_ranges(write_reference(tmp_path, reference))
 
 
 def test_missing_profile_fields(reference: dict[str, Any], tmp_path: Path) -> None:
     del reference["profiller"]["mars_transit"]["hacim_m3"]
-    with pytest.raises(ValueError, match="hacim_m3: eksik"):
+    with pytest.raises(ValueError, match="hacim_m3: missing"):
         load_profile(write_reference(tmp_path, reference), name="mars_transit")
 
 
 def test_unknown_profile_and_wrong_root(reference_path: Path, tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="profiller.bilinmeyen"):
         load_profile(reference_path, name="bilinmeyen")
-    with pytest.raises(ValueError, match="ranges: nesne"):
+    with pytest.raises(ValueError, match="ranges: must be an object"):
         load_ranges(write_reference(tmp_path, []))
     path = tmp_path / "bozuk.json"
     path.write_text("{", encoding="utf-8")
-    with pytest.raises(ValueError, match="geçersiz JSON"):
+    with pytest.raises(ValueError, match="invalid JSON"):
         load_ranges(path)
     with pytest.raises(FileNotFoundError):
         load_ranges(tmp_path / "eksik.json")
@@ -476,9 +469,9 @@ def test_invalid_time(
 def test_invalid_crew_and_runtime_profile(
     profile: Profile, state: CabinState, crew: list[tuple[float, float]]
 ) -> None:
-    with pytest.raises(ValueError, match="her kişi"):
+    with pytest.raises(ValueError, match="one .* per crew member"):
         step(state, profile, [], 60.0)
-    with pytest.raises(ValueError, match="çifti"):
+    with pytest.raises(ValueError, match="must be a"):
         step(state, profile, [None] * 4, 60.0)
     with pytest.raises(ValueError, match="volume_m3"):
         step(state, replace(profile, volume_m3=0.0), crew, 60.0)
