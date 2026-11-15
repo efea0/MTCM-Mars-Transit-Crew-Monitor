@@ -293,6 +293,28 @@ class RulesEngine:
         self.vital_rules = tuple(vital_rules_list)
         self._load_sleep_rules(data)
         self.rules = tuple(self.cabin_rules) + tuple(self.vital_rules)
+        self._rules_by_id: dict[str, ThresholdRule] = {rule.id: rule for rule in self.rules}
+
+    def _rule_for(self, rule_id: str) -> ThresholdRule:
+        """Return the loaded ThresholdRule for rule_id."""
+        rule = self._rules_by_id.get(rule_id)
+        if rule is None:
+            raise ValueError(f"rules: unknown rule_id {rule_id!r}")
+        return rule
+
+    @staticmethod
+    def _rule_matches(rule: ThresholdRule, value: float) -> bool:
+        """Evaluate value against rule.threshold using rule.comparator."""
+        comp = rule.comparator
+        if comp == Comparator.lt:
+            return value < rule.threshold
+        if comp == Comparator.le:
+            return value <= rule.threshold
+        if comp == Comparator.gt:
+            return value > rule.threshold
+        if comp == Comparator.ge:
+            return value >= rule.threshold
+        raise ValueError(f"rules: unsupported comparator {comp!r} for {rule.id!r}")
 
     def _load_sleep_rules(self, data: dict[str, Any]) -> None:
         """Read the optional uyku_kurallari section (HYPOTHESIS thresholds, counted in sleep periods).
@@ -431,25 +453,26 @@ class RulesEngine:
             window_full = False
 
         # ppco2-caution
+        caution_rule = self._rule_for("ppco2-caution")
         caution_id = "cabin:ppco2-caution"
-        caution_cond = co2_ok and co2_mmhg is not None and co2_mmhg > self.ppco2_sari_esik
+        caution_cond = co2_ok and co2_mmhg is not None and self._rule_matches(caution_rule, co2_mmhg)
         if caution_cond:
             assert co2_mmhg is not None
             count = self._consecutive_counts.get(caution_id, 0) + 1
             self._consecutive_counts[caution_id] = count
             if count == 1:
                 self._alert_first_seen[caution_id] = frame.ts
-            if count >= self.consecutive_required:
+            if count >= caution_rule.consecutive_required:
                 note = (
-                    f"Cabin ppCO2 {co2_mmhg:.2f} mmHg (threshold {self.ppco2_sari_esik} mmHg), "
+                    f"Cabin ppCO2 {co2_mmhg:.2f} mmHg (threshold {caution_rule.threshold} mmHg), "
                     f"for {count} readings"
                 )
                 why = [
                     Evidence(
-                        metric=Metric.pp_co2,
+                        metric=caution_rule.metric,
                         value=round(co2_mmhg, 2),
-                        threshold=self.ppco2_sari_esik,
-                        comparator=Comparator.gt,
+                        threshold=caution_rule.threshold,
+                        comparator=caution_rule.comparator,
                         ts=cabin.pp_co2.ts,
                         note=note,
                     )
@@ -458,10 +481,10 @@ class RulesEngine:
                 self._active_alerts[caution_id] = Alert(
                     id=caution_id,
                     crew_id=None,
-                    metric=Metric.pp_co2,
-                    severity=Severity.caution,
+                    metric=caution_rule.metric,
+                    severity=caution_rule.severity,
                     message=msg,
-                    rule_id="ppco2-caution",
+                    rule_id=caution_rule.id,
                     consecutive_count=count,
                     first_seen=self._alert_first_seen[caution_id],
                     last_seen=frame.ts,
@@ -472,38 +495,41 @@ class RulesEngine:
             self._alert_first_seen.pop(caution_id, None)
             self._active_alerts.pop(caution_id, None)
 
-        # ppco2-limit
+        # ppco2-limit: early projection is preserved when the 1-hour window is not yet full
+        # (window_full == False) so sustained high ppCO2 still alerts promptly while noting the
+        # partial window in Evidence.note.
+        limit_rule = self._rule_for("ppco2-limit")
         limit_id = "cabin:ppco2-limit"
-        limit_cond = co2_ok and co2_avg is not None and co2_avg > self.ppco2_limit_1saat_ort
+        limit_cond = co2_ok and co2_avg is not None and self._rule_matches(limit_rule, co2_avg)
         if limit_cond:
             assert co2_avg is not None
             count = self._consecutive_counts.get(limit_id, 0) + 1
             self._consecutive_counts[limit_id] = count
             if count == 1:
                 self._alert_first_seen[limit_id] = frame.ts
-            if count >= self.consecutive_required:
+            if count >= limit_rule.consecutive_required:
                 if self.co2_window_s is not None and not window_full:
                     note = (
-                        f"1-hour window not yet full (average of {len(samples)} samples "
-                        f"{co2_avg:.2f} mmHg, threshold {self.ppco2_limit_1saat_ort} mmHg), "
+                        f"1-hour window not yet full (projected average of {len(samples)} samples "
+                        f"{co2_avg:.2f} mmHg, threshold {limit_rule.threshold} mmHg), "
                         f"for {count} readings"
                     )
                 elif self.co2_window_s is not None:
                     note = (
                         f"1-hour average ppCO2 {co2_avg:.2f} mmHg (threshold "
-                        f"{self.ppco2_limit_1saat_ort} mmHg), for {count} readings"
+                        f"{limit_rule.threshold} mmHg), for {count} readings"
                     )
                 else:
                     note = (
-                        f"Cabin ppCO2 {co2_avg:.2f} mmHg (threshold {self.ppco2_limit_1saat_ort} mmHg), "
+                        f"Cabin ppCO2 {co2_avg:.2f} mmHg (threshold {limit_rule.threshold} mmHg), "
                         f"for {count} readings"
                     )
                 why = [
                     Evidence(
-                        metric=Metric.pp_co2,
+                        metric=limit_rule.metric,
                         value=round(co2_avg, 3),
-                        threshold=self.ppco2_limit_1saat_ort,
-                        comparator=Comparator.gt,
+                        threshold=limit_rule.threshold,
+                        comparator=limit_rule.comparator,
                         ts=cabin.pp_co2.ts,
                         note=note,
                     )
@@ -515,10 +541,10 @@ class RulesEngine:
                 self._active_alerts[limit_id] = Alert(
                     id=limit_id,
                     crew_id=None,
-                    metric=Metric.pp_co2,
-                    severity=Severity.critical,
+                    metric=limit_rule.metric,
+                    severity=limit_rule.severity,
                     message=msg,
-                    rule_id="ppco2-limit",
+                    rule_id=limit_rule.id,
                     consecutive_count=count,
                     first_seen=self._alert_first_seen[limit_id],
                     last_seen=frame.ts,
@@ -530,27 +556,28 @@ class RulesEngine:
             self._active_alerts.pop(limit_id, None)
 
         # pio2-hypoxia-low (< 127, critical)
+        hypoxia_rule = self._rule_for("pio2-hypoxia-low")
         normoxia_low_id = "cabin:pio2-normoxia-low"
         hypoxia_low_id = "cabin:pio2-hypoxia-low"
-        hypoxia_low_cond = pio2_mmhg is not None and pio2_mmhg < self.pio2_hafif_hipoksi_alt
+        hypoxia_low_cond = pio2_mmhg is not None and self._rule_matches(hypoxia_rule, pio2_mmhg)
         if hypoxia_low_cond:
             assert pio2_mmhg is not None
             count = self._consecutive_counts.get(hypoxia_low_id, 0) + 1
             self._consecutive_counts[hypoxia_low_id] = count
             if count == 1:
                 self._alert_first_seen[hypoxia_low_id] = frame.ts
-            if count >= self.consecutive_required:
+            if count >= hypoxia_rule.consecutive_required:
                 note = (
                     f"Cabin PIO2 {pio2_mmhg:.1f} mmHg (mild hypoxia lower bound "
-                    f"{self.pio2_hafif_hipoksi_alt} mmHg, absolute limit "
+                    f"{hypoxia_rule.threshold} mmHg, absolute limit "
                     f"{self.pio2_mutlak_alt} mmHg), for {count} readings"
                 )
                 why = [
                     Evidence(
-                        metric=Metric.pio2,
+                        metric=hypoxia_rule.metric,
                         value=round(pio2_mmhg, 2),
-                        threshold=self.pio2_hafif_hipoksi_alt,
-                        comparator=Comparator.lt,
+                        threshold=hypoxia_rule.threshold,
+                        comparator=hypoxia_rule.comparator,
                         ts=frame.ts,
                         note=note,
                     )
@@ -567,10 +594,10 @@ class RulesEngine:
                 self._active_alerts[hypoxia_low_id] = Alert(
                     id=hypoxia_low_id,
                     crew_id=None,
-                    metric=Metric.pio2,
-                    severity=Severity.critical,
+                    metric=hypoxia_rule.metric,
+                    severity=hypoxia_rule.severity,
                     message=msg,
-                    rule_id="pio2-hypoxia-low",
+                    rule_id=hypoxia_rule.id,
                     consecutive_count=count,
                     first_seen=self._alert_first_seen[hypoxia_low_id],
                     last_seen=frame.ts,
@@ -583,28 +610,29 @@ class RulesEngine:
             self._active_alerts.pop(hypoxia_low_id, None)
 
         # pio2-normoxia-low (< 145, caution)
+        normoxia_low_rule = self._rule_for("pio2-normoxia-low")
         normoxia_low_id = "cabin:pio2-normoxia-low"
-        normoxia_low_cond = pio2_mmhg is not None and pio2_mmhg < self.pio2_normoksi_min
+        normoxia_low_cond = pio2_mmhg is not None and self._rule_matches(normoxia_low_rule, pio2_mmhg)
         if normoxia_low_cond:
             assert pio2_mmhg is not None
             count = self._consecutive_counts.get(normoxia_low_id, 0) + 1
             self._consecutive_counts[normoxia_low_id] = count
             if count == 1:
                 self._alert_first_seen[normoxia_low_id] = frame.ts
-            if count >= self.consecutive_required:
+            if count >= normoxia_low_rule.consecutive_required:
                 if hypoxia_low_id in self._active_alerts:
                     self._active_alerts.pop(normoxia_low_id, None)
                 else:
                     note = (
                         f"Cabin PIO2 {pio2_mmhg:.1f} mmHg (normoxia lower bound "
-                        f"{self.pio2_normoksi_min} mmHg), for {count} readings"
+                        f"{normoxia_low_rule.threshold} mmHg), for {count} readings"
                     )
                     why = [
                         Evidence(
-                            metric=Metric.pio2,
+                            metric=normoxia_low_rule.metric,
                             value=round(pio2_mmhg, 2),
-                            threshold=self.pio2_normoksi_min,
-                            comparator=Comparator.lt,
+                            threshold=normoxia_low_rule.threshold,
+                            comparator=normoxia_low_rule.comparator,
                             ts=frame.ts,
                             note=note,
                         )
@@ -613,10 +641,10 @@ class RulesEngine:
                     self._active_alerts[normoxia_low_id] = Alert(
                         id=normoxia_low_id,
                         crew_id=None,
-                        metric=Metric.pio2,
-                        severity=Severity.caution,
+                        metric=normoxia_low_rule.metric,
+                        severity=normoxia_low_rule.severity,
                         message=msg,
-                        rule_id="pio2-normoxia-low",
+                        rule_id=normoxia_low_rule.id,
                         consecutive_count=count,
                         first_seen=self._alert_first_seen[normoxia_low_id],
                         last_seen=frame.ts,
@@ -628,25 +656,26 @@ class RulesEngine:
             self._active_alerts.pop(normoxia_low_id, None)
 
         # pio2-normoxia-high (> 155, caution)
+        normoxia_high_rule = self._rule_for("pio2-normoxia-high")
         normoxia_high_id = "cabin:pio2-normoxia-high"
-        normoxia_high_cond = pio2_mmhg is not None and pio2_mmhg > self.pio2_normoksi_max
+        normoxia_high_cond = pio2_mmhg is not None and self._rule_matches(normoxia_high_rule, pio2_mmhg)
         if normoxia_high_cond:
             assert pio2_mmhg is not None
             count = self._consecutive_counts.get(normoxia_high_id, 0) + 1
             self._consecutive_counts[normoxia_high_id] = count
             if count == 1:
                 self._alert_first_seen[normoxia_high_id] = frame.ts
-            if count >= self.consecutive_required:
+            if count >= normoxia_high_rule.consecutive_required:
                 note = (
                     f"Cabin PIO2 {pio2_mmhg:.1f} mmHg (normoxia upper bound "
-                    f"{self.pio2_normoksi_max} mmHg), for {count} readings"
+                    f"{normoxia_high_rule.threshold} mmHg), for {count} readings"
                 )
                 why = [
                     Evidence(
-                        metric=Metric.pio2,
+                        metric=normoxia_high_rule.metric,
                         value=round(pio2_mmhg, 2),
-                        threshold=self.pio2_normoksi_max,
-                        comparator=Comparator.gt,
+                        threshold=normoxia_high_rule.threshold,
+                        comparator=normoxia_high_rule.comparator,
                         ts=frame.ts,
                         note=note,
                     )
@@ -655,10 +684,10 @@ class RulesEngine:
                 self._active_alerts[normoxia_high_id] = Alert(
                     id=normoxia_high_id,
                     crew_id=None,
-                    metric=Metric.pio2,
-                    severity=Severity.caution,
+                    metric=normoxia_high_rule.metric,
+                    severity=normoxia_high_rule.severity,
                     message=msg,
-                    rule_id="pio2-normoxia-high",
+                    rule_id=normoxia_high_rule.id,
                     consecutive_count=count,
                     first_seen=self._alert_first_seen[normoxia_high_id],
                     last_seen=frame.ts,
@@ -711,13 +740,22 @@ class RulesEngine:
         sleep = self._evaluate_sleep(crew, frame)
         sep_missing = self._evaluate_crew_decisions(crew, updated_vitals, frame, pio2_mmhg, sep)
 
+        has_real_crew_alerts = any(a.crew_id == cid for a in self._active_alerts.values())
+        all_vitals_missing = all(
+            getattr(updated_vitals, f).value is None or getattr(updated_vitals, f).quality != Quality.ok.value
+            for f in CrewVitals.model_fields
+        )
         all_active_crew_alerts = [
             a
             for a in list(self._active_alerts.values()) + list(self._missing_alerts.values())
             if a.crew_id == cid
         ]
 
-        if all_active_crew_alerts:
+        if all_vitals_missing and not has_real_crew_alerts:
+            # Missing data is never counted as normal or caution when all vitals are absent.
+            c_status = Status.unknown
+            c_decision = CrewDecision.unknown
+        elif all_active_crew_alerts:
             severities = {a.severity for a in all_active_crew_alerts}
             if Severity.critical.value in severities:
                 c_status = Status.critical
@@ -848,38 +886,22 @@ class RulesEngine:
         if delta is None:
             return Status.nominal
 
-        if metric == Metric.spo2:
-            if delta <= -self.spo2_eylem:
-                return Status.critical
-            if delta <= -self.spo2_izle:
-                return Status.caution
+        vital_rule_pairs: dict[Metric, tuple[str, str]] = {
+            Metric.spo2: ("spo2-drop-critical", "spo2-drop-caution"),
+            Metric.heart_rate: ("hr-rest-rise-critical", "hr-rest-rise-caution"),
+            Metric.resp_rate: ("rr-rise-critical", "rr-rise-caution"),
+            Metric.core_temp: ("temp-rise-critical", "temp-rise-caution"),
+        }
+        rule_ids = vital_rule_pairs.get(metric)
+        if rule_ids is None:
             return Status.nominal
 
-        if metric == Metric.heart_rate:
-            if act_val != Activity.resting.value:
+        for rule_id in rule_ids:
+            rule = self._rule_for(rule_id)
+            if act_val in [getattr(a, "value", a) for a in rule.skip_when]:
                 return Status.nominal
-            if delta >= self.hr_eylem:
-                return Status.critical
-            if delta >= self.hr_izle:
-                return Status.caution
-            return Status.nominal
-
-        if metric == Metric.resp_rate:
-            if act_val != Activity.resting.value:
-                return Status.nominal
-            if delta >= self.rr_eylem:
-                return Status.critical
-            if delta >= self.rr_izle:
-                return Status.caution
-            return Status.nominal
-
-        if metric == Metric.core_temp:
-            if delta >= self.temp_eylem:
-                return Status.critical
-            if delta >= self.temp_izle:
-                return Status.caution
-            return Status.nominal
-
+            if self._rule_matches(rule, delta):
+                return STATUS_BY_SEVERITY[rule.severity]
         return Status.nominal
 
     def _hold_alert(self, alert_id: str, *, can_hold: bool = True) -> bool:
@@ -1393,27 +1415,34 @@ class RulesEngine:
         return sep_missing
 
     def _finalize_cabin(self, cabin: CabinAtmosphere, pio2_mmhg: float | None) -> CabinAtmosphere:
+        co2_limit_rule = self._rule_for("ppco2-limit")
+        co2_caution_rule = self._rule_for("ppco2-caution")
         co2_r = cabin.pp_co2
         if co2_r.value is None or co2_r.quality != Quality.ok.value:
             co2_status = Status.unknown
         else:
             co2_mmhg = co2_r.value * MMHG_PER_KPA if co2_r.unit.lower() == "kpa" else co2_r.value
-            if co2_mmhg > self.ppco2_limit_1saat_ort:
-                co2_status = Status.critical
-            elif co2_mmhg > self.ppco2_sari_esik:
-                co2_status = Status.caution
+            if self._rule_matches(co2_limit_rule, co2_mmhg):
+                co2_status = STATUS_BY_SEVERITY[co2_limit_rule.severity]
+            elif self._rule_matches(co2_caution_rule, co2_mmhg):
+                co2_status = STATUS_BY_SEVERITY[co2_caution_rule.severity]
             else:
                 co2_status = Status.nominal
         updated_co2 = co2_r.model_copy(update={"status": co2_status})
 
+        hypoxia_rule = self._rule_for("pio2-hypoxia-low")
+        normoxia_low_rule = self._rule_for("pio2-normoxia-low")
+        normoxia_high_rule = self._rule_for("pio2-normoxia-high")
         o2_r = cabin.pp_o2
         if o2_r.value is None or o2_r.quality != Quality.ok.value or pio2_mmhg is None:
             o2_status = Status.unknown
         else:
-            if pio2_mmhg < self.pio2_hafif_hipoksi_alt or pio2_mmhg < self.pio2_mutlak_alt:
-                o2_status = Status.critical
-            elif pio2_mmhg < self.pio2_normoksi_min or pio2_mmhg > self.pio2_normoksi_max:
-                o2_status = Status.caution
+            if self._rule_matches(hypoxia_rule, pio2_mmhg) or pio2_mmhg < self.pio2_mutlak_alt:
+                o2_status = STATUS_BY_SEVERITY[hypoxia_rule.severity]
+            elif self._rule_matches(normoxia_low_rule, pio2_mmhg):
+                o2_status = STATUS_BY_SEVERITY[normoxia_low_rule.severity]
+            elif self._rule_matches(normoxia_high_rule, pio2_mmhg):
+                o2_status = STATUS_BY_SEVERITY[normoxia_high_rule.severity]
             else:
                 o2_status = Status.nominal
         updated_o2 = o2_r.model_copy(update={"status": o2_status})
@@ -1440,13 +1469,26 @@ class RulesEngine:
             update={"status": reading_status(cabin.radiation_dose_rate)}
         )
 
+        cabin_readings = (
+            cabin.pp_co2,
+            cabin.pp_o2,
+            cabin.cabin_pressure,
+            cabin.cabin_temp,
+            cabin.rel_humidity,
+            cabin.radiation_dose_rate,
+        )
+        all_cabin_missing = all(r.value is None or r.quality != Quality.ok.value for r in cabin_readings)
+        has_real_cabin_alerts = any(a.crew_id is None for a in self._active_alerts.values())
         all_active_cabin_alerts = [
             a
             for a in list(self._active_alerts.values()) + list(self._missing_alerts.values())
             if a.crew_id is None
         ]
 
-        if all_active_cabin_alerts:
+        if all_cabin_missing and not has_real_cabin_alerts:
+            # Missing data is never counted as normal or caution when all cabin sensors are absent.
+            cab_status = Status.unknown
+        elif all_active_cabin_alerts:
             severities = {a.severity for a in all_active_cabin_alerts}
             if Severity.critical.value in severities:
                 cab_status = Status.critical

@@ -263,6 +263,15 @@ class Simulator:
             self._spec.cabin_initial["pp_co2"].value,
         )
         self._previous_rates: list[tuple[float | None, float | None]] = []
+        self._last_atmosphere: atmosphere.Result | None = None
+
+    @property
+    def last_atmosphere_status(self) -> str | None:
+        return None if self._last_atmosphere is None else self._last_atmosphere.status
+
+    @property
+    def last_pio2_mmhg(self) -> float | None:
+        return None if self._last_atmosphere is None else self._last_atmosphere.pio2_mmhg
 
     def _apply_events(self, minute: float) -> None:
         while self._event_index < len(self._events):
@@ -399,8 +408,13 @@ class Simulator:
 
     def _advance(self, dt_seconds: float) -> None:
         result = atmosphere.step(
-            self._state, self._regulated_profile(self._previous_rates), self._previous_rates, dt_seconds
+            self._state,
+            self._regulated_profile(self._previous_rates),
+            self._previous_rates,
+            dt_seconds,
+            o2_supply_failed=self._o2_factor == 0.0,
         )
+        self._last_atmosphere = result
         self._state = result.state
         if self._sep_active:
             factor = SHELTER_FACTOR if self._sheltered else 1.0
@@ -442,7 +456,14 @@ class Simulator:
             (self._vital_mean(person, "heart_rate", minute), person.baseline["heart_rate"].mean)
             for person in self._spec.crew
         ]
-        result = atmosphere.step(self._state, self._regulated_profile(rates), rates, 0.0)
+        result = atmosphere.step(
+            self._state,
+            self._regulated_profile(rates),
+            rates,
+            0.0,
+            o2_supply_failed=self._o2_factor == 0.0,
+        )
+        self._last_atmosphere = result
         frame = TelemetryFrame(
             tick=self._tick,
             ts=ts,

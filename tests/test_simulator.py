@@ -896,3 +896,20 @@ def test_emitter_units_follow_english_contract() -> None:
     assert frame is not None
     assert frame.crew[0].vitals.resp_rate.unit == METRIC_UNITS["resp_rate"]
     assert frame.cabin.radiation_dose_rate.unit == METRIC_UNITS["radiation_dose_rate"]
+
+
+def test_simulator_tracks_atmosphere_status_pio2_and_o2_supply_failed(
+    tmp_path: Path, ranges_path: Path, scenario: dict[str, Any]
+) -> None:
+    scenario["duration_min"] = 30
+    scenario["model"]["measurement_interval_min"] = 5
+    scenario["events"] = [
+        {"t_min": 5, "type": "o2_generation_rate", "value": 0.0},
+    ]
+    sim = make_simulator(tmp_path, ranges_path, scenario)
+    frames = collect(sim)
+    assert frames[0].cabin.status == "unknown"
+    assert sim.last_atmosphere_status is not None
+    assert sim.last_pio2_mmhg is not None
+    assert frames[-1].cabin.pp_o2.value is not None
+    assert frames[-1].cabin.pp_o2.value < frames[0].cabin.pp_o2.value
