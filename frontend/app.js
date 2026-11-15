@@ -1,3 +1,4 @@
+import { createNasaData } from "./nasa-data.js";
 import { createDecisionBand } from "./decisions.js";
 
 const STREAM_URL = "/api/stream";
@@ -48,6 +49,7 @@ const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
 const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const params = new URLSearchParams(window.location.search);
 const mockMode = params.get("mock") === "1";
+const nasaData = createNasaData({ trigger: document.getElementById("nasa-trigger"), banner: document.getElementById("nasa-storm-banner"), mock: mockMode });
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
 const valueTweens = new WeakMap();
@@ -314,7 +316,7 @@ function crewEvidence(view, member, alerts, stale) {
       const badge = el("span", "badge", LABELS.status[alert.severity]);
       tone(badge, alert.severity);
       block.append(badge, el("p", "alert-message", alert.message),
-        el("p", "alert-meta", `${alert.consecutive_count} consecutive readings`), evidenceList(alert.why));
+        el("p", "alert-meta", `${alert.consecutive_count} consecutive readings`), evidenceList(alert.why), nasaData.sourceNode(alert.rule_id));
       view.evidence.append(block);
     }
   }
@@ -443,7 +445,7 @@ function updateAlerts(stale) {
     view.message.textContent = alert.message;
     view.meta.textContent = `${alert.consecutive_count} consecutive readings · Last: ${formatClock(alert.last_seen)}`;
     const key = JSON.stringify(alert.why);
-    if (key !== view.key) { view.body.replaceChildren(evidenceList(alert.why)); view.key = key; }
+    if (key !== view.key) { view.body.replaceChildren(evidenceList(alert.why), nasaData.sourceNode(alert.rule_id)); view.key = key; }
     if (container.children[index] !== view.root) container.insertBefore(view.root, container.children[index] ?? null);
   });
 }
@@ -513,6 +515,7 @@ function render() {
   document.getElementById("mission_elapsed_s").classList.toggle("muted", stale);
   updateCrew(stale); updateCabin(stale); updateAlerts(stale); updateEarth(stale);
   decisionBand.update(frame, stale);
+  nasaData.update(frame);
   wasStale = stale;
   updateClock();
 }
