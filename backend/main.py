@@ -1,4 +1,4 @@
-"""FastAPI tabanlı telemetri sunucusu ve SSE yayını — sahibi: Aydın (backend)."""
+"""FastAPI telemetry server with SSE streaming."""
 
 from __future__ import annotations
 
@@ -7,13 +7,14 @@ import hmac
 import json
 import math
 import os
+from collections import deque
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from enum import Enum
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from backend.comms import DelayedLink, load_delay_bounds_s
 from backend.models import CONTRACT_VERSION, Scenario, TelemetryFrame
+from backend.reference import build_limits, build_sep_event
 from backend.rules import RulesEngine, SepContext
 from backend.simulator import SIMULATION_EPOCH, SimulationFinished, Simulator
 
@@ -28,8 +30,6 @@ DEFAULT_SCENARIO_NAME: Final[str] = "nominal"
 DEFAULT_TIME_SCALE: Final[float] = 600.0
 MAX_TIME_SCALE: Final[float] = 6000.0
 MIN_TIME_SCALE: Final[float] = 0.01
-# HİPOTEZ: uyarı ancak 12 ardışık kare (5 dk adımla 1 görev saati) yokluktan sonra serbest bırakılır;
-# kural motorundaki kısa titreşimler Dünya paneline mesaj yağdırmaz (hypoxia: 31 -> 6 mesaj).
 RELEASE_AFTER_ABSENT_FRAMES: Final[int] = 12
 SUBSCRIBER_QUEUE_MAXSIZE: Final[int] = 100
 KEEPALIVE_INTERVAL_S: Final[float] = 15.0
@@ -38,19 +38,21 @@ HTTP_NOT_FOUND: Final[int] = 404
 HTTP_UNAUTHORIZED: Final[int] = 401
 DEMO_KEY_ENV: Final[str] = "DEMO_CONTROL_KEY"
 DEMO_KEY_HEADER: Final[str] = "X-Demo-Key"
-# HİPOTEZ: senaryo bitince `end` olayından sonra 30 sn beklenir, ardından nominal senaryo otomatik başlar;
-# ziyaretçi donmuş son kareyle kalmaz. Bu sürede elle restart/senaryo seçimi önceliklidir.
 FINISH_RESTART_DELAY_S: Final[float] = 30.0
+HISTORY_MAXLEN: Final[int] = 400
+DEFAULT_HISTORY_LIMIT: Final[int] = 120
+MIN_HISTORY_LIMIT: Final[int] = 1
 
 DATA_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "data"
 RANGES_PATH: Final[Path] = DATA_DIR / "reference" / "ranges.json"
 SCENARIOS_DIR: Final[Path] = DATA_DIR / "scenarios"
+SEP_EVENT_PATH: Final[Path] = DATA_DIR / "donki" / "sep_event.json"
 FRONTEND_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "frontend"
 
 
 def validate_time_scale(scale: float) -> float:
     if not math.isfinite(scale) or not MIN_TIME_SCALE <= scale <= MAX_TIME_SCALE:
-        raise ValueError(f"time_scale sonlu ve {MIN_TIME_SCALE}-{MAX_TIME_SCALE} aralığında olmalı")
+        raise ValueError(f"time_scale must be finite and within {MIN_TIME_SCALE}-{MAX_TIME_SCALE}")
     return scale
 
 
@@ -69,8 +71,6 @@ def load_default_time_scale(ranges_path: Path = RANGES_PATH) -> float:
 
 
 class Pipeline:
-    """HTTP ve FastAPI'den bağımsız simülasyon ve kural motoru hattı."""
-
     def __init__(
         self,
         scenario: Scenario | str = Scenario.nominal,
@@ -132,7 +132,6 @@ class Pipeline:
         current_rules = {key[:2] for key in current_keys}
         for key in self._active_keys - current_keys:
             absent = self._absent_frames.get(key, 0) + 1
-            # Severity değişimi ayrı bir bildirimdir; eski seviyeyi hemen serbest bırak.
             if key[:2] in current_rules or absent >= RELEASE_AFTER_ABSENT_FRAMES:
                 self.link.release(key)
                 self._active_keys.remove(key)
@@ -152,8 +151,6 @@ class Pipeline:
 
 
 class SimulationManager:
-    """Arka plan zaman döngüsü ve SSE yayın yöneticisi."""
-
     def __init__(
         self,
         scenario: Scenario | str = DEFAULT_SCENARIO_NAME,
@@ -173,6 +170,7 @@ class SimulationManager:
         self.running: bool = True
         self.finished: bool = False
         self.last_frame: TelemetryFrame | None = None
+        self.history: deque[TelemetryFrame] = deque(maxlen=HISTORY_MAXLEN)
         self._subscribers: set[asyncio.Queue[str]] = set()
         self._unpaused_event: asyncio.Event = asyncio.Event()
         self._unpaused_event.set()
@@ -216,6 +214,7 @@ class SimulationManager:
     def restart(self) -> None:
         self.pipeline.reset(self.pipeline.scenario)
         self.last_frame = None
+        self.history.clear()
         self.finished = False
         self.running = True
         self._reset_requested = True
@@ -225,6 +224,7 @@ class SimulationManager:
     def set_scenario(self, scenario_name: str) -> None:
         self.pipeline.reset(scenario_name)
         self.last_frame = None
+        self.history.clear()
         self.finished = False
         self.running = True
         self._reset_requested = True
@@ -250,6 +250,7 @@ class SimulationManager:
                 queue.put_nowait(msg)
 
     def _broadcast_frame(self, frame: TelemetryFrame) -> None:
+        self.history.append(frame)
         self._broadcast(f"event: telemetry\ndata: {frame.model_dump_json()}\n\n")
 
     def _broadcast_end(self, scenario_name: str) -> None:
@@ -257,7 +258,6 @@ class SimulationManager:
         self._broadcast(f"event: end\ndata: {payload}\n\n")
 
     async def _restart_nominal_after_delay(self) -> None:
-        """Bitişten sonra bekler; elle restart/senaryo gelmediyse nominal senaryoyu başlatır."""
         if self.finish_restart_delay_s is None:
             return
         try:
@@ -323,7 +323,6 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 def require_demo_key(x_demo_key: str | None = Header(default=None)) -> None:
-    """Kontrol uçlarını korur; DEMO_CONTROL_KEY tanımsız veya boşsa uçlar açıktır (yerel geliştirme)."""
     expected = os.getenv(DEMO_KEY_ENV, "")
     if not expected:
         return
@@ -331,7 +330,7 @@ def require_demo_key(x_demo_key: str | None = Header(default=None)) -> None:
     if not hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
         raise HTTPException(
             status_code=HTTP_UNAUTHORIZED,
-            detail=f"Bu uç için geçerli {DEMO_KEY_HEADER} başlığı gerekli.",
+            detail=f"A valid {DEMO_KEY_HEADER} header is required for this endpoint.",
         )
 
 
@@ -387,7 +386,6 @@ app: Final[FastAPI] = FastAPI(
 
 @app.exception_handler(RequestValidationError)
 async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-    # NaN/Infinity girdileri ve ValueError bağlamı JSON'a güvenle yazılabilmeli.
     errors = [
         {
             **error,
@@ -441,14 +439,14 @@ async def post_scenario(name: str) -> ScenarioChangeResponse:
     if name not in valid_names or not scenario_path.is_file():
         raise HTTPException(
             status_code=HTTP_NOT_FOUND,
-            detail=f"'{name}' senaryosu bulunamadı.",
+            detail=f"Scenario '{name}' not found.",
         )
     try:
         manager.set_scenario(name)
     except (FileNotFoundError, ValueError, OSError) as err:
         raise HTTPException(
             status_code=HTTP_NOT_FOUND,
-            detail=f"'{name}' senaryosu yüklenemedi: {err}",
+            detail=f"Scenario '{name}' could not be loaded: {err}",
         ) from err
     return ScenarioChangeResponse(scenario=name, status="started")
 
@@ -476,9 +474,36 @@ async def get_state() -> Response:
     if frame is None:
         raise HTTPException(
             status_code=HTTP_NOT_FOUND,
-            detail="Henüz telemetri karesi üretilmedi.",
+            detail="No telemetry frame has been produced yet.",
         )
     return Response(content=frame.model_dump_json(), media_type="application/json")
+
+
+@app.get("/api/limits")
+async def get_limits() -> dict[str, Any]:
+    try:
+        return build_limits(RANGES_PATH)
+    except (OSError, ValueError) as err:
+        raise HTTPException(status_code=HTTP_NOT_FOUND, detail="Limits reference not found.") from err
+
+
+@app.get("/api/sep-event")
+async def get_sep_event() -> dict[str, Any]:
+    try:
+        return build_sep_event(SEP_EVENT_PATH)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as err:
+        raise HTTPException(status_code=HTTP_NOT_FOUND, detail="SEP event record not found.") from err
+
+
+@app.get("/api/history")
+async def get_history(
+    limit: int = Query(default=DEFAULT_HISTORY_LIMIT, ge=MIN_HISTORY_LIMIT, le=HISTORY_MAXLEN),
+) -> dict[str, Any]:
+    frames = list(manager.history)[-limit:]
+    return {
+        "scenario": manager.pipeline.scenario.value,
+        "frames": [frame.model_dump(mode="json") for frame in frames],
+    }
 
 
 @app.get("/api/stream")

@@ -1,4 +1,4 @@
-# Mars Transit Crew Health & Cabin Air Monitor
+# MTCM: Mars Transit Crew Monitor
 
 **NASA Space Apps Challenge 2026** · Challenge: *Create Health Monitoring Software for Astronauts on Space Missions*
 
@@ -18,16 +18,17 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 | Space Apps project page | **[TODO]** |
 
 > **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
-> without traffic and wakes on the first request. While the dashboard is open, it calls `/health` every 4 minutes
-> to keep the service awake.
+> without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
+> keeps traffic flowing, so there is no separate keep-alive call. The health check endpoint is `/api/health`.
 
 ## What it does
 
-- **Per-person health status.** Heart rate, SpO₂, body temperature and breathing rate for 4 astronauts. Each one is read
+- **Per-person health status.** Heart rate, SpO₂, body temperature and breathing rate for 4 astronauts
+  (Neil Armsted, Sally Ryder, Katherine Johnston, John Glennard). Each one is read
   against that person's own baseline: the same heart rate can be normal for one person and a warning for another.
   Status: **Normal / Watch / Action**.
 - **Body + cabin in one model.** O₂ use is estimated from each person's heart rate, and that feeds the cabin O₂/CO₂ mass balance.
-  Example: *"Ece: stop exercising, her SpO₂ is dropping and cabin PIO₂ is below normoxia."*
+  Example: *"Katherine: stop exercising, SpO₂ is dropping and cabin PIO₂ is below normoxia."*
 - **Two countdowns.** Hours until O₂ reaches its lower limit and until CO₂ reaches its upper limit.
 - **"Why?" for every alert.** The evidence (values, baseline, threshold) and the source of the threshold.
 - **Exercise does not cause false alarms.** A higher heart rate during exercise is expected and is not flagged as cardiac load.
@@ -35,22 +36,34 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 - **Radiation warning before the dose.** During a solar particle event the system projects the end-of-event dose and
   sends the crew to the storm shelter *before* it is received.
 - **Delayed Earth link.** Reports go to Earth through a 3–22 min one-way delay queue (shortened in the demo, and labeled).
-- **Other closed environments.** The same O₂/CO₂ engine with a submarine and an underground refuge chamber profile,
-  each with its own limits and sources.
+  The Earth link panel shows each message and the light delay.
+
+**Planned, not built yet:**
+
+- **EVA view** *(planned, not built yet)*: suit PIO₂ and PICO₂, remaining supply time and, if needed, *"return to the airlock"*.
+- **Environment (profile) selector** *(planned, not built yet)*: the same O₂/CO₂ engine for a submarine and an underground
+  refuge chamber. Their limits and sources are already in `ranges.json`; there is no selector on screen.
+- **Voice interface** *(planned, not built yet)*: push-to-talk commands and spoken alerts. The app has no voice input or output today.
 
 ## Demo walkthrough
 
 This is the live presentation flow, about 3 minutes. The Space Apps "Project Demo" link is a separate video of 30 seconds or less, or a deck of 7 slides or fewer.
+The step-by-step script with timings is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
-Events are triggered from a hidden demo panel. Randomness uses a fixed seed, and the demo needs neither the internet nor voice. The simulation clock runs at ×600, and the screen says so. A measurement is taken every 5 mission minutes, which is 0.5 s in the demo.
+Scenarios are started from a hidden demo panel. Randomness uses a fixed seed, and the demo needs neither the internet nor voice. The simulation clock runs at ×600, and the screen says so. A measurement is taken every 5 mission minutes, which is 0.5 s in the demo.
 
-1. **Normal.** The Habitat panel shows four astronauts (Ayşe, Can, Ece, Mert), cabin O₂ and CO₂, and two countdowns.
-2. **O₂ generation fails.** Cabin PIO₂ slowly drops and the O₂ countdown starts. CO₂ removal still works, so the CO₂ countdown does not move. Ece is exercising: her heart rate reaches 130 and her breathing 26/min. Neither is counted as an alarm or as hypoxia evidence. When her SpO₂ is 3 points below her own baseline she turns **Watch**, and at 6 points she turns **Action**. The evidence shown is SpO₂ plus cabin PIO₂, and the advice is *"stop exercise, switch to backup O₂"*. This personal alert comes long before the cabin alert turns red.
-3. **Same heart rate, different decision.** Ayşe and Mert both have a heart rate of 80. Ayşe is +16 over her baseline and turns **Watch** (cardiac load). Mert is +13 over his and stays **Normal**.
-4. **Solar storm.** The real NASA DONKI event (10 May 2024) is replayed. The system projects the end-of-event dose, and when it will pass 200 mSv it says *"go to the storm shelter"* before the dose is received.
-5. **EVA view.** The screen shows suit PIO₂ and PICO₂, the remaining supply time and, if needed, *"return to the airlock"*.
-6. **Earth link.** A report goes to Earth with a visible one-way delay countdown, and the reply arrives later.
-7. **Other environments.** The environment selector switches to a submarine or an underground refuge chamber. The limits and their sources change, while the engine stays the same.
+The five scenarios run in this order: **nominal → hypoxia → hypercapnia → solar_storm → sensor_dropout**.
+
+1. **nominal.** The Habitat panel shows four astronauts (Neil, Sally, Katherine, John), cabin O₂ and CO₂, and two countdowns.
+   Neil exercises and his heart rate rises to 125, but his card stays **Normal**: exercise is not an alarm.
+2. **hypoxia.** O₂ generation fails. Cabin PIO₂ slowly drops and the O₂ countdown starts. CO₂ removal still works, so the CO₂ countdown does not move.
+   - **Same heart rate, different decision.** Neil and John both reach a heart rate of 80. Neil is +16 over his baseline and turns **Watch** (cardiac load). John is +13 over his and stays **Normal**.
+   - Katherine exercises: heart rate 130, breathing 26/min. Neither is counted as an alarm or as hypoxia evidence. When her SpO₂ is 3 points below her own baseline she turns **Watch**, and at 6 points she turns **Action**. The evidence shown is SpO₂ plus cabin PIO₂, and the advice is *"stop exercise, switch to backup O₂"*. This personal alert comes long before the cabin alert turns red.
+3. **hypercapnia.** CO₂ removal drops to 40%. First the cabin turns **Watch** (ppCO₂ above 2.5 mmHg). Then only the person with symptoms, Katherine (breathing +6 over her baseline), turns **Watch**. When the 1-hour average passes 3 mmHg, the cabin and Katherine turn **Action**.
+4. **solar_storm.** The real NASA DONKI event (10 May 2024) is replayed. The system projects the end-of-event dose, and when it will pass 200 mSv (80% of the 250 mSv threshold) it says *"go to the storm shelter"* before the dose is received.
+5. **sensor_dropout.** Sally's heart-rate sensor stops and Sally's card shows **NO DATA**, not Normal. John's SpO₂ sensor repeats an old value (**stale**), which is not counted. An impossible cabin CO₂ value is marked as a sensor fault and does not trigger a CO₂ alarm.
+
+Planned, not built yet (so not in this demo): the EVA view, the environment (profile) selector and the voice interface.
 
 ## How it works
 
@@ -61,13 +74,16 @@ data/scenarios/*.json ───────┤   (demo scenarios, fixed seed)
                              ▼
 backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  backend/main.py  →  frontend/
 (vitals, baseline,        (O₂/CO₂ mass balance,     (per-person +         (FastAPI + SSE)     (Habitat panel,
- circadian rhythm,         two countdowns)            cabin decisions,                         EVA view, Earth panel)
+ circadian rhythm,         two countdowns)            cabin decisions,                         Earth link panel)
  scenario events)                                     3 consecutive readings)
                                                                                  backend/comms.py (delay queue)
 ```
 
 - **Backend:** Python 3.11+, FastAPI, Server-Sent Events. Data lives in memory and in JSON files; no database.
-- **Frontend:** plain HTML, CSS and JavaScript with no build step. Chart.js is stored locally, so the demo does not need the internet.
+- **Frontend:** plain HTML, CSS and JavaScript with no build step. Trend charts are drawn as inline SVG and the fonts are stored locally,
+  so the demo does not need the internet.
+- **API:** `/api/stream` (SSE telemetry), `/api/state`, `/api/history`, `/api/limits`, `/api/sep-event`, `/api/scenarios`
+  and `/api/health`. Demo controls (`/api/scenario/{name}`, `/api/control`, `/api/speed`) need the `X-Demo-Key` header.
 - **Data contract:** Pydantic models in `backend/models.py`, exported to `docs/contract.json`.
 - **Texts on screen:** `data/reference/messages.json`. Thresholds in the texts are placeholders filled from `ranges.json`,
   so the screen and the rules always use the same numbers.
@@ -80,8 +96,9 @@ backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  ba
 | O₂/CO₂ mass balance and countdowns (`atmosphere.py`) | done, tested |
 | Reference limits and alert texts (`ranges.json`, `messages.json`) | done |
 | DONKI event record (`data/donki/`) | done |
-| Simulator, rules, API, dashboard | **[TODO: update before submission]** |
-| EVA view, Earth link, profile selector | **[TODO]** |
+| Simulator, rules engine, API (SSE), Habitat panel | done, tested |
+| Earth link delay queue (`backend/comms.py`) and Earth link panel | done, tested |
+| EVA view, profile selector, voice interface | planned, not built yet |
 
 ## Run locally
 
@@ -141,8 +158,7 @@ The sources were checked again on 2026-11-14 against NASA-STD-3001 Volume 2 **Re
 - National Research Council (2007), *Emergency and Continuous Exposure Guidance Levels for Selected Submarine Contaminants: Volume 1*,
   Table S-1: [NAP](https://www.nap.edu/read/11170/chapter/2).
 - Submarine CO₂ exposure guideline study (2018): [PubMed 30511437](https://pubmed.ncbi.nlm.nih.gov/30511437/).
-- MDN, SpeechRecognition (voice interface, optional): [MDN](https://developer.mozilla.org/docs/Web/API/SpeechRecognition).
-- Chart.js (bundled locally, MIT license).
+- IBM Plex Sans and IBM Plex Mono fonts (bundled locally, SIL Open Font License; see `frontend/fonts/`).
 
 ## Limitations
 
@@ -158,7 +174,8 @@ We used **Claude Code (Anthropic)** for the following:
 
 - writing backend and frontend code from our specification;
 - drafting the alert texts, this README and the AI use declaration;
-- checking source links and values.
+- checking source links and values;
+- producing the 30-second demo video (motion graphics code).
 
 Team members reviewed and tested every change through pull requests. Each team member can explain the code they approved.
 
@@ -174,10 +191,12 @@ Where it is marked:
 - the `meta.si_kullanimi` field in `ranges.json` and `messages.json`;
 - `Co-Authored-By: Claude` lines in commits.
 
-No AI-generated images, video or audio are used **[TODO: confirm before submission]**.
+The Space Apps **demo video is AI-assisted**: its motion graphics are written as code with HyperFrames and scripted with Claude Code,
+and the video carries a visible SI watermark. It uses no NASA logos, flags or mission identifiers. The screen recording in it is the real app.
+No other AI-generated images are used. AI-generated audio: **[TODO: confirm before submission]**.
 
 ## Team
 
-**[TODO: team name]** · Aydın (backend & frontend), Barış (validation & Earth link), Efe (reference data & delivery)
+**Los Galacticos** · Aydın (backend & frontend), Barış (validation & Earth link), Efe (reference data & delivery)
 
 Team working rules and branch model: [AGENTS.md](AGENTS.md). Some internal planning documents in `docs/` and `reports/` are in Turkish.

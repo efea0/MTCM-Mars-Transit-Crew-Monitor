@@ -24,7 +24,7 @@ def cabin():
 
 
 def evidence():
-    return m.Evidence(metric="spo2", value=88.0, threshold=92.0, comparator="<", ts=T0, note="3 ölçüm")
+    return m.Evidence(metric="spo2", value=88.0, threshold=92.0, comparator="<", ts=T0, note="3 measurements")
 
 
 def alert(**kw):
@@ -33,7 +33,7 @@ def alert(**kw):
         crew_id="crew-1",
         metric="spo2",
         severity="warning",
-        message="SpO2 düşük",
+        message="SpO2 low",
         rule_id="spo2-low",
         consecutive_count=3,
         first_seen=T0,
@@ -46,12 +46,12 @@ def alert(**kw):
 
 def test_contract_json_is_up_to_date():
     on_disk = m.CONTRACT_PATH.read_text(encoding="utf-8")
-    assert on_disk == m.render_contract(), "python -m backend.models ile yeniden üret"
+    assert on_disk == m.render_contract(), "regenerate with python -m backend.models"
 
 
 def test_missing_value_is_never_normal():
     with pytest.raises(ValidationError):
-        reading(None)  # quality varsayılanı ok
+        reading(None)
     with pytest.raises(ValidationError):
         reading(None, quality="missing", status="nominal")
     with pytest.raises(ValidationError):
@@ -130,7 +130,7 @@ def test_all_missing_vitals_reject_known_decisions(decision: str) -> None:
         field: reading(None, quality="missing").model_dump() for field in m.CrewVitals.model_fields
     }
     payload["decision"] = decision
-    with pytest.raises(ValidationError, match="eksik veri asla normal sayılmaz"):
+    with pytest.raises(ValidationError, match="missing data is never normal"):
         m.CrewMember.model_validate(payload)
 
 
@@ -248,5 +248,11 @@ def test_every_metric_has_a_unit() -> None:
 
 @pytest.mark.parametrize("metric", ["pp_o2", "pp_co2", "cabin_pressure", "pio2"])
 def test_pressure_metrics_are_mmhg(metric: str) -> None:
-    # Birim sessizce kPa'ya dönerse eşikler (mmHg) 7,5 kat yanlış okunur.
     assert m.METRIC_UNITS[m.Metric(metric)] == "mmHg"
+
+
+def test_units_are_english() -> None:
+    # Contract constants only. The simulator still emits the old Turkish units in a separate PR (#90).
+    assert m.METRIC_UNITS[m.Metric.resp_rate] == "breaths/min"
+    assert m.METRIC_UNITS[m.Metric.radiation_dose_rate] == "µGy/h"
+    assert not {"nefes/dk", "µGy/saat", "atım/dk"} & set(m.METRIC_UNITS.values())

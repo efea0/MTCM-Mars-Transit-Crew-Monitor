@@ -1,7 +1,7 @@
 {
   "scenario": "solar_storm",
-  "title": "Güneş fırtınası (SEP)",
-  "purpose": "Gerçek DONKI kaydının zamanıyla SEP başlar. Sistem olay sonu tahmini dozu hesaplar ve dozu ALMADAN ÖNCE sığınak uyarısı verir (ranges.json radyasyon_etkisi).",
+  "title": "Solar storm (SEP)",
+  "purpose": "The SEP starts at the time of a real DONKI record. The system computes the projected end-of-event dose and gives a shelter alert BEFORE the dose is received (ranges.json radyasyon_etkisi).",
   "simulated": true,
   "seed": 42,
   "time_unit": "mission_min",
@@ -41,16 +41,16 @@
     "career_limit_mSv": 600,
     "yellow_fraction": 0.8
   },
-  "baseline_note": "mean değerleri ranges.json vital_karar_parametreleri.baz_cizgi'den. sd yalnızca simülatör gürültüsü (varsayım; karar kuralı sd kullanmaz, sabit fark kullanır). hrv_rmssd ve kan basıncı ranges.json'da yok (varsayım).",
+  "baseline_note": "mean values come from ranges.json vital_karar_parametreleri.baz_cizgi. sd is simulator noise only (assumption; the decision rule does not use sd, it uses a fixed difference). hrv_rmssd and blood pressure are not in ranges.json (assumption).",
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
           "mean": 64,
-          "sd": 2.0
+          "sd": 0.5
         },
         "hrv_rmssd": {
           "mean": 48,
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -189,7 +189,7 @@
     "pp_o2": {
       "value": 158.8,
       "unit": "mmHg",
-      "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
+      "note": "equivalent of PIO2 149 mmHg (middle of normoxia 145–155): 149 × 760/713 mmHg"
     },
     "pp_co2": {
       "value": 2.0,
@@ -209,12 +209,12 @@
     },
     "radiation_dose_rate": {
       "value": 20,
-      "unit": "µGy/saat",
-      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+      "unit": "µGy/h",
+      "note": "MSL RAD transit ≈ 0.48 mGy/day (≈1.8 mSv/day)"
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "note": "ranges.json (PR #16 v1.1) values. Before the failure, life support is regulated (net 0): production covers consumption, removal covers production, cabin values stay constant; only the failing gas moves. Volume 75 m³. Times are aligned with the #14 atmosphere engine in the same model (regulated profile); tests/test_scenarios.py compares the cabin series with the engine.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -228,13 +228,13 @@
     "co2_min": 0.52,
     "co2_max": 1.5,
     "measurement_interval_min": 5,
-    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası."
+    "measurement_note": "Measurement interval is 5 mission minutes (demo: 0.5 real seconds, time multiplier 600); 3 consecutive measurements = 15 mission minutes."
   },
   "proposed_rules": {
     "event_dose_projection_critical": {
-      "condition": "SEP sürüyor VE (olay dozu + doz hızı × kalan süre) ≥ 0.8 × 250 mSv (kişi bazlı)",
+      "condition": "SEP ongoing AND (event dose + dose rate × remaining time) ≥ 0.8 × 250 mSv (per person)",
       "consecutive_required": 3,
-      "source": "ranges.json radyasyon_etkisi; [V1 4031] (doğrulandı), %80 kademe (varsayım)",
+      "source": "ranges.json radyasyon_etkisi; [V1 4031] (verified), 80% level (assumption)",
       "metric": "event_dose"
     }
   },
@@ -244,18 +244,18 @@
       "type": "sep_onset",
       "ref": "2024-05-10T13:35:00-SEP-001",
       "dose_rate_uGy_h": 16667,
-      "note": "DONKI kaydı tetiklenir; doz hızı ≈16 667 µGy/saat (25 mSv/saat efektif, varsayım). Tahmini olay süresi 12 saat."
+      "note": "The DONKI record triggers; dose rate ≈16,667 µGy/hour (25 mSv/hour effective, assumption). Estimated event duration 12 hours."
     },
     {
       "t_min": 45,
       "type": "shelter",
       "dose_rate_multiplier": 0.25,
-      "note": "Uyarı üzerine mürettebat sığınağa geçer; olay doz hızı × 0,25."
+      "note": "On the alert the crew moves to the shelter; event dose rate × 0.25."
     },
     {
       "t_min": 750,
       "type": "sep_end",
-      "note": "Olay biter, doz hızı tabana döner."
+      "note": "The event ends, the dose rate returns to baseline."
     }
   ],
   "expected_alerts": [
@@ -270,8 +270,8 @@
       "evidence_metrics": [
         "event_dose"
       ],
-      "why": "Ayşe için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
-      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "why": "Projected event dose for Neil is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
+      "recommendation": "Move to the storm shelter; after the event, personal dose record and report to Earth.",
       "engine_metric": "event_dose",
       "engine_rule_id": "karar-radyasyon_etkisi"
     },
@@ -286,8 +286,8 @@
       "evidence_metrics": [
         "event_dose"
       ],
-      "why": "Can için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
-      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "why": "Projected event dose for Sally is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
+      "recommendation": "Move to the storm shelter; after the event, personal dose record and report to Earth.",
       "engine_metric": "event_dose",
       "engine_rule_id": "karar-radyasyon_etkisi"
     },
@@ -302,8 +302,8 @@
       "evidence_metrics": [
         "event_dose"
       ],
-      "why": "Ece için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
-      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "why": "Projected event dose for Katherine is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
+      "recommendation": "Move to the storm shelter; after the event, personal dose record and report to Earth.",
       "engine_metric": "event_dose",
       "engine_rule_id": "karar-radyasyon_etkisi"
     },
@@ -318,8 +318,8 @@
       "evidence_metrics": [
         "event_dose"
       ],
-      "why": "Mert için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
-      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "why": "Projected event dose for John is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
+      "recommendation": "Move to the storm shelter; after the event, personal dose record and report to Earth.",
       "engine_metric": "event_dose",
       "engine_rule_id": "karar-radyasyon_etkisi"
     }
@@ -328,17 +328,17 @@
     {
       "crew_id": "crew-1",
       "metric": "spo2",
-      "why": "Hava tarafı normal."
+      "why": "Air side is normal."
     },
     {
       "crew_id": null,
       "metric": "pp_co2",
-      "why": "Hava tarafı normal."
+      "why": "Air side is normal."
     },
     {
       "crew_id": null,
       "metric": "pp_o2",
-      "why": "Hava tarafı normal."
+      "why": "Air side is normal."
     }
   ],
   "expected_status_end": {
@@ -356,7 +356,7 @@
     "linked_flare": "2024-05-10T06:27:00-FLR-001",
     "linked_events_count": 14,
     "notification": "20240510-AL-004 (2024-05-10T13:46Z)",
-    "note": "DONKI yalnızca zamanı ve bağlantıları verir. Doz büyüklüğü demo seçimidir; ekranda 'doz (simüle)'."
+    "note": "DONKI only provides the time and the links. The dose magnitude is a demo choice; shown on screen as 'dose (simulated)'."
   },
   "dose_assumptions": {
     "event_effective_dose_mSv_per_h": 25,
@@ -372,15 +372,15 @@
       "crew-3": 15,
       "crew-4": 40
     },
-    "source": "varsayım — demo parametresi"
+    "source": "assumption — demo parameter"
   },
   "expected_dose": {
     "event_total_mSv": 79.7,
     "max_career_fraction": 0.627,
-    "note": "15 dk korumasız + 705 dk sığınakta. Uyarı dozdan önce geldiği için toplam ≈80 mSv; 250'nin çok altında."
+    "note": "15 min unprotected + 705 min in the shelter. Because the alert comes before the dose, the total is ≈80 mSv; far below 250."
   },
   "contract_gaps": [
-    "ThresholdRule'da projeksiyon (tahmini doz) yok; kural motorunda (#43) özel mantık olarak işlenir."
+    "ThresholdRule has no projection (projected dose); it is handled as special logic in the rules engine (#43)."
   ],
-  "status_note": "Olay t=750'de biter; kabin ve kişi durumları nominal'e döner. Radyasyon kararı ranges.json radyasyon_etkisi gereği kişi bazlıdır (event_dose); ayrı bir kabin radyasyon uyarısı beklenmez."
+  "status_note": "The event ends at t=750; cabin and personal states return to nominal. Per ranges.json radyasyon_etkisi the radiation decision is per person (event_dose); no separate cabin radiation alert is expected."
 }

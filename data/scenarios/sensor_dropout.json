@@ -1,7 +1,7 @@
 {
   "scenario": "sensor_dropout",
-  "title": "Sensör kopması: eksik veri asla normal sayılmaz",
-  "purpose": "Sensörler veri vermeyince sistem 'veri yok' uyarısı verir, o okumayı Normal saymaz ve sahte alarm da üretmez. Üç durum: crew-2'nin nabız sensörü hiç veri vermez (missing), crew-4'ün SpO2 sensörü eski değeri tekrarlar (stale), kabin CO2 sensörü imkânsız bir değer bildirir (sensor_fault). Aynı sırada crew-3'ün gerçek nabız sapması kaybolmaz: bir sensörün kopması başkasının uyarısını gizlememeli. Veri gelince okumalar Normal'e döner.",
+  "title": "Sensor dropout: missing data is never counted as normal",
+  "purpose": "When sensors stop giving data, the system raises a 'no data' alert, does not count that reading as Normal and does not produce a false alarm either. Three cases: crew-2's pulse sensor gives no data at all (missing), crew-4's SpO2 sensor repeats the old value (stale), the cabin CO2 sensor reports an impossible value (sensor_fault). Meanwhile crew-3's real pulse deviation is not lost: one sensor's dropout must not hide someone else's alert. When data returns, readings go back to Normal.",
   "simulated": true,
   "seed": 42,
   "time_unit": "mission_min",
@@ -41,16 +41,16 @@
     "career_limit_mSv": 600,
     "yellow_fraction": 0.8
   },
-  "baseline_note": "mean değerleri ranges.json vital_karar_parametreleri.baz_cizgi'den. sd yalnızca simülatör gürültüsü (varsayım; karar kuralı sd kullanmaz, sabit fark kullanır). hrv_rmssd ve kan basıncı ranges.json'da yok (varsayım).",
+  "baseline_note": "mean values come from ranges.json vital_karar_parametreleri.baz_cizgi. sd is simulator noise only (assumption; the decision rule does not use sd, it uses a fixed difference). hrv_rmssd and blood pressure are not in ranges.json (assumption).",
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
           "mean": 64,
-          "sd": 2.0
+          "sd": 0.5
         },
         "hrv_rmssd": {
           "mean": 48,
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -189,7 +189,7 @@
     "pp_o2": {
       "value": 158.8,
       "unit": "mmHg",
-      "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
+      "note": "equivalent of PIO2 149 mmHg (middle of normoxia 145–155): 149 × 760/713 mmHg"
     },
     "pp_co2": {
       "value": 2.0,
@@ -209,12 +209,12 @@
     },
     "radiation_dose_rate": {
       "value": 20,
-      "unit": "µGy/saat",
-      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+      "unit": "µGy/h",
+      "note": "MSL RAD transit ≈ 0.48 mGy/day (≈1.8 mSv/day)"
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "note": "ranges.json (PR #16 v1.1) values. Before the failure, life support is regulated (net 0): production covers consumption, removal covers production, cabin values stay constant; only the failing gas moves. Volume 75 m³. Times are aligned with the #14 atmosphere engine in the same model (regulated profile); tests/test_scenarios.py compares the cabin series with the engine.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -228,41 +228,41 @@
     "co2_min": 0.52,
     "co2_max": 1.5,
     "measurement_interval_min": 5,
-    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası."
+    "measurement_note": "Measurement interval is 5 mission minutes (demo: 0.5 real seconds, time multiplier 600); 3 consecutive measurements = 15 mission minutes."
   },
   "data_quality_rules": {
-    "note": "Kural motoru davranışıyla ve sözleşmeyle uyumlu: Reading doğrulayıcısı (value=None iken status yalnızca unknown; kalitesi ok olmayan okuma nominal sayılamaz), Comparator.missing / eksik-veri kanıtı (Evidence.threshold null) ve AGENTS.md §5 (eksik veri asla normal sayılmaz). Eşik sayısı (3 art arda) ranges.json vital_karar_parametreleri.art_arda_olcum'dan gelir.",
-    "reading_status": "Kalitesi ok olmayan her okuma (missing, stale, sensor_fault) ilk ölçümden itibaren unknown olur; nominal olamaz.",
-    "no_data_alert": "Art arda 'thresholds.consecutive' (3) geçersiz okumadan sonra caution seviyesinde 'veri yok' uyarısı çıkar (rule_id missing-<metric>, kanıt: Comparator.missing, threshold null). Geçerli okuma gelince uyarı kalkar. Uyarı eksik veriyi bildirir; sapma ya da limit aşımı uyarısı (kalp yükü, hipoksi, ppco2-limit) üretmez.",
-    "sensor_fault_value": "sensor_fault okumasının değeri kural motoruna ve atmosphere.step'e girmez (null'lanır). Değer eşiği aşsa bile critical üretilmez; yalnızca 'veri yok' uyarısı çıkar.",
-    "recovery": "Geçerli okuma gelince okuma normal kurallarla yeniden değerlendirilir."
+    "note": "Consistent with the rules engine behavior and the contract: the Reading validator (when value=None, status can only be unknown; a reading whose quality is not ok cannot be counted as nominal), Comparator.missing / missing-data evidence (Evidence.threshold null) and AGENTS.md §5 (missing data is never counted as normal). The threshold count (3 consecutive) comes from ranges.json vital_karar_parametreleri.art_arda_olcum.",
+    "reading_status": "Every reading whose quality is not ok (missing, stale, sensor_fault) is unknown from the first measurement; it cannot be nominal.",
+    "no_data_alert": "After 'thresholds.consecutive' (3) consecutive invalid readings, a 'no data' alert is raised at caution level (rule_id missing-<metric>, evidence: Comparator.missing, threshold null). The alert clears when a valid reading arrives. The alert reports the missing data; it does not produce a deviation or limit-exceeded alert (cardiac load, hypoxia, ppco2-limit).",
+    "sensor_fault_value": "The value of a sensor_fault reading does not enter the rules engine or atmosphere.step (it is nulled). Even if the value exceeds the threshold, no critical alert is produced; only a 'no data' alert is raised.",
+    "recovery": "When a valid reading arrives, the reading is evaluated again with the normal rules."
   },
   "proposed_rules": {
     "crew_hr_rest_rise_caution": {
-      "condition": "aktivite = dinlenme VE nabız − baz ≥ 15",
+      "condition": "activity = resting AND pulse − baseline ≥ 15",
       "consecutive_required": 3,
-      "source": "ranges.json kalp_yuku (varsayım)",
+      "source": "ranges.json kalp_yuku (assumption)",
       "metric": "heart_rate",
       "skip_when": [
         "exercise"
       ]
     },
     "missing-heart_rate": {
-      "condition": "heart_rate okuması art arda 3 ölçümdür geçersiz (kalite ok değil ya da değer yok)",
+      "condition": "heart_rate reading has been invalid for 3 consecutive measurements (quality not ok or no value)",
       "consecutive_required": 3,
-      "source": "AGENTS.md §5 (eksik veri asla normal sayılmaz); sözleşme Comparator.missing",
+      "source": "AGENTS.md §5 (missing data is never counted as normal); contract Comparator.missing",
       "metric": "heart_rate"
     },
     "missing-spo2": {
-      "condition": "spo2 okuması art arda 3 ölçümdür geçersiz (kalite ok değil ya da değer yok)",
+      "condition": "spo2 reading has been invalid for 3 consecutive measurements (quality not ok or no value)",
       "consecutive_required": 3,
-      "source": "AGENTS.md §5 (eksik veri asla normal sayılmaz); sözleşme Comparator.missing",
+      "source": "AGENTS.md §5 (missing data is never counted as normal); contract Comparator.missing",
       "metric": "spo2"
     },
     "missing-pp_co2": {
-      "condition": "pp_co2 okuması art arda 3 ölçümdür geçersiz (kalite ok değil ya da değer yok)",
+      "condition": "pp_co2 reading has been invalid for 3 consecutive measurements (quality not ok or no value)",
       "consecutive_required": 3,
-      "source": "AGENTS.md §5 (eksik veri asla normal sayılmaz); sözleşme Comparator.missing",
+      "source": "AGENTS.md §5 (missing data is never counted as normal); contract Comparator.missing",
       "metric": "pp_co2"
     }
   },
@@ -276,7 +276,7 @@
         "heart_rate": 80
       },
       "ramp_min": 20,
-      "note": "Ece dinlenirken nabzı kendi bazı 58'den 80'e çıkar (+22, eşik +15; gürültü sd 2,0'a karşı pay bırakıldı): kalp yükü İzle. crew-2'nin sensörü kopukken de bu uyarı çıkmalı."
+      "note": "While Katherine rests, her pulse rises from her own baseline of 58 to 80 (+22, threshold +15; margin left against noise sd 2.0): cardiac load Watch. This alert must also appear while crew-2's sensor is down."
     },
     {
       "t_min": 30,
@@ -285,7 +285,7 @@
       "metric": "heart_rate",
       "quality": "missing",
       "until_min": 60,
-      "note": "Can'ın nabız sensörü veri vermez (value=null)."
+      "note": "Sally's pulse sensor gives no data (value=null)."
     },
     {
       "t_min": 70,
@@ -295,7 +295,7 @@
       "quality": "stale",
       "until_min": 90,
       "stale_value": 97.0,
-      "note": "Mert'in SpO2 sensörü son değeri (97) tekrarlar; değer var ama güvenilir değil."
+      "note": "John's SpO2 sensor repeats its last value (97); there is a value but it is not reliable."
     },
     {
       "t_min": 100,
@@ -305,7 +305,7 @@
       "quality": "sensor_fault",
       "until_min": 115,
       "reported_value": 12.0,
-      "note": "Kabin CO2 sensörü 12,0 mmHg bildirir; kabin ≈2 mmHg olduğu için bu fiziksel olarak imkânsız bir sıçrama ve sınırı (3,0) aşar."
+      "note": "The cabin CO2 sensor reports 12.0 mmHg; since the cabin is ≈2 mmHg this is a physically impossible jump and exceeds the limit (3.0)."
     }
   ],
   "expected_alerts": [
@@ -320,8 +320,8 @@
       "evidence_metrics": [
         "heart_rate"
       ],
-      "why": "Ece dinlenirken nabzı kendi bazının (58) 15'ten fazla üstünde (+22'ye çıkıyor; art arda 3 ölçüm). Aynı sırada başka bir astronotun sensörü kopuk olsa da bu uyarı kaybolmaz.",
-      "recommendation": "Eforu azalt, izle.",
+      "why": "While Katherine rests, her pulse is more than 15 above her own baseline (58) (rises to +22; 3 consecutive measurements). This alert is not lost even if another astronaut's sensor is down at the same time.",
+      "recommendation": "Reduce effort, monitor.",
       "engine_metric": "heart_rate",
       "engine_rule_id": "karar-kalp_yuku"
     },
@@ -336,8 +336,8 @@
       "evidence_metrics": [
         "heart_rate"
       ],
-      "why": "Can'ın nabız sensöründen art arda 3 ölçümdür veri yok. Eksik veri Normal sayılmaz.",
-      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz.",
+      "why": "No data from Sally's pulse sensor for 3 consecutive measurements. Missing data is not counted as Normal.",
+      "recommendation": "Check the sensor; until data returns this measurement cannot be used for decisions.",
       "engine_metric": "heart_rate",
       "engine_rule_id": "missing-heart_rate"
     },
@@ -352,8 +352,8 @@
       "evidence_metrics": [
         "spo2"
       ],
-      "why": "Mert'in SpO2 sensörü eski değeri tekrarlıyor (stale): art arda 3 ölçümdür geçerli okuma yok. Eski değer hipoksi kanıtı sayılmaz.",
-      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz.",
+      "why": "John's SpO2 sensor repeats the old value (stale): no valid reading for 3 consecutive measurements. The old value is not counted as hypoxia evidence.",
+      "recommendation": "Check the sensor; until data returns this measurement cannot be used for decisions.",
       "engine_metric": "spo2",
       "engine_rule_id": "missing-spo2"
     },
@@ -368,8 +368,8 @@
       "evidence_metrics": [
         "pp_co2"
       ],
-      "why": "Kabin CO2 sensörü art arda 3 ölçümdür sensor_fault bildiriyor; bildirilen değer güvenilmez ve limit kontrolüne girmez.",
-      "recommendation": "Sensörü kontrol et; veri gelene kadar bu ölçüm karar için kullanılamaz.",
+      "why": "The cabin CO2 sensor has reported sensor_fault for 3 consecutive measurements; the reported value is unreliable and does not enter the limit check.",
+      "recommendation": "Check the sensor; until data returns this measurement cannot be used for decisions.",
       "engine_metric": "pp_co2",
       "engine_rule_id": "missing-pp_co2"
     }
@@ -391,7 +391,7 @@
         "t_earliest": 60,
         "t_latest": 75
       },
-      "why": "Veri hiç gelmedi: okuma ilk ölçümden itibaren unknown, Normal sayılmaz. 3. eksik ölçümde 'veri yok' uyarısı (expected_alerts)."
+      "why": "No data ever arrived: the reading is unknown from the first measurement, not counted as Normal. 'No data' alert at the 3rd missing measurement (expected_alerts)."
     },
     {
       "crew_id": "crew-4",
@@ -409,7 +409,7 @@
         "t_earliest": 90,
         "t_latest": 105
       },
-      "why": "Değer var ama kalite stale: sözleşmeye göre kalitesi ok olmayan okuma nominal sayılamaz. 3. ölçümde 'veri yok' uyarısı (expected_alerts)."
+      "why": "There is a value but the quality is stale: per the contract a reading whose quality is not ok cannot be counted as nominal. 'No data' alert at the 3rd measurement (expected_alerts)."
     },
     {
       "crew_id": null,
@@ -429,14 +429,14 @@
         "t_earliest": 115,
         "t_latest": 120
       },
-      "why": "Sensör hatası: 12,0 mmHg değeri değerlendirilirse ppco2-limit (3,0) critical üretirdi; oysa değer güvenilmez. Kabin okuması unknown kalır, yalnızca 'veri yok' uyarısı çıkar."
+      "why": "Sensor fault: if the 12.0 mmHg value were evaluated, ppco2-limit (3.0) would produce critical; but the value is unreliable. The cabin reading stays unknown, only a 'no data' alert is raised."
     }
   ],
   "forbidden_alerts": [
     {
       "crew_id": "crew-1",
       "metric": "heart_rate",
-      "why": "Belirtisi olmayana uyarı yok."
+      "why": "No alert for someone without symptoms."
     }
   ],
   "expected_status_end": {
@@ -447,9 +447,9 @@
     "cabin": "nominal"
   },
   "demo_notes": [
-    "Can'ın nabız hücresi 'NO DATA' gösterir, yeşil değil; 3. ölçümde 'veri yok' uyarısı çıkar. Veri gelince yeşile döner.",
-    "Sensör kopması sırasında Ece'nin uyarısı yine de çıkar: sistem kopan sensör yüzünden kör olmaz.",
-    "Kabin CO2 sensörü saçmalayınca sistem kırmızı alarm vermez; 'sensör hatası / veri yok' der."
+    "Sally's pulse cell shows 'NO DATA', not green; at the 3rd measurement a 'no data' alert appears. It turns green again when data returns.",
+    "Katherine's alert still appears during the sensor dropout: the system does not go blind because of a dropped sensor.",
+    "When the cabin CO2 sensor produces nonsense the system does not raise a red alarm; it says 'sensor fault / no data'."
   ],
   "forbidden_rules": [
     {
@@ -459,7 +459,7 @@
         "crew_hr_rest_rise_caution",
         "crew_hr_rest_rise_critical"
       ],
-      "why": "Eksik veri sapma uyarısı değildir; uydurma bir kalp yükü caution/critical üretilmez."
+      "why": "Missing data is not a deviation alert; no made-up cardiac load caution/critical is produced."
     },
     {
       "crew_id": "crew-4",
@@ -468,7 +468,7 @@
         "crew_hypoxia_caution",
         "crew_hypoxia_critical"
       ],
-      "why": "Eski değer hipoksi kanıtı sayılmaz."
+      "why": "The old value is not counted as hypoxia evidence."
     },
     {
       "crew_id": null,
@@ -477,7 +477,7 @@
         "cabin_pp_co2_caution",
         "cabin_pp_co2_critical"
       ],
-      "why": "Sensör hatasındaki 12,0 mmHg değeri kabin CO2 limitini aşmış gibi caution/critical üretmemeli."
+      "why": "The 12.0 mmHg value from the sensor fault must not produce caution/critical as if it exceeded the cabin CO2 limit."
     }
   ]
 }

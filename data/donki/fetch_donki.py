@@ -1,14 +1,16 @@
-"""DONKI'den bir güneş parçacık olayı (SEP) çekip data/donki/sep_event.json'a kaydeder — sahibi: Barış (qa).
+"""Fetch one solar energetic particle (SEP) event from DONKI and save it to data/donki/sep_event.json.
+Owner: Baris (qa).
 
-Demo internete bağlı kalmasın diye olay önceden dosyaya alınır. DONKI olayın zamanını ve bağlantılı
-olayları verir, DOZ VERMEZ; doz simülasyonda modellenir.
+The event is stored in advance so the demo does not depend on the internet. DONKI provides the event
+time and linked events, NOT THE DOSE; dose is modelled in the simulation.
 
-Kullanım (repo kökünden):
+Usage (from the repo root):
     python data/donki/fetch_donki.py
     python data/donki/fetch_donki.py --start 2024-05-01 --end 2024-05-31
     python data/donki/fetch_donki.py --sep-id 2024-05-10T13:35:00-SEP-001
 
-API anahtarı: NASA_API_KEY ortam değişkeni; yoksa DEMO_KEY. Anahtar dosyaya yazılmaz, repoya konmaz.
+API key: NASA_API_KEY environment variable; DEMO_KEY if unset. The key is never written to the file
+or the repo.
 """
 
 from __future__ import annotations
@@ -37,7 +39,7 @@ Event = dict[str, Any]
 
 
 def fetch_events(start: str, end: str, api_key: str) -> list[Event]:
-    """DONKI SEP olaylarını liste olarak döndürür."""
+    """Return DONKI SEP events as a list."""
     query = urllib.parse.urlencode({"startDate": start, "endDate": end, "api_key": api_key})
     with urllib.request.urlopen(f"{DONKI_URL}?{query}", timeout=TIMEOUT_S) as resp:
         return json.load(resp)
@@ -48,33 +50,33 @@ def _instrument_names(event: Event) -> list[str]:
 
 
 def is_model(event: Event) -> bool:
-    """Olay yalnızca model tahminiyle mi bildirilmiş (ör. "MODEL: REleASE:...")?"""
+    """Was the event reported only by model prediction (e.g. "MODEL: REleASE:...")?"""
     names = _instrument_names(event)
     return bool(names) and all(n.startswith(MODEL_PREFIX) for n in names)
 
 
 def is_goes_10mev(event: Event) -> bool:
-    """Olay GOES >10 MeV kanalında mı ölçülmüş? NOAA S-ölçeği bu kanala dayanır."""
+    """Was the event measured in the GOES >10 MeV channel? The NOAA S-scale is based on this channel."""
     return any(n.startswith("GOES") and GOES_10MEV in n for n in _instrument_names(event))
 
 
 def pick_event(events: list[Event], sep_id: str | None = None) -> Event:
-    """Demo için tek olay seçer.
+    """Pick a single event for the demo.
 
-    sep_id verilirse o olay. Verilmezse bağlantılı olayı (flare/CME) olanlar arasında sırayla:
-    1. GOES >10 MeV ile ölçülen en erken olay,
-    2. model tahmini olmayan (ölçülmüş) en erken olay,
-    3. en erken olay.
-    Bağlantılı olay hiç yoksa aynı sıra tüm olaylara uygulanır.
-    Sıralama sabittir: aynı veride her çalıştırmada aynı olay çıkar.
+    If sep_id is given, that event. Otherwise, among events with linked events (flare/CME), in order:
+    1. earliest event measured in the GOES >10 MeV channel,
+    2. earliest non-model-predicted (measured) event,
+    3. earliest event.
+    If no event has links, the same order is applied to all events.
+    The order is stable: the same data always yields the same event on every run.
     """
     if not events:
-        raise ValueError("Bu tarih aralığında olay bulunamadı.")
+        raise ValueError("No events found in this date range.")
     if sep_id:
         for event in events:
             if event.get("sepID") == sep_id:
                 return event
-        raise ValueError(f"sepID bulunamadı: {sep_id}")
+        raise ValueError(f"sepID not found: {sep_id}")
     ordered = sorted(events, key=lambda e: e.get("eventTime", ""))
     pool = [e for e in ordered if e.get("linkedEvents")] or ordered
     goes = [e for e in pool if is_goes_10mev(e)]
@@ -83,12 +85,12 @@ def pick_event(events: list[Event], sep_id: str | None = None) -> Event:
 
 
 def build_payload(events: list[Event], selected: Event, start: str, end: str) -> dict[str, Any]:
-    """Dosyaya yazılacak içerik. API anahtarı bilerek dahil edilmez."""
+    """Payload written to the file. The API key is deliberately excluded."""
     return {
         "fetched_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "source": DONKI_URL,
         "query": {"startDate": start, "endDate": end},
-        "note": "DONKI olay zamanı ve türü verir, doz vermez. Doz simüle edilir.",
+        "note": "DONKI provides event time and type, not dose. Dose is simulated.",
         "selected": selected,
         "raw_response": events,
     }
@@ -104,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--start", default=DEFAULT_START)
     parser.add_argument("--end", default=DEFAULT_END)
-    parser.add_argument("--sep-id", default=None, help="Belirli bir olayı seç")
+    parser.add_argument("--sep-id", default=None, help="Pick a specific event")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = parser.parse_args(argv)
 
@@ -115,16 +117,16 @@ def main(argv: list[str] | None = None) -> int:
     except urllib.error.HTTPError as err:
         hint = ""
         if err.code == HTTP_TOO_MANY_REQUESTS:
-            hint = " (DEMO_KEY istek sınırı olabilir; bekleyin ya da NASA_API_KEY tanımlayın)"
-        print(f"DONKI hata verdi: HTTP {err.code}{hint}", file=sys.stderr)
+            hint = " (DEMO_KEY rate limit possible; wait or set NASA_API_KEY)"
+        print(f"DONKI error: HTTP {err.code}{hint}", file=sys.stderr)
         return 1
     except (urllib.error.URLError, ValueError) as err:
-        print(f"Hata: {err}", file=sys.stderr)
+        print(f"Error: {err}", file=sys.stderr)
         return 1
 
     save(build_payload(events, selected, args.start, args.end), args.out)
-    print(f"{len(events)} olay geldi. Seçilen: {selected.get('sepID')} ({selected.get('eventTime')})")
-    print(f"Kaydedildi: {args.out}")
+    print(f"{len(events)} events fetched. Selected: {selected.get('sepID')} ({selected.get('eventTime')})")
+    print(f"Saved: {args.out}")
     return 0
 
 

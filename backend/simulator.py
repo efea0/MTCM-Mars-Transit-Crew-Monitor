@@ -1,4 +1,4 @@
-"""Deterministik, simüle telemetri; karar ve uyarıları rules.py üretir."""
+"""Deterministic simulated telemetry; decisions and alerts are produced by rules.py."""
 
 from __future__ import annotations
 
@@ -33,10 +33,8 @@ NOISE_SCALE = 1.0
 SPO2_MAX_PERCENT = 100.0
 HEART_RATE_MIN_BPM = 0.0
 RESP_RATE_MIN_PER_MINUTE = 0.0
-# HIPOTEZ: küçük sirkadiyen salınım; klinik model değildir.
 HEART_RATE_CIRCADIAN_AMPLITUDE = 0.5
 CORE_TEMP_CIRCADIAN_AMPLITUDE = 0.05
-# senaryo notundan, HIPOTEZ, Baris sayisal alan eklemeli.
 SEP_RADIATION_UGY_PER_HOUR = 16667.0
 SHELTER_FACTOR = 0.25
 SEP_EFFECTIVE_MSV_PER_HOUR = 25.0
@@ -45,7 +43,7 @@ VITAL_UNITS = {
     "heart_rate": "bpm",
     "hrv_rmssd": "ms",
     "spo2": "%",
-    "resp_rate": "nefes/dk",
+    "resp_rate": "breaths/min",
     "core_temp": "°C",
     "systolic_bp": "mmHg",
     "diastolic_bp": "mmHg",
@@ -56,12 +54,11 @@ CABIN_UNITS = {
     "cabin_pressure": "mmHg",
     "cabin_temp": "°C",
     "rel_humidity": "%",
-    "radiation_dose_rate": "µGy/saat",
+    "radiation_dose_rate": "µGy/h",
 }
 
 
-class SimulationFinished(Exception):
-    """Senaryonun son karesi zaten üretildi."""
+class SimulationFinished(Exception): ...
 
 
 class _Input(BaseModel):
@@ -82,9 +79,9 @@ class _Person(_Input):
     @model_validator(mode="after")
     def _all_vitals(self) -> _Person:
         if self.baseline.keys() != VITAL_UNITS.keys():
-            raise ValueError("baseline: yedi vital alanı gerekli: " + ", ".join(VITAL_UNITS))
+            raise ValueError("baseline: seven vital fields required: " + ", ".join(VITAL_UNITS))
         if self.baseline["heart_rate"].mean <= 0:
-            raise ValueError("baseline.heart_rate.mean: pozitif olmalı")
+            raise ValueError("baseline.heart_rate.mean: must be positive")
         return self
 
 
@@ -124,13 +121,13 @@ class _Event(_Input):
     def _required_fields(self) -> _Event:
         if self.type in ("vital_ramp", "activity"):
             if self.crew_id is None or self.targets is None or self.ramp_min is None:
-                raise ValueError(f"{self.type}: crew_id, targets ve ramp_min gerekli")
+                raise ValueError(f"{self.type}: crew_id, targets and ramp_min required")
             if self.targets.keys() - VITAL_UNITS.keys():
-                raise ValueError(f"{self.type}.targets: bilinmeyen vital")
+                raise ValueError(f"{self.type}.targets: unknown vital")
             if self.type == "activity" and self.activity is None:
-                raise ValueError("activity.activity: gerekli alan")
+                raise ValueError("activity.activity: required field")
         if self.type in ("o2_generation_rate", "co2_removal_rate") and self.value is None:
-            raise ValueError(f"{self.type}.value: gerekli alan")
+            raise ValueError(f"{self.type}.value: required field")
         if self.type == "sensor_quality":
             self._validate_sensor_quality()
         return self
@@ -138,17 +135,17 @@ class _Event(_Input):
     def _validate_sensor_quality(self) -> None:
         metrics = CABIN_UNITS if self.crew_id is None else VITAL_UNITS
         if self.metric not in metrics:
-            raise ValueError(f"sensor_quality.metric: bilinmeyen veya yanlış kapsamlı metrik {self.metric}")
+            raise ValueError(f"sensor_quality.metric: unknown or wrongly scoped metric {self.metric}")
         if self.quality is None:
-            raise ValueError("sensor_quality.quality: gerekli alan")
+            raise ValueError("sensor_quality.quality: required field")
         if self.until_min is None or self.until_min <= self.t_min:
-            raise ValueError("sensor_quality.until_min: t_min'den büyük olmalı")
+            raise ValueError("sensor_quality.until_min: must be greater than t_min")
         if self.quality == "missing" and self.model_fields_set & {"value", "stale_value", "reported_value"}:
-            raise ValueError("sensor_quality.missing: değer alanı bulunamaz")
+            raise ValueError("sensor_quality.missing: value field not allowed")
         if self.quality == "stale" and self.stale_value is None:
-            raise ValueError("sensor_quality.stale_value: gerekli alan")
+            raise ValueError("sensor_quality.stale_value: required field")
         if self.quality == "sensor_fault" and self.reported_value is None:
-            raise ValueError("sensor_quality.reported_value: gerekli alan")
+            raise ValueError("sensor_quality.reported_value: required field")
 
 
 class _Scenario(_Input):
@@ -164,26 +161,24 @@ class _Scenario(_Input):
     def _references(self) -> _Scenario:
         ids = {person.id for person in self.crew}
         if len(ids) != CREW_SIZE:
-            raise ValueError("crew.id: kimlikler benzersiz olmalı")
+            raise ValueError("crew.id: ids must be unique")
         if self.cabin_initial.keys() != CABIN_UNITS.keys():
-            raise ValueError("cabin_initial: altı kabin okuması gerekli: " + ", ".join(CABIN_UNITS))
+            raise ValueError("cabin_initial: six cabin readings required: " + ", ".join(CABIN_UNITS))
         for metric, unit in CABIN_UNITS.items():
             if self.cabin_initial[metric].unit != unit:
-                raise ValueError(f"cabin_initial.{metric}.unit: {unit} olmalı")
+                raise ValueError(f"cabin_initial.{metric}.unit: must be {unit}")
         for event in self.events:
             if (
                 event.type in ("vital_ramp", "activity", "sensor_quality")
                 and event.crew_id is not None
                 and event.crew_id not in ids
             ):
-                raise ValueError(f"events.crew_id: bilinmeyen kişi {event.crew_id}")
+                raise ValueError(f"events.crew_id: unknown crew member {event.crew_id}")
         return self
 
 
 @dataclass(frozen=True)
 class SepState:
-    """Son üretilen karenin kişi başı SEP olay bağlamı."""
-
     active: bool
     event_dose_rate_msv_per_h: float | None
     remaining_event_h: float | None
@@ -202,14 +197,6 @@ class _Ramp:
 
 
 class Simulator:
-    """Bir tick bir ölçüm anıdır; duration_min sonundaki kare dahildir.
-
-    Olaylar ilk uygun ölçüm anında etkinleşir. Gaz ve doz integrasyonu önceki
-    karenin akışlarıyla [önceki an, şimdiki an) aralığında yapılır. Sirkadiyen
-    dalga ve gürültü yalnızca okumaya eklenir; sensör kalitesi fiziği etkilemez.
-    sep_state, rules.SepContext'i beslemek içindir; simülatör rules'u import etmez.
-    """
-
     def __init__(
         self,
         scenario: Scenario | str,
@@ -223,26 +210,24 @@ class Simulator:
         with path.open(encoding="utf-8") as stream:
             self._spec = _Scenario.model_validate(json.load(stream))
         if self._spec.scenario != self.scenario:
-            raise ValueError(f"{path}: scenario alanı {self.scenario.value} olmalı")
+            raise ValueError(f"{path}: scenario field must be {self.scenario.value}")
         self._seed = self._spec.seed if seed is None else seed
         ranges = atmosphere.load_ranges(ranges_path)
         self._profile = replace(atmosphere.load_profile(ranges_path, "mars_transit"), ranges=ranges)
         if self._profile.crew_count != len(self._spec.crew):
-            raise ValueError("mars_transit.crew_count: senaryo kişi sayısıyla eşleşmeli")
+            raise ValueError("mars_transit.crew_count: must match scenario crew count")
         pressure = self._spec.cabin_initial["cabin_pressure"].value
         if pressure != self._profile.total_pressure_mmhg:
-            raise ValueError("cabin_initial.cabin_pressure: mars_transit toplam basıncıyla eşleşmeli")
+            raise ValueError("cabin_initial.cabin_pressure: must match mars_transit total pressure")
         self._events = sorted(self._spec.events, key=lambda event: event.t_min)
         self.reset()
 
     @property
     def finished(self) -> bool:
-        """Sıradaki ölçüm anı senaryonun süresini aştı mı?"""
         return self._tick * self._spec.model.measurement_interval_min > self._spec.duration_min
 
     @property
     def sep_state(self) -> SepState:
-        """Son karenin SEP durumu; bitiş zamanı yoksa kalan süre bilinmez."""
         if not self._sep_active:
             return SepState(False, None, None)
         rate = SEP_EFFECTIVE_MSV_PER_HOUR
@@ -257,7 +242,6 @@ class Simulator:
         return SepState(True, rate, remaining)
 
     def reset(self) -> None:
-        """Dosyaları tekrar okumadan tüm durum ve kişi RNG'lerini başa alır."""
         self._tick = 0
         self._event_index = 0
         self._random = {person.id: Random(f"{self._seed}:{person.id}") for person in self._spec.crew}
@@ -310,7 +294,7 @@ class Simulator:
             self._sep_active = False
             self._sheltered = False
         else:
-            raise ValueError(f"Desteklenmeyen olay tipi: {event.type}")
+            raise ValueError(f"Unsupported event type: {event.type}")
 
     def _vital_mean(self, person: _Person, metric: str, minute: float) -> float:
         ramp = self._ramps[person.id].get(metric)
@@ -363,7 +347,6 @@ class Simulator:
                     role=person.role,
                     vitals=CrewVitals(**readings),
                     activity=self._activities[person.id],
-                    # Bitiş karesi son aralığın nihai dozunu taşır; sonraki karelerde olay yoktur.
                     event_dose_msv=(
                         self._event_doses[person.id]
                         if self._sep_active or self._sep_ended_this_tick
@@ -422,9 +405,8 @@ class Simulator:
         )
 
     def tick(self) -> TelemetryFrame:
-        """Bir kare üretir; süre aşıldığında SimulationFinished fırlatır."""
         if self.finished:
-            raise SimulationFinished(f"{self.scenario.value}: {self._spec.duration_min:g} dakika tamamlandı")
+            raise SimulationFinished(f"{self.scenario.value}: {self._spec.duration_min:g} minutes completed")
         interval = self._spec.model.measurement_interval_min
         minute = self._tick * interval
         if self._tick:
@@ -447,7 +429,7 @@ class Simulator:
             simulated=True,
             crew=crew,
             cabin=self._cabin(result, minute, ts),
-            comms_one_way_delay_s=0.0,  # Gecikmeyi comms.py ekler.
+            comms_one_way_delay_s=0.0,
         )
         self._state = result.state
         self._previous_rates = rates

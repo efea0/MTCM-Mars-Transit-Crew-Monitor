@@ -1,18 +1,21 @@
-"""Kural motoru: telemetri çerçevesini değerlendirir, uyarıları ve durumları üretir.
+"""Rules engine: evaluates a telemetry frame and produces alerts and statuses.
 
-Bu modül, NASA-STD-3001 ve data/reference/ranges.json referanslarına dayanarak:
-1. Kişisel baz çizgileri uygulayarak Reading.baseline_delta alanını doldurur.
-2. Kabin pp_o2 ve kabin basıncından PIO2 değerini türetir (kPa/mmHg birim çevrimleriyle).
-3. Etkinlik kapısını (skip_when) işleterek egzersiz/uyku/bilinmeyen etkinliklerdeki
-   yanıltıcı vital alarmlarını engeller.
-4. Eksik veride (missing/faulty) sayacı sıfırlar ve ardışık eksiklikte missing uyarısı üretir.
-5. 3 ardışık ölçüm kuralını (consecutive_required) işletir.
-6. Kişi bazlı kararları (hipoksi, CO2 etkisi, ısı sapması, kalp yükü, radyasyon etkisi) üretir.
-7. ppCO2 için 1 saatlik kayan ortalama penceresini (average_window_s) hesaplar.
-8. Kişi ve kabin genel durumunu (status) ve kişi kararını (decision) belirler.
-9. Tüm tıbbi ve çevresel sayısal eşikleri ranges.json dosyasından çalışma anında okur;
-   yalnızca birim dönüşümü (MMHG_PER_KPA), eksik veri eşiği (MISSING_ALERT_AFTER) ve
-   pencere süresi (CO2_LIMIT_WINDOW_S) modül başında isimli sabit olarak tanımlanmıştır.
+Based on NASA-STD-3001 and data/reference/ranges.json, it:
+1. Applies personal baselines and fills Reading.baseline_delta.
+2. Derives PIO2 from cabin pp_o2 and cabin pressure (kPa/mmHg unit conversion).
+3. Applies the activity gate (skip_when) to suppress misleading vital alerts
+   during exercise, sleep or unknown activity.
+4. Resets the counter on missing/faulty data and raises a missing alert after
+   consecutive gaps.
+5. Enforces the consecutive-readings rule (consecutive_required).
+6. Produces per-crew decisions (hypoxia, CO2 effect, temperature deviation,
+   cardiac load, radiation effect).
+7. Computes the 1-hour rolling average window for ppCO2 (average_window_s).
+8. Determines overall crew and cabin status and the crew decision.
+9. Reads all medical and environmental numeric thresholds from ranges.json at
+   runtime; only the unit conversion (MMHG_PER_KPA), missing-data threshold
+   (MISSING_ALERT_AFTER) and window length (CO2_LIMIT_WINDOW_S) are named
+   constants at module level.
 """
 
 from __future__ import annotations
@@ -45,6 +48,9 @@ from backend.models import (
 DEFAULT_RANGES: Final[Path] = Path(__file__).resolve().parent.parent / "data" / "reference" / "ranges.json"
 MISSING_ALERT_AFTER: Final[int] = 3
 CO2_LIMIT_WINDOW_S: Final[float] = 3600.0
+# Design parameter (HYPOTHESIS, not a limit): an Action-level decision is released only after this many
+# times consecutive_required clean readings, so it stays visible long enough to be acted on.
+ACTION_HOLD_FACTOR: Final[int] = 2
 MMHG_PER_KPA: Final[float] = 7.50062
 
 SEVERITY_BY_LEVEL: Final[dict[str, Severity]] = {
@@ -69,15 +75,12 @@ DECISION_BY_STATUS: Final[dict[Status, CrewDecision]] = {
 
 @dataclass(frozen=True)
 class SepContext:
-    """Güneş parçacık olayı (SEP) bağlamı."""
-
     sep_active: bool
     event_dose_rate_msv_per_h: float | None = None
     remaining_event_h: float | None = None
 
 
 def derive_pio2(pp_o2: Reading, cabin_pressure: Reading, water_vapour_mmhg: float) -> float | None:
-    """pp_o2 ve kabin basıncından PIO2 değerini mmHg olarak türetir."""
     if pp_o2.value is None or pp_o2.quality != Quality.ok.value:
         return None
     if cabin_pressure.value is None or cabin_pressure.quality != Quality.ok.value:
@@ -98,8 +101,6 @@ def derive_pio2(pp_o2: Reading, cabin_pressure: Reading, water_vapour_mmhg: floa
 
 
 class RulesEngine:
-    """Sözleşme ve NASA standartlarına uygun kural ve karar değerlendirme motoru."""
-
     def __init__(
         self,
         ranges_path: str | Path = DEFAULT_RANGES,
@@ -113,13 +114,13 @@ class RulesEngine:
 
         self._load_reference_data()
 
-        # Durum takibi (frame'ler arası süreklilik)
         self._co2_window: list[tuple[float, float]] = []  # (mission_elapsed_s, pp_co2_mmhg)
         self._missing_counters: dict[tuple[str, Metric], int] = {}
         self._missing_first_seen: dict[tuple[str, Metric], datetime] = {}
         self._missing_alerts: dict[tuple[str, Metric], Alert] = {}
 
         self._consecutive_counts: dict[str, int] = {}
+        self._clear_counts: dict[str, int] = {}
         self._alert_first_seen: dict[str, datetime] = {}
         self._active_alerts: dict[str, Alert] = {}
 
@@ -127,19 +128,16 @@ class RulesEngine:
         with open(self.ranges_path, encoding="utf-8") as f:
             data: dict[str, Any] = json.load(f)
 
-        # Su buharı basıncı formülü
         pio2_formul = data["kabin"]["pio2_formulu"]["formul"]
         matches = re.findall(r"\bPB\s*[-−]\s*(\d+(?:[.,]\d+)?)", pio2_formul)
         if len(matches) != 1:
-            raise ValueError(f"ranges: pio2_formulu su buharı değeri çözümlenemedi: {pio2_formul}")
+            raise ValueError(f"ranges: could not parse water vapour value in pio2_formulu: {pio2_formul}")
         self.water_vapour_mmhg = float(matches[0].replace(",", "."))
 
-        # Genel karar ve eşik parametreleri
         vital_karar = data["vital_karar_parametreleri"]
         self.consecutive_required = int(vital_karar["art_arda_olcum"]["deger"])
         self.sari_oran = float(vital_karar["sari_kademe_genel"]["oran"])
 
-        # Kişisel baz çizgiler
         self.baselines: dict[str, dict[Metric, float]] = {}
         for person in vital_karar["baz_cizgi"]["astronotlar"]:
             cid = f"crew-{person['id']}"
@@ -150,7 +148,6 @@ class RulesEngine:
                 Metric.resp_rate: float(person["solunum"]),
             }
 
-        # Vital sapma eşikleri
         self.spo2_izle = float(vital_karar["spo2_dusus"]["izle"])
         self.spo2_eylem = float(vital_karar["spo2_dusus"]["eylem"])
         self.hr_izle = float(vital_karar["nabiz_artis_dinlenme"]["izle"])
@@ -160,7 +157,6 @@ class RulesEngine:
         self.temp_izle = float(vital_karar["isi_artis"]["izle"])
         self.temp_eylem = float(vital_karar["isi_artis"]["eylem"])
 
-        # Kabin sınırları
         kabin = data["kabin"]
         self.ppco2_limit_1saat_ort = float(kabin["ppco2_limit_1saat_ort"]["deger"])
         self.ppco2_sari_esik = float(kabin["ppco2_sari_esik"]["deger"])
@@ -171,12 +167,10 @@ class RulesEngine:
         self.pressure_min = float(kabin["toplam_basinc_suresiz"]["min_haric"])
         self.pressure_max = float(kabin["toplam_basinc_suresiz"]["max"])
 
-        # Radyasyon limitleri
         radyasyon = data["radyasyon"]
         self.kariyer_limiti = float(radyasyon["kariyer_limiti"]["deger"])
         self.spe_tasarim_esigi = float(radyasyon["spe_tasarim_esigi"]["deger"])
 
-        # Kabin kuralları
         self.rule_validation_status: dict[str, str] = {}
         cabin_rules_list: list[ThresholdRule] = []
         for row in data.get("kurallar", []):
@@ -198,7 +192,6 @@ class RulesEngine:
             cabin_rules_list.append(rule)
         self.cabin_rules = tuple(cabin_rules_list)
 
-        # Kişi vital kuralları tablosu
         source = "varsayım (Ekip kararı)"
         skip_non_resting = [Activity.exercise, Activity.sleep, Activity.unknown]
         vital_rules_list = [
@@ -295,22 +288,19 @@ class RulesEngine:
         self.rules = tuple(self.cabin_rules) + tuple(self.vital_rules)
 
     def reset(self) -> None:
-        """Motorun tüm kayan pencerelerini ve sayaçlarını sıfırlar."""
         self._co2_window.clear()
         self._missing_counters.clear()
         self._missing_first_seen.clear()
         self._missing_alerts.clear()
         self._consecutive_counts.clear()
+        self._clear_counts.clear()
         self._alert_first_seen.clear()
         self._active_alerts.clear()
 
     def evaluate(self, frame: TelemetryFrame, *, sep: SepContext | None = None) -> TelemetryFrame:
-        """Gelen telemetri çerçevesini değerlendirir ve yeni bir çerçeve döner."""
-        # 1. Kabin okumalarını ve PIO2 değerini çözümle
         cabin = frame.cabin
         pio2_mmhg = derive_pio2(cabin.pp_o2, cabin.cabin_pressure, self.water_vapour_mmhg)
 
-        # 2. Eksik veri sayaçlarını kabin için güncelle
         self._update_missing_reading("cabin", Metric.pp_co2, cabin.pp_co2, frame.ts)
         self._update_missing_reading("cabin", Metric.pp_o2, cabin.pp_o2, frame.ts)
         self._update_missing_reading("cabin", Metric.cabin_pressure, cabin.cabin_pressure, frame.ts)
@@ -318,23 +308,18 @@ class RulesEngine:
         self._update_missing_reading("cabin", Metric.rel_humidity, cabin.rel_humidity, frame.ts)
         self._update_missing_reading("cabin", Metric.radiation_dose_rate, cabin.radiation_dose_rate, frame.ts)
 
-        # 3. Kabin kurallarını değerlendir
         self._evaluate_cabin_rules(frame, pio2_mmhg)
 
-        # 4. Mürettebat okumalarını, baz çizgilerini ve kararlarını değerlendir
         updated_crew: list[CrewMember] = []
         for crew in frame.crew:
             member = self._evaluate_crew_member(crew, frame, pio2_mmhg, sep)
             updated_crew.append(member)
 
-        # 5. Kabin okuma durumlarını (Reading.status) ve genel kabin durumunu belirle
         updated_cabin = self._finalize_cabin(cabin, pio2_mmhg)
 
-        # 6. Aktif tüm uyarıları topla (kararlı sıralama)
         all_alerts = list(self._active_alerts.values()) + list(self._missing_alerts.values())
         all_alerts.sort(key=lambda a: a.id)
 
-        # 7. Yeni TelemetryFrame örneği üret (asla mutasyon yok)
         return frame.model_copy(
             update={
                 "crew": updated_crew,
@@ -357,13 +342,13 @@ class RulesEngine:
                 first_seen = self._missing_first_seen[key]
                 alert_id = f"{subject_id}:missing-{metric.value}"
                 rule_id = f"missing-{metric.value}"
-                name = subject_id if subject_id != "cabin" else "Kabin"
+                name = subject_id if subject_id != "cabin" else "Cabin"
                 alert = Alert(
                     id=alert_id,
                     crew_id=subject_id if subject_id != "cabin" else None,
                     metric=metric,
                     severity=Severity.caution,
-                    message=f"{name}: {metric.value} sensöründen veri yok",
+                    message=f"{name}: no data from {metric.value} sensor",
                     rule_id=rule_id,
                     consecutive_count=count,
                     first_seen=first_seen,
@@ -375,7 +360,7 @@ class RulesEngine:
                             threshold=None,
                             comparator=Comparator.missing,
                             ts=reading.ts,
-                            note=f"{count} ölçümdür veri yok",
+                            note=f"no data for {count} readings",
                         )
                     ],
                 )
@@ -420,7 +405,10 @@ class RulesEngine:
             if count == 1:
                 self._alert_first_seen[caution_id] = frame.ts
             if count >= self.consecutive_required:
-                note = f"Kabin ppCO2 {co2_mmhg:.2f} mmHg (eşik {self.ppco2_sari_esik} mmHg), {count} ölçümdür"
+                note = (
+                    f"Cabin ppCO2 {co2_mmhg:.2f} mmHg (threshold {self.ppco2_sari_esik} mmHg), "
+                    f"for {count} readings"
+                )
                 why = [
                     Evidence(
                         metric=Metric.pp_co2,
@@ -431,7 +419,7 @@ class RulesEngine:
                         note=note,
                     )
                 ]
-                msg = f"Kabin ppCO2 sarı eşiğin üstünde: {co2_mmhg:.2f} mmHg. CO2 gidermeyi kontrol et."
+                msg = f"Cabin ppCO2 above caution threshold: {co2_mmhg:.2f} mmHg. Check CO2 scrubbing."
                 self._active_alerts[caution_id] = Alert(
                     id=caution_id,
                     crew_id=None,
@@ -461,18 +449,19 @@ class RulesEngine:
             if count >= self.consecutive_required:
                 if self.co2_window_s is not None and not window_full:
                     note = (
-                        f"1 saatlik pencere henüz dolmadı ({len(samples)} örnek ortalaması "
-                        f"{co2_avg:.2f} mmHg, eşik {self.ppco2_limit_1saat_ort} mmHg), {count} ölçümdür"
+                        f"1-hour window not yet full (average of {len(samples)} samples "
+                        f"{co2_avg:.2f} mmHg, threshold {self.ppco2_limit_1saat_ort} mmHg), "
+                        f"for {count} readings"
                     )
                 elif self.co2_window_s is not None:
                     note = (
-                        f"1 saatlik ortalama ppCO2 {co2_avg:.2f} mmHg (eşik "
-                        f"{self.ppco2_limit_1saat_ort} mmHg), {count} ölçümdür"
+                        f"1-hour average ppCO2 {co2_avg:.2f} mmHg (threshold "
+                        f"{self.ppco2_limit_1saat_ort} mmHg), for {count} readings"
                     )
                 else:
                     note = (
-                        f"Kabin ppCO2 {co2_avg:.2f} mmHg (eşik {self.ppco2_limit_1saat_ort} mmHg), "
-                        f"{count} ölçümdür"
+                        f"Cabin ppCO2 {co2_avg:.2f} mmHg (threshold {self.ppco2_limit_1saat_ort} mmHg), "
+                        f"for {count} readings"
                     )
                 why = [
                     Evidence(
@@ -485,8 +474,8 @@ class RulesEngine:
                     )
                 ]
                 msg = (
-                    f"Kabin ppCO2 limitin üstünde: {co2_avg:.2f} mmHg. "
-                    "Yedek CO2 gidermeyi devreye al, eforu azalt."
+                    f"Cabin ppCO2 above limit: {co2_avg:.2f} mmHg. "
+                    "Engage backup CO2 scrubbing, reduce effort."
                 )
                 self._active_alerts[limit_id] = Alert(
                     id=limit_id,
@@ -517,8 +506,8 @@ class RulesEngine:
                 self._alert_first_seen[hypoxia_low_id] = frame.ts
             if count >= self.consecutive_required:
                 note = (
-                    f"Kabin PIO2 {pio2_mmhg:.1f} mmHg (hafif hipoksi alt sınırı "
-                    f"{self.pio2_hafif_hipoksi_alt} mmHg), {count} ölçümdür"
+                    f"Cabin PIO2 {pio2_mmhg:.1f} mmHg (mild hypoxia lower bound "
+                    f"{self.pio2_hafif_hipoksi_alt} mmHg), for {count} readings"
                 )
                 why = [
                     Evidence(
@@ -531,8 +520,8 @@ class RulesEngine:
                     )
                 ]
                 msg = (
-                    f"Kabin O2 hafif hipoksi sınırının altında: PIO2 {pio2_mmhg:.1f} mmHg. "
-                    "Yedek O2'ye geç ve egzersizi durdur."
+                    f"Cabin O2 below mild hypoxia bound: PIO2 {pio2_mmhg:.1f} mmHg. "
+                    "Switch to backup O2 and stop exercise."
                 )
                 self._active_alerts[hypoxia_low_id] = Alert(
                     id=hypoxia_low_id,
@@ -546,7 +535,6 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
-                # Kırmızı uyarı açılınca sarı uyarıyı kapat/bastır
                 self._active_alerts.pop(normoxia_low_id, None)
         else:
             self._consecutive_counts[hypoxia_low_id] = 0
@@ -564,12 +552,11 @@ class RulesEngine:
                 self._alert_first_seen[normoxia_low_id] = frame.ts
             if count >= self.consecutive_required:
                 if hypoxia_low_id in self._active_alerts:
-                    # Kırmızı uyarı aktifse sarı uyarı bastırılır
                     self._active_alerts.pop(normoxia_low_id, None)
                 else:
                     note = (
-                        f"Kabin PIO2 {pio2_mmhg:.1f} mmHg (normoksi alt sınırı "
-                        f"{self.pio2_normoksi_min} mmHg), {count} ölçümdür"
+                        f"Cabin PIO2 {pio2_mmhg:.1f} mmHg (normoxia lower bound "
+                        f"{self.pio2_normoksi_min} mmHg), for {count} readings"
                     )
                     why = [
                         Evidence(
@@ -581,10 +568,7 @@ class RulesEngine:
                             note=note,
                         )
                     ]
-                    msg = (
-                        f"Kabin O2 normoksi aralığının altında: PIO2 {pio2_mmhg:.1f} mmHg. "
-                        "O2 üretimini kontrol et."
-                    )
+                    msg = f"Cabin O2 below normoxia range: PIO2 {pio2_mmhg:.1f} mmHg. " "Check O2 generation."
                     self._active_alerts[normoxia_low_id] = Alert(
                         id=normoxia_low_id,
                         crew_id=None,
@@ -613,8 +597,8 @@ class RulesEngine:
                 self._alert_first_seen[normoxia_high_id] = frame.ts
             if count >= self.consecutive_required:
                 note = (
-                    f"Kabin PIO2 {pio2_mmhg:.1f} mmHg (normoksi üst sınırı "
-                    f"{self.pio2_normoksi_max} mmHg), {count} ölçümdür"
+                    f"Cabin PIO2 {pio2_mmhg:.1f} mmHg (normoxia upper bound "
+                    f"{self.pio2_normoksi_max} mmHg), for {count} readings"
                 )
                 why = [
                     Evidence(
@@ -626,10 +610,7 @@ class RulesEngine:
                         note=note,
                     )
                 ]
-                msg = (
-                    f"Kabin O2 normoksi aralığının üstünde: PIO2 {pio2_mmhg:.1f} mmHg. "
-                    "O2 ayarlarını kontrol et."
-                )
+                msg = f"Cabin O2 above normoxia range: PIO2 {pio2_mmhg:.1f} mmHg. " "Check O2 settings."
                 self._active_alerts[normoxia_high_id] = Alert(
                     id=normoxia_high_id,
                     crew_id=None,
@@ -656,19 +637,17 @@ class RulesEngine:
     ) -> CrewMember:
         cid = crew.id
         if cid not in self.baselines:
-            raise ValueError(f"{cid} için baz çizgi yok")
+            raise ValueError(f"no baseline for {cid}")
         baselines = self.baselines[cid]
         for m in (Metric.heart_rate, Metric.spo2, Metric.core_temp, Metric.resp_rate):
             if m not in baselines:
-                raise ValueError(f"{cid} için {m.value} baz çizgisi yok")
+                raise ValueError(f"no {m.value} baseline for {cid}")
 
-        # 1. Eksik veri sayaçlarını güncelle
         for field_name in CrewVitals.model_fields:
             metric = Metric(field_name)
             reading = getattr(crew.vitals, field_name)
             self._update_missing_reading(cid, metric, reading, frame.ts)
 
-        # 2. Reading'leri baseline_delta ve status ile güncelle
         vitals_dict: dict[str, Reading] = {}
         for field_name in CrewVitals.model_fields:
             metric = Metric(field_name)
@@ -688,10 +667,8 @@ class RulesEngine:
 
         updated_vitals = CrewVitals(**vitals_dict)
 
-        # 3. 5 Kişi bazlı kararı değerlendir
         sep_missing = self._evaluate_crew_decisions(crew, updated_vitals, frame, pio2_mmhg, sep)
 
-        # 4. Kişinin genel durumunu ve kararını belirle
         all_active_crew_alerts = [
             a
             for a in list(self._active_alerts.values()) + list(self._missing_alerts.values())
@@ -770,6 +747,42 @@ class RulesEngine:
 
         return Status.nominal
 
+    def _hold_alert(self, alert_id: str, *, can_hold: bool = True) -> bool:
+        """Keep an active decision alert until its trigger has been gone for enough consecutive readings.
+
+        Caution-level alerts are released after consecutive_required clean readings (the same
+        art_arda_olcum count used to raise them); Action-level (critical) alerts need
+        ACTION_HOLD_FACTOR times as many. Missing or poor input data (can_hold=False) clears at once.
+        """
+        alert = self._active_alerts.get(alert_id)
+        if alert is None or not can_hold:
+            return False
+        severity = getattr(alert.severity, "value", alert.severity)
+        needed = self.consecutive_required * (
+            ACTION_HOLD_FACTOR if severity == Severity.critical.value else 1
+        )
+        cleared = self._clear_counts.get(alert_id, 0) + 1
+        if cleared >= needed:
+            return False
+        self._clear_counts[alert_id] = cleared
+        return True
+
+    def _latch_severity(self, alert_id: str, severity: Severity) -> Severity:
+        """While triggered: keep Action until the lower level has persisted long enough."""
+        self._clear_counts[alert_id] = 0
+        down_key = f"{alert_id}#down"
+        previous = self._active_alerts.get(alert_id)
+        was_critical = previous is not None and (
+            getattr(previous.severity, "value", previous.severity) == Severity.critical.value
+        )
+        if was_critical and severity != Severity.critical:
+            downgrades = self._clear_counts.get(down_key, 0) + 1
+            if downgrades < self.consecutive_required * ACTION_HOLD_FACTOR:
+                self._clear_counts[down_key] = downgrades
+                return Severity.critical
+        self._clear_counts.pop(down_key, None)
+        return severity
+
     def _evaluate_crew_decisions(
         self,
         crew: CrewMember,
@@ -778,16 +791,14 @@ class RulesEngine:
         pio2_mmhg: float | None,
         sep: SepContext | None,
     ) -> bool:
-        """Kişi kararlarını değerlendirir. Dönüş değeri: SEP verisi eksik mi (bool)."""
         cid = crew.id
         if cid not in self.baselines:
-            raise ValueError(f"{cid} için baz çizgi yok")
+            raise ValueError(f"no baseline for {cid}")
         baselines = self.baselines[cid]
         for m in (Metric.heart_rate, Metric.spo2, Metric.core_temp, Metric.resp_rate):
             if m not in baselines:
-                raise ValueError(f"{cid} için {m.value} baz çizgisi yok")
+                raise ValueError(f"no {m.value} baseline for {cid}")
 
-        # --- Karar 1: olasi_hipoksi
         hipoksi_id = f"{cid}:karar-olasi_hipoksi"
         spo2_r = vitals.spo2
         spo2_ok = (
@@ -833,10 +844,9 @@ class RulesEngine:
         if hipoksi_cond:
             assert spo2_r.baseline_delta is not None
             assert pio2_mmhg is not None
-            sev = (
-                Severity.critical
-                if (spo2_r.baseline_delta <= -self.spo2_eylem or pio2_mmhg < self.pio2_hafif_hipoksi_alt)
-                else Severity.caution
+            sev = self._latch_severity(
+                hipoksi_id,
+                Severity.critical if spo2_r.baseline_delta <= -self.spo2_eylem else Severity.caution,
             )
             count = self._consecutive_counts.get(hipoksi_id, 0) + 1
             self._consecutive_counts[hipoksi_id] = count
@@ -853,8 +863,8 @@ class RulesEngine:
                         comparator=Comparator.le,
                         ts=spo2_r.ts,
                         note=(
-                            f"SpO2 baz çizgisinden {spo2_r.baseline_delta:+.1f} puan "
-                            f"(eşik -{self.spo2_izle:.1f}), {count} ölçümdür"
+                            f"SpO2 {spo2_r.baseline_delta:+.1f} points from baseline "
+                            f"(threshold -{self.spo2_izle:.1f}), for {count} readings"
                         ),
                     ),
                     Evidence(
@@ -864,8 +874,8 @@ class RulesEngine:
                         comparator=Comparator.lt,
                         ts=frame.ts,
                         note=(
-                            f"Kabin PIO2 {pio2_mmhg:.1f} mmHg (normoksi alt sınırı "
-                            f"{self.pio2_normoksi_min} mmHg), {count} ölçümdür"
+                            f"Cabin PIO2 {pio2_mmhg:.1f} mmHg (normoxia lower bound "
+                            f"{self.pio2_normoksi_min} mmHg), for {count} readings"
                         ),
                     ),
                 ]
@@ -881,8 +891,8 @@ class RulesEngine:
                                 comparator=Comparator.ge,
                                 ts=hr_r.ts,
                                 note=(
-                                    f"Dinlenme nabzı bazdan {hr_r.baseline_delta:+.1f} bpm, "
-                                    f"{count} ölçümdür"
+                                    f"Resting heart rate {hr_r.baseline_delta:+.1f} bpm from baseline, "
+                                    f"for {count} readings"
                                 ),
                             )
                         )
@@ -897,17 +907,17 @@ class RulesEngine:
                                 comparator=Comparator.ge,
                                 ts=rr_r.ts,
                                 note=(
-                                    f"Solunum bazdan {rr_r.baseline_delta:+.1f} nefes/dk, "
-                                    f"{count} ölçümdür"
+                                    f"Respiration rate {rr_r.baseline_delta:+.1f} breaths/min from baseline, "
+                                    f"for {count} readings"
                                 ),
                             )
                         )
                 action_text = (
-                    "Derhal egzersizi durdur, yedek O2'ye geç."
+                    "Stop exercise immediately, switch to backup O2."
                     if sev == Severity.critical
-                    else "Aktiviteyi azalt, O2 kaynağını kontrol et."
+                    else "Reduce activity, check O2 supply."
                 )
-                msg = f"{crew.name}: Olası hipoksi belirtisi ({sev.value}). {action_text}"
+                msg = f"{crew.name}: Possible hypoxia indication ({sev.value}). {action_text}"
                 self._active_alerts[hipoksi_id] = Alert(
                     id=hipoksi_id,
                     crew_id=cid,
@@ -920,12 +930,14 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+        elif self._hold_alert(hipoksi_id, can_hold=spo2_ok and pio2_ok):
+            pass
         else:
             self._consecutive_counts[hipoksi_id] = 0
+            self._clear_counts.pop(hipoksi_id, None)
             self._alert_first_seen.pop(hipoksi_id, None)
             self._active_alerts.pop(hipoksi_id, None)
 
-        # --- Karar 2: olasi_co2_etkisi
         co2_id = f"{cid}:karar-olasi_co2_etkisi"
         co2_r = frame.cabin.pp_co2
         co2_val = co2_r.value
@@ -953,7 +965,10 @@ class RulesEngine:
         if co2_cond:
             assert co2_mmhg is not None
             assert rr_r.baseline_delta is not None
-            sev = Severity.critical if "cabin:ppco2-limit" in self._active_alerts else Severity.caution
+            sev = self._latch_severity(
+                co2_id,
+                Severity.critical if "cabin:ppco2-limit" in self._active_alerts else Severity.caution,
+            )
             count = self._consecutive_counts.get(co2_id, 0) + 1
             self._consecutive_counts[co2_id] = count
             if count == 1:
@@ -968,8 +983,8 @@ class RulesEngine:
                         comparator=Comparator.gt,
                         ts=co2_r.ts,
                         note=(
-                            f"Kabin ppCO2 {co2_mmhg:.2f} mmHg (eşik {self.ppco2_sari_esik} mmHg), "
-                            f"{count} ölçümdür"
+                            f"Cabin ppCO2 {co2_mmhg:.2f} mmHg (threshold {self.ppco2_sari_esik} mmHg), "
+                            f"for {count} readings"
                         ),
                     ),
                     Evidence(
@@ -979,17 +994,17 @@ class RulesEngine:
                         comparator=Comparator.ge,
                         ts=rr_r.ts,
                         note=(
-                            f"Solunum artışı {rr_r.baseline_delta:+.1f} nefes/dk (eşik "
-                            f"+{self.rr_izle:.1f}), {count} ölçümdür"
+                            f"Respiration rate {rr_r.baseline_delta:+.1f} breaths/min (threshold "
+                            f"+{self.rr_izle:.1f}), for {count} readings"
                         ),
                     ),
                 ]
                 action_text = (
-                    "Egzersizi durdur, CO2 gidermeyi güçlendir."
+                    "Stop exercise, increase CO2 scrubbing."
                     if sev == Severity.critical
-                    else "Eforu azalt, CO2 gidermeyi güçlendir."
+                    else "Reduce effort, increase CO2 scrubbing."
                 )
-                msg = f"{crew.name}: Olası CO2 etkisi ({sev.value}). {action_text}"
+                msg = f"{crew.name}: Possible CO2 effect ({sev.value}). {action_text}"
                 self._active_alerts[co2_id] = Alert(
                     id=co2_id,
                     crew_id=cid,
@@ -1002,12 +1017,14 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+        elif self._hold_alert(co2_id, can_hold=co2_ok):
+            pass
         else:
             self._consecutive_counts[co2_id] = 0
+            self._clear_counts.pop(co2_id, None)
             self._alert_first_seen.pop(co2_id, None)
             self._active_alerts.pop(co2_id, None)
 
-        # --- Karar 3: isi_sapmasi
         temp_id = f"{cid}:karar-isi_sapmasi"
         temp_r = vitals.core_temp
         temp_ok = (
@@ -1019,7 +1036,10 @@ class RulesEngine:
 
         if temp_cond:
             assert temp_r.baseline_delta is not None
-            sev = Severity.critical if temp_r.baseline_delta >= self.temp_eylem else Severity.caution
+            sev = self._latch_severity(
+                temp_id,
+                Severity.critical if temp_r.baseline_delta >= self.temp_eylem else Severity.caution,
+            )
             count = self._consecutive_counts.get(temp_id, 0) + 1
             self._consecutive_counts[temp_id] = count
             if count == 1:
@@ -1035,12 +1055,12 @@ class RulesEngine:
                         comparator=Comparator.ge,
                         ts=temp_r.ts,
                         note=(
-                            f"Vücut sıcaklığı bazdan {temp_r.baseline_delta:+.2f} °C "
-                            f"(eşik +{self.temp_izle:.1f} °C), {count} ölçümdür"
+                            f"Body temperature {temp_r.baseline_delta:+.2f} °C from baseline "
+                            f"(threshold +{self.temp_izle:.1f} °C), for {count} readings"
                         ),
                     )
                 ]
-                msg = f"{crew.name}: Vücut sıcaklığı sapması ({sev.value}). Dinlen, Dünya'ya raporla."
+                msg = f"{crew.name}: Body temperature deviation ({sev.value}). Rest, report to Earth."
                 self._active_alerts[temp_id] = Alert(
                     id=temp_id,
                     crew_id=cid,
@@ -1053,12 +1073,14 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+        elif self._hold_alert(temp_id, can_hold=temp_ok):
+            pass
         else:
             self._consecutive_counts[temp_id] = 0
+            self._clear_counts.pop(temp_id, None)
             self._alert_first_seen.pop(temp_id, None)
             self._active_alerts.pop(temp_id, None)
 
-        # --- Karar 4: kalp_yuku
         hr_id = f"{cid}:karar-kalp_yuku"
         hr_r = vitals.heart_rate
         hr_ok = (
@@ -1073,7 +1095,10 @@ class RulesEngine:
 
         if hr_cond:
             assert hr_r.baseline_delta is not None
-            sev = Severity.critical if hr_r.baseline_delta >= self.hr_eylem else Severity.caution
+            sev = self._latch_severity(
+                hr_id,
+                Severity.critical if hr_r.baseline_delta >= self.hr_eylem else Severity.caution,
+            )
             count = self._consecutive_counts.get(hr_id, 0) + 1
             self._consecutive_counts[hr_id] = count
             if count == 1:
@@ -1089,12 +1114,12 @@ class RulesEngine:
                         comparator=Comparator.ge,
                         ts=hr_r.ts,
                         note=(
-                            f"Dinlenme nabzı bazdan {hr_r.baseline_delta:+.1f} bpm "
-                            f"(eşik +{self.hr_izle:.1f} bpm), {count} ölçümdür"
+                            f"Resting heart rate {hr_r.baseline_delta:+.1f} bpm from baseline "
+                            f"(threshold +{self.hr_izle:.1f} bpm), for {count} readings"
                         ),
                     )
                 ]
-                msg = f"{crew.name}: Dinlenme kalp yükü yüksek ({sev.value}). Eforu azalt, izle."
+                msg = f"{crew.name}: Elevated resting cardiac load ({sev.value}). Reduce effort, monitor."
                 self._active_alerts[hr_id] = Alert(
                     id=hr_id,
                     crew_id=cid,
@@ -1107,12 +1132,15 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+            self._clear_counts[hr_id] = 0
+        elif self._hold_alert(hr_id, can_hold=crew.activity == Activity.resting.value and hr_ok):
+            pass
         else:
             self._consecutive_counts[hr_id] = 0
+            self._clear_counts.pop(hr_id, None)
             self._alert_first_seen.pop(hr_id, None)
             self._active_alerts.pop(hr_id, None)
 
-        # --- Karar 5: radyasyon_etkisi
         rad_id = f"{cid}:karar-radyasyon_etkisi"
         career_sari = self.sari_oran * self.kariyer_limiti
         career_triggered = crew.cumulative_dose_msv is not None and crew.cumulative_dose_msv >= career_sari
@@ -1149,7 +1177,10 @@ class RulesEngine:
         rad_cond = career_triggered or sep_triggered
 
         if rad_cond:
-            sev = Severity.critical if (career_critical or sep_critical) else Severity.caution
+            sev = self._latch_severity(
+                rad_id,
+                Severity.critical if (career_critical or sep_critical) else Severity.caution,
+            )
             count = self._consecutive_counts.get(rad_id, 0) + 1
             self._consecutive_counts[rad_id] = count
             if count == 1:
@@ -1171,8 +1202,8 @@ class RulesEngine:
                             comparator=Comparator.ge,
                             ts=frame.ts,
                             note=(
-                                f"Tahmini olay dozu {tahmini_doz:.1f} mSv (eşik "
-                                f"{self.sari_oran * self.spe_tasarim_esigi:.1f} mSv), {count} ölçümdür"
+                                f"Estimated event dose {tahmini_doz:.1f} mSv (threshold "
+                                f"{self.sari_oran * self.spe_tasarim_esigi:.1f} mSv), for {count} readings"
                             ),
                         )
                     )
@@ -1186,17 +1217,17 @@ class RulesEngine:
                             comparator=Comparator.ge,
                             ts=frame.ts,
                             note=(
-                                f"Kümülatif doz {crew.cumulative_dose_msv:.1f} mSv "
-                                f"(eşik {career_sari:.1f} mSv), {count} ölçümdür"
+                                f"Cumulative dose {crew.cumulative_dose_msv:.1f} mSv "
+                                f"(threshold {career_sari:.1f} mSv), for {count} readings"
                             ),
                         )
                     )
                 action_text = (
-                    "Fırtına sığınağına geç!"
+                    "Move to storm shelter!"
                     if sev == Severity.critical
-                    else "Sığınağa geçişe hazırlan, doz takibini başlat."
+                    else "Prepare to move to shelter, start dose tracking."
                 )
-                msg = f"{crew.name}: Radyasyon maruziyeti ({sev.value}). {action_text}"
+                msg = f"{crew.name}: Radiation exposure ({sev.value}). {action_text}"
                 self._active_alerts[rad_id] = Alert(
                     id=rad_id,
                     crew_id=cid,
@@ -1209,15 +1240,17 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why_rad,
                 )
+        elif self._hold_alert(rad_id, can_hold=True):
+            pass
         else:
             self._consecutive_counts[rad_id] = 0
+            self._clear_counts.pop(rad_id, None)
             self._alert_first_seen.pop(rad_id, None)
             self._active_alerts.pop(rad_id, None)
 
         return sep_missing
 
     def _finalize_cabin(self, cabin: CabinAtmosphere, pio2_mmhg: float | None) -> CabinAtmosphere:
-        # pp_co2 okuma durumu
         co2_r = cabin.pp_co2
         if co2_r.value is None or co2_r.quality != Quality.ok.value:
             co2_status = Status.unknown
@@ -1231,7 +1264,6 @@ class RulesEngine:
                 co2_status = Status.nominal
         updated_co2 = co2_r.model_copy(update={"status": co2_status})
 
-        # pp_o2 okuma durumu (türetilen PIO2'ye göre)
         o2_r = cabin.pp_o2
         if o2_r.value is None or o2_r.quality != Quality.ok.value or pio2_mmhg is None:
             o2_status = Status.unknown
@@ -1244,7 +1276,6 @@ class RulesEngine:
                 o2_status = Status.nominal
         updated_o2 = o2_r.model_copy(update={"status": o2_status})
 
-        # cabin_pressure durumu
         p_r = cabin.cabin_pressure
         if p_r.value is None or p_r.quality != Quality.ok.value:
             p_status = Status.unknown
@@ -1256,7 +1287,6 @@ class RulesEngine:
                 p_status = Status.nominal
         updated_p = p_r.model_copy(update={"status": p_status})
 
-        # Diğer okumalar
         def reading_status(r: Reading) -> Status:
             return Status.unknown if (r.value is None or r.quality != Quality.ok.value) else Status.nominal
 
@@ -1268,7 +1298,6 @@ class RulesEngine:
             update={"status": reading_status(cabin.radiation_dose_rate)}
         )
 
-        # Genel kabin durumu
         all_active_cabin_alerts = [
             a
             for a in list(self._active_alerts.values()) + list(self._missing_alerts.values())

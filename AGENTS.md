@@ -78,7 +78,7 @@ git switch -c <tür>/<alan>/<kısa-açıklama>
 **Frontend**
 - CDN yok, bundler yok. Chart.js yerel dosyadan yüklenir: `frontend/vendor/`.
 - Global değişken yok, `const`/`let` kullan. Alan adları `docs/contract.json` ile birebir aynı olur.
-- Simüle veri ekranda "SİMÜLE" etiketiyle gösterilir.
+- Simüle veri ekranda "SIMULATED" etiketiyle gösterilir (arayüz İngilizcedir).
 
 **Veri**
 - Senaryo dosyası adı `Scenario` enum değeridir: `data/scenarios/<değer>.json` ve içindeki `scenario` alanı aynı değeri taşır. Eşleşmeler: normal → `nominal`, O₂ arızası → `hypoxia`, CO₂ yükselişi → `hypercapnia`, güneş fırtınası → `solar_storm`, uyku eksiği → `sleep_deprivation`, veri kopması → `sensor_dropout`. Her dosya beklenen karar tablosunu içerir.

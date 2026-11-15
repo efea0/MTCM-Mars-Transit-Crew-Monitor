@@ -1,7 +1,7 @@
 {
   "scenario": "nominal",
-  "title": "Normal durum",
-  "purpose": "Her şey yolundayken yanlış alarm olmadığını göstermek. crew-1'in egzersiz nabzı alarm sayılmaz.",
+  "title": "Nominal cruise",
+  "purpose": "To show there is no false alarm when everything is fine. crew-1's exercise pulse does not count as an alarm.",
   "simulated": true,
   "seed": 42,
   "time_unit": "mission_min",
@@ -41,16 +41,16 @@
     "career_limit_mSv": 600,
     "yellow_fraction": 0.8
   },
-  "baseline_note": "mean değerleri ranges.json vital_karar_parametreleri.baz_cizgi'den. sd yalnızca simülatör gürültüsü (varsayım; karar kuralı sd kullanmaz, sabit fark kullanır). hrv_rmssd ve kan basıncı ranges.json'da yok (varsayım).",
+  "baseline_note": "mean values come from ranges.json vital_karar_parametreleri.baz_cizgi. sd is simulator noise only (assumption; the decision rule does not use sd, it uses a fixed difference). hrv_rmssd and blood pressure are not in ranges.json (assumption).",
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
           "mean": 64,
-          "sd": 2.0
+          "sd": 0.5
         },
         "hrv_rmssd": {
           "mean": 48,
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -189,7 +189,7 @@
     "pp_o2": {
       "value": 158.8,
       "unit": "mmHg",
-      "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
+      "note": "equivalent of PIO2 149 mmHg (middle of normoxia 145–155): 149 × 760/713 mmHg"
     },
     "pp_co2": {
       "value": 2.0,
@@ -209,12 +209,12 @@
     },
     "radiation_dose_rate": {
       "value": 20,
-      "unit": "µGy/saat",
-      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+      "unit": "µGy/h",
+      "note": "MSL RAD transit ≈ 0.48 mGy/day (≈1.8 mSv/day)"
     }
   },
   "model": {
-    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "note": "ranges.json (PR #16 v1.1) values. Before the failure, life support is regulated (net 0): production covers consumption, removal covers production, cabin values stay constant; only the failing gas moves. Volume 75 m³. Times are aligned with the #14 atmosphere engine in the same model (regulated profile); tests/test_scenarios.py compares the cabin series with the engine.",
     "volume_m3": 75,
     "crew_count": 4,
     "total_pressure_mmHg": 760,
@@ -228,22 +228,22 @@
     "co2_min": 0.52,
     "co2_max": 1.5,
     "measurement_interval_min": 5,
-    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası."
+    "measurement_note": "Measurement interval is 5 mission minutes (demo: 0.5 real seconds, time multiplier 600); 3 consecutive measurements = 15 mission minutes."
   },
   "proposed_rules": {
     "crew_hr_rest_rise_caution": {
-      "condition": "aktivite = dinlenme VE nabız − baz ≥ 15",
+      "condition": "activity = resting AND pulse − baseline ≥ 15",
       "consecutive_required": 3,
-      "source": "ranges.json kalp_yuku (varsayım)",
+      "source": "ranges.json kalp_yuku (assumption)",
       "metric": "heart_rate",
       "skip_when": [
         "exercise"
       ]
     },
     "crew_hr_rest_rise_critical": {
-      "condition": "aktivite = dinlenme VE nabız − baz ≥ 30",
+      "condition": "activity = resting AND pulse − baseline ≥ 30",
       "consecutive_required": 3,
-      "source": "ranges.json kalp_yuku (varsayım)",
+      "source": "ranges.json kalp_yuku (assumption)",
       "metric": "heart_rate",
       "skip_when": [
         "exercise"
@@ -261,7 +261,7 @@
         "resp_rate": 24
       },
       "ramp_min": 5,
-      "note": "Ayşe egzersiz yapıyor; nabız ve solunum yükselmesi beklenen bir durum, alarm değil."
+      "note": "Neil is exercising; the rise in pulse and respiration is expected, not an alarm."
     },
     {
       "t_min": 90,
@@ -273,7 +273,7 @@
         "resp_rate": 14
       },
       "ramp_min": 10,
-      "note": "Egzersiz biter, değerler baza döner."
+      "note": "Exercise ends, values return to baseline."
     }
   ],
   "expected_alerts": [],
@@ -281,42 +281,42 @@
     {
       "crew_id": "crew-1",
       "metric": "heart_rate",
-      "why": "Egzersiz nabzı kalp yükü sayılmaz."
+      "why": "Exercise pulse does not count as cardiac load."
     },
     {
       "crew_id": "crew-1",
       "metric": "resp_rate",
-      "why": "Egzersiz solunumu alarm sayılmaz."
+      "why": "Exercise respiration does not count as an alarm."
     },
     {
       "crew_id": "crew-2",
       "metric": "heart_rate",
-      "why": "Uyarı yok."
+      "why": "No alert."
     },
     {
       "crew_id": "crew-3",
       "metric": "heart_rate",
-      "why": "Uyarı yok."
+      "why": "No alert."
     },
     {
       "crew_id": "crew-4",
       "metric": "heart_rate",
-      "why": "Uyarı yok."
+      "why": "No alert."
     },
     {
       "crew_id": null,
       "metric": "pp_co2",
-      "why": "Regüle, sabit."
+      "why": "Regulated, constant."
     },
     {
       "crew_id": null,
       "metric": "pp_o2",
-      "why": "Regüle, sabit."
+      "why": "Regulated, constant."
     },
     {
       "crew_id": null,
       "metric": "radiation_dose_rate",
-      "why": "Yalnızca taban GCR."
+      "why": "Baseline GCR only."
     }
   ],
   "expected_status_end": {
