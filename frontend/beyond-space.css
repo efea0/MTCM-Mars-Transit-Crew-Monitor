@@ -1,0 +1,6 @@
+/* "Beyond space" information dialog: reuses the NASA dialog look (native dialog, no animation). */
+.beyond-trigger { white-space: nowrap; }
+.beyond-dialog .beyond-story { max-width: 78ch; margin: 0 0 var(--space-3); line-height: 1.6; }
+.beyond-dialog .beyond-list { margin: 0; padding-left: var(--space-5); line-height: 1.7; max-width: 90ch; }
+.beyond-dialog .beyond-list a { color: var(--accent-ink); overflow-wrap: anywhere; }
+.beyond-dialog .beyond-table { min-width: 760px; }
