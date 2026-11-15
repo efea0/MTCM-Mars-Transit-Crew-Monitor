@@ -124,6 +124,20 @@ def test_main_returns_1_on_empty_response(tmp_path: Path, monkeypatch: pytest.Mo
     assert not out.exists()
 
 
+def test_main_returns_1_on_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = tmp_path / "sep_event.json"
+
+    def _raise_timeout(*_: Any, **__: Any) -> Any:
+        raise TimeoutError("timed out")
+
+    monkeypatch.setattr(fd.urllib.request, "urlopen", _raise_timeout)
+    assert fd.main(["--out", str(out)]) == 1
+    assert not out.exists()
+    assert "timed out" in capsys.readouterr().err
+
+
 # ---------------------------------------------------------------- saved real data
 
 

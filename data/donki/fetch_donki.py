@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
             hint = " (DEMO_KEY rate limit possible; wait or set NASA_API_KEY)"
         print(f"DONKI error: HTTP {err.code}{hint}", file=sys.stderr)
         return 1
-    except (urllib.error.URLError, ValueError) as err:
+    except (urllib.error.URLError, TimeoutError, ValueError) as err:
         print(f"Error: {err}", file=sys.stderr)
         return 1
 
