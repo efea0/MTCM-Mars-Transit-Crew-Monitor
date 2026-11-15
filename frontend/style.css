@@ -1,7 +1,7 @@
 @charset "UTF-8";
-/* Mission Control teması. Renk, boşluk, yarıçap ve yazı tipi değerleri css/tokens.css'ten gelir.
-   Tasarım referansı: NASA Open MCT'nin ilkeleri (değer, birim, zaman damgası, durum, eğilim; normal sakin,
-   anormal belirgin). Open MCT kaynak kodu ya da bağımlılığı kullanılmadı; NASA bu projeyi onaylamamıştır. */
+/* Mission-control interface. Color, spacing, radius and font values come from css/tokens.css.
+   Information hierarchy follows telemetry display principles: value, unit, timestamp, state and trend.
+   No Open MCT source or dependency is used; NASA does not endorse this project. */
 
 @font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-style: normal; font-display: swap; src: url("fonts/IBMPlexMono-Medium.woff2") format("woff2"); }
@@ -41,7 +41,7 @@ h2 { font-size: 17px; font-weight: 600; letter-spacing: .02em; }
 .skip-link { position: fixed; top: -80px; left: var(--space-5); z-index: 5; padding: var(--space-3); color: var(--on-accent); background: var(--accent); }
 .skip-link:focus { top: var(--space-2); }
 
-/* Üst çubuk */
+/* Top bar */
 .topbar {
   position: sticky; top: 0; z-index: 10; padding: var(--space-4) var(--space-6); min-height: 80px;
   border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;
@@ -74,19 +74,19 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .topbar .theme-toggle:hover { background: var(--accent); text-decoration: underline; }
 
 
-/* Yerleşim */
+/* Layout */
 .dashboard { padding: var(--space-3) var(--space-6) 0; max-width: 2000px; margin: auto; display: grid; gap: var(--space-3); }
 .section-heading, .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .section-heading { margin: 0 0 var(--space-3); }
 .section-heading h2 .muted { font-size: 12px; padding-left: var(--space-2); font-weight: 400; font-family: var(--font-mono); }
 .section-note { font-size: 12px; }
 .data-notice { background: var(--unknown-tint); color: var(--text); border: 1px solid var(--unknown-ink); border-left-width: 4px; border-radius: var(--radius); padding: var(--space-3) var(--space-4); font-size: 14px; }
-/* Karar önceliği: sol taraf kişi kartları, sağ sütun kabin + uyarı + Dünya bağlantısı. */
+/* Decision-first layout: crew on the left; cabin, alerts and Earth link on the right. */
 .main-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
 .side-column { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .crew-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); align-items: start; }
 
-/* Karar bandı: normal olmayan her karar tek satırda, en ağır uyarısı ve kanıt çipleriyle. */
+/* Decision band: every non-normal decision with its strongest alert and evidence notes. */
 .decisions-panel { padding: var(--space-3) var(--space-4); border-left: 3px solid var(--accent); }
 .decisions-heading { margin-bottom: var(--space-2); }
 .decisions-heading h2 { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
@@ -99,7 +99,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .decision-why { display: flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; padding: 0; margin: var(--space-2) 0 0; }
 .decision-note { font-size: 10px; line-height: 1.35; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 1px var(--space-2); }
 
-/* Kartlar: ince, düşük yoğunluklu parlama kenarlığı; ton durum rengini taşır */
+/* Cards use a subtle border glow; the border tone represents the current status. */
 .crew-card, .panel {
   border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); min-width: 0;
   box-shadow: 0 0 14px -8px color-mix(in srgb, var(--tone, var(--accent)) var(--glow-strength), transparent);
@@ -115,7 +115,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .badge { display: inline-block; border: 1px solid var(--tone, var(--unknown-ink)); background: var(--tone-tint, var(--unknown-tint)); color: var(--tone, var(--unknown-ink)); font-size: 12px; font-weight: 600; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); white-space: nowrap; }
 .badge[data-tone="caution"], .badge[data-tone="warning"], .badge[data-tone="critical"] { background: var(--tone-fill); border-color: var(--tone-fill); color: var(--on-status); }
 .badge[data-tone="critical"] { color: var(--on-critical); }
-/* Karar rozeti kartın en görünür öğesi; vitaller ikinci planda. */
+/* The decision badge is the most prominent card element; vital readings are secondary. */
 .decision { align-self: center; font-size: 13px; padding: var(--space-2) var(--space-3); letter-spacing: .02em; }
 .deviation { color: var(--muted); font-size: 11px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 1px var(--space-2); align-self: start; }
 .activity { color: var(--muted); font-size: 11px; grid-column: 1 / -1; }
@@ -123,7 +123,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .reading { min-width: 0; position: relative; }
 .reading-label { color: var(--muted); display: block; font-size: 12px; margin-bottom: var(--space-1); }
 .reading-output { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-1); color: var(--text); }
-/* Normal sakin kalır; yalnızca dikkat gerektiren durumlar değeri renklendirir. */
+/* Normal values remain quiet; attention states color the reading. */
 [data-tone="caution"] > .reading-output, [data-tone="warning"] > .reading-output, [data-tone="critical"] > .reading-output { color: var(--tone); }
 [data-tone="unknown"] > .reading-output { color: var(--muted); }
 .reading-value { font-size: 21px; line-height: 1.15; font-weight: 600; letter-spacing: -.02em; }
@@ -142,7 +142,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .secondary .reading-value.no-value { font-size: 12px; }
 .stale-data { opacity: var(--stale-opacity); }
 
-/* Trend grafiği: eksen değerleri, baz çizgisi ve boşluklar (eksik ölçüm) */
+/* Trend chart: axis labels, baseline and gaps for missing readings. */
 .trend-area { margin: var(--space-1) 0 0; position: relative; }
 .trend-label { color: var(--muted); font-size: 9px; letter-spacing: .1em; display: block; margin-bottom: 1px; }
 .trend { width: 100%; height: 40px; display: block; color: var(--accent-ink); border-bottom: 1px solid var(--border); }
@@ -217,7 +217,7 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 footer { max-width: 2000px; margin: auto; padding: var(--space-4) var(--space-6) var(--space-4); display: flex; gap: var(--space-4); justify-content: space-between; color: var(--muted); font-size: 11px; }
 footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-family: var(--font-mono); }
 
-/* Durum tonları: --tone okunabilir ton, --tone-fill ham Okabe-Ito rengi, --tone-tint rozet zemini */
+/* Status tokens: readable ink, solid fill and tinted badge background. */
 [data-tone="nominal"] { --tone: var(--ok-ink); --tone-fill: var(--ok); --tone-tint: var(--ok-tint); }
 [data-tone="caution"] { --tone: var(--caution-ink); --tone-fill: var(--caution); --tone-tint: var(--caution-tint); }
 [data-tone="warning"] { --tone: var(--warning-ink); --tone-fill: var(--warning); --tone-tint: var(--warning-tint); }
@@ -231,7 +231,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
-/* Geniş ekran: dort kisi karti tek satirda; yukseklik sinirli kaldigi icin 1080p'de de kaydirma yok. */
+/* Wide layout: four crew cards in one row to keep the overview within 1080p. */
 @media (min-width: 1600px) and (min-height: 941px) {
   .topbar { padding: var(--space-4) var(--space-7); }
   .dashboard { padding: var(--space-4) var(--space-7) 0; gap: var(--space-4); }
@@ -261,7 +261,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   .alert-meta, .alert-row summary::after { font-size: 11px; }
   footer { padding: var(--space-2) var(--space-7); font-size: 12px; }
 }
-/* Kisa ekran (1366x768 dahil): her sey tek ekranda, kaydirma yok. */
+/* Short-screen layout, including 1366x768: keep the overview within the viewport. */
 @media (max-height: 940px) and (min-width: 1100px) {
   .topbar { min-height: 56px; padding: var(--space-1) var(--space-5); }
   .brand { gap: var(--space-3); }
@@ -269,7 +269,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   h1 { font-size: 20px; }
   .dashboard { padding-top: var(--space-1); gap: var(--space-2); }
   .section-heading { margin-bottom: var(--space-2); }
-  /* Karar bandi: kanit cipleri kartta ve uyari akisinda kalir, bant tek satirlik kalir. */
+  /* Compact decision band; full evidence remains available on crew cards and in alerts. */
   .decisions-panel { padding: var(--space-1) var(--space-3); }
   .decisions-heading { margin-bottom: var(--space-1); }
   .decision-item { padding: var(--space-1) var(--space-2); }
@@ -277,7 +277,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   .decision-message { font-size: 12px; line-height: 1.35; margin-top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .decision-meta { margin-top: 0; }
   .decision-why { display: none; }
-  /* Kartlar: karar ve ana vitaller kalir, ikincil satirlar tek satira iner. */
+  /* Compact cards retain decisions and primary vitals; secondary readings use one row. */
   .crew-card { padding: var(--space-2); gap: 5px; }
   .crew-header { display: flex; align-items: center; gap: var(--space-2); padding-bottom: 0; }
   .crew-identity { flex: 1 1 auto; }
@@ -301,7 +301,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   .trend { height: 20px; }
   .crew-card .reading-time { display: none; }
   .why-button { padding: 1px var(--space-2); font-size: 10px; }
-  /* Sag sutun: kabin + uyari + Dunya ayni ekrana sigar, uzun listeler kendi icinde kayar. */
+  /* Cabin, alerts and Earth link share the side column; long lists scroll internally. */
   .side-column { gap: var(--space-2); }
   .side-column > .panel { padding-block: var(--space-1); }
   .panel { padding: var(--space-2) var(--space-3); }
@@ -498,4 +498,20 @@ html { scrollbar-gutter: stable; }
   .crew-card .reading { --reading-number-size: 19px; --reading-unit-size: 10px; }
   .crew-card .reading.secondary { --reading-number-size: 15px; --reading-unit-size: 9px; }
   .cabin-readings .reading { --reading-number-size: 15px; --reading-unit-size: 10px; }
+}
+
+
+/* Independent Habitat wordmark; no agency logo or insignia. */
+.habitat-mark { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; border: 1px solid var(--on-accent); border-radius: var(--radius-sm); color: var(--on-accent); font: 600 24px var(--font-mono); }
+/* Tactile button treatment inspired by 21st.dev Hero Button; native CSS, no runtime package. */
+.mission-meta .nasa-trigger, .nasa-dialog .nasa-button { transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.mission-meta .nasa-trigger:hover, .nasa-dialog .nasa-button:hover { box-shadow: inset 0 -2px 0 currentColor; }
+.mission-meta .nasa-trigger:active, .nasa-dialog .nasa-button:active { box-shadow: inset 0 2px 0 currentColor; }
+.nasa-dialog .nasa-nav .nasa-button { min-height: 40px; border-radius: var(--radius-sm); }
+/* React Bits Staggered Menu inspired section-entry cue, limited to dialog opening. */
+.nasa-dialog[open] .nasa-nav .nasa-button { animation: habitat-menu-reveal 160ms ease-out both; }
+.nasa-dialog[open] .nasa-nav .nasa-button:nth-child(2) { animation-delay: 35ms; }
+@keyframes habitat-menu-reveal { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .mission-meta .nasa-trigger, .nasa-dialog .nasa-button { transition: none; animation: none !important; transform: none; }
 }
