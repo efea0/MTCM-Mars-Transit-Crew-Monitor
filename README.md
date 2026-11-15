@@ -14,9 +14,13 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 | What | Link |
 |---|---|
 | Live demo | **[TODO: add after first deploy]** (Render free tier) |
-| Project demo (≤ 30 s video or ≤ 7 slides) | **[TODO]** |
+| Project demo (≤ 30 s video or ≤ 7 slides) | [Watch 30 s Demo Video on YouTube](https://youtu.be/JIceT53aJFk) |
 | Space Apps project page | **[TODO]** |
 | Source code | <https://github.com/efea0/space-apps-2026-health-monitoring> |
+
+### 30-Second Project Demo
+
+[![Mars Transit Crew Monitor — 30s Demo Video](https://img.youtube.com/vi/JIceT53aJFk/maxresdefault.jpg)](https://www.youtube.com/watch?v=JIceT53aJFk)
 
 > **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
 > without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
