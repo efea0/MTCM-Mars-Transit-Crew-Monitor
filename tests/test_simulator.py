@@ -59,7 +59,7 @@ def scenario() -> dict[str, Any]:
             "cabin_pressure": {"value": 760.0, "unit": "mmHg"},
             "cabin_temp": {"value": 22.0, "unit": "°C"},
             "rel_humidity": {"value": 45.0, "unit": "%"},
-            "radiation_dose_rate": {"value": 20.0, "unit": "µGy/saat"},
+            "radiation_dose_rate": {"value": 20.0, "unit": "µGy/h"},
         },
         "events": [],
     }
@@ -879,3 +879,20 @@ def test_real_scenario_smoke(name: str) -> None:
     expected_count = math.floor(spec["duration_min"] / spec["model"]["measurement_interval_min"]) + 1
     assert len(collect(sim)) == expected_count
     assert sim.finished
+
+
+def test_emitter_units_follow_english_contract() -> None:
+    from backend.main import Pipeline
+    from backend.models import METRIC_UNITS, Scenario
+    from backend.simulator import SimulationFinished
+
+    pipe = Pipeline(Scenario.nominal)
+    frame = None
+    try:
+        while True:
+            frame = pipe.step()
+    except SimulationFinished:
+        pass
+    assert frame is not None
+    assert frame.crew[0].vitals.resp_rate.unit == METRIC_UNITS["resp_rate"]
+    assert frame.cabin.radiation_dose_rate.unit == METRIC_UNITS["radiation_dose_rate"]
