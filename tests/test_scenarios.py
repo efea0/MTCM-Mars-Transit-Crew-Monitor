@@ -962,13 +962,7 @@ def engine_first_alerts(name: str) -> dict[tuple[Any, str, str, str], float]:
     "name",
     [
         "hypoxia",
-        pytest.param(
-            "hypercapnia",
-            marks=pytest.mark.xfail(
-                strict=False,
-                reason="Motor (Aydın): Ece'nin CO2 kararı kabin 1 saatlik limitten sonra kırmızı olacak.",
-            ),
-        ),
+        "hypercapnia",
         pytest.param(
             "solar_storm",
             marks=pytest.mark.xfail(
