@@ -751,6 +751,73 @@ def test_cardiac_load_alert_clears_immediately_on_exercise() -> None:
     assert not any(a.id == "crew-1:karar-kalp_yuku" for a in evaluated.alerts)
 
 
+HYPOXIA_ID = "crew-1:karar-olasi_hipoksi"
+LOW_PP_O2 = 143.9  # cabin PIO2 below the normoxia lower bound at 760 mmHg
+
+
+def _hypoxia_alert(evaluated: TelemetryFrame):
+    return next((a for a in evaluated.alerts if a.id == HYPOXIA_ID), None)
+
+
+def test_action_decision_is_held_before_release() -> None:
+    engine = r.RulesEngine()
+    tick = 0
+    for _ in range(engine.consecutive_required):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=91.0, pp_o2=LOW_PP_O2)
+    assert _hypoxia_alert(evaluated).severity == Severity.critical
+
+    hold = engine.consecutive_required * r.ACTION_HOLD_FACTOR
+    for _ in range(hold - 1):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=98.0, pp_o2=LOW_PP_O2)
+        alert = _hypoxia_alert(evaluated)
+        assert alert is not None and alert.severity == Severity.critical
+        assert next(c for c in evaluated.crew if c.id == "crew-1").decision == CrewDecision.action
+
+    tick += 1
+    evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=98.0, pp_o2=LOW_PP_O2)
+    assert _hypoxia_alert(evaluated) is None
+    assert next(c for c in evaluated.crew if c.id == "crew-1").decision == CrewDecision.normal
+
+
+def test_action_downgrades_to_watch_only_after_the_hold() -> None:
+    engine = r.RulesEngine()
+    tick = 0
+    for _ in range(engine.consecutive_required):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=91.0, pp_o2=LOW_PP_O2)
+    assert _hypoxia_alert(evaluated).severity == Severity.critical
+
+    hold = engine.consecutive_required * r.ACTION_HOLD_FACTOR
+    for _ in range(hold - 1):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=95.0, pp_o2=LOW_PP_O2)
+        assert _hypoxia_alert(evaluated).severity == Severity.critical
+
+    tick += 1
+    evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=95.0, pp_o2=LOW_PP_O2)
+    assert _hypoxia_alert(evaluated).severity == Severity.caution
+
+
+def test_watch_decision_survives_one_clean_reading_but_not_a_run() -> None:
+    engine = r.RulesEngine()
+    tick = 0
+    for _ in range(engine.consecutive_required):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=95.0, pp_o2=LOW_PP_O2)
+    assert _hypoxia_alert(evaluated).severity == Severity.caution
+
+    tick += 1
+    evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=98.0, pp_o2=LOW_PP_O2)
+    assert _hypoxia_alert(evaluated) is not None
+
+    for _ in range(engine.consecutive_required):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=98.0, pp_o2=LOW_PP_O2)
+    assert _hypoxia_alert(evaluated) is None
+
+
 def test_zero_magic_numbers_custom_ranges(tmp_path: Path) -> None:
     orig_path = r.DEFAULT_RANGES
     with open(orig_path, encoding="utf-8") as f:
