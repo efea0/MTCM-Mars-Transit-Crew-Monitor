@@ -181,11 +181,7 @@ export function mockNasaResponse(path) {
   };
   if (url.pathname === "/api/history") {
     const count = Math.max(1, Math.min(400, Number(url.searchParams.get("limit")) || 120));
-    const clock = Date.now();
-    const frames = Array.from({ length: count }, (_, tick) => makeFrame(tick, clock));
-    let start = frames.length - 1;
-    while (start > 0 && frames[start - 1].scenario === frames.at(-1).scenario) start -= 1;
-    return { scenario: frames.at(-1).scenario, frames: frames.slice(start) };
+    return mockHistory(count);
   }
   throw new Error("Unknown mock reference endpoint");
 }

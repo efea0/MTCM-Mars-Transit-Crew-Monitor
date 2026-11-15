@@ -57,6 +57,15 @@ const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }
 const readingFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const params = new URLSearchParams(window.location.search);
 const mockMode = params.get("mock") === "1";
+let urlDemoKey = params.get("key") || "";
+if (urlDemoKey) {
+  params.delete("key");
+  const newSearch = params.toString();
+  const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "") + window.location.hash;
+  if (window.history?.replaceState) {
+    window.history.replaceState(null, "", newUrl);
+  }
+}
 createBeyondSpace({ trigger: document.getElementById("beyond-trigger") });
 const nasaData = createNasaData({ trigger: document.getElementById("nasa-trigger"), banner: document.getElementById("nasa-storm-banner"), mock: mockMode });
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -396,7 +405,8 @@ function collectThresholdMarks(alerts) {
   }
 }
 function updateCabinTrends(stale) {
-  if (document.getElementById("cabin-trends").hidden) return;
+  const trendsEl = document.getElementById("cabin-trends");
+  if (!trendsEl || trendsEl.hidden) return;
   for (const [metric, view] of cabinTrendViews) {
     const marks = [...(thresholdMarks.get(metric) ?? [])].sort((a, b) => a - b);
     drawTrend(view.svg, histories.get(`cabin:${metric}`) ?? [], stale, { name: LABELS.metric[metric], marks });
@@ -521,8 +531,8 @@ function updateEarthRow(view, message, now) {
   view.meta.textContent = `Sent ${formatClock(message.sent_at)} · Arrives ${formatClock(message.deliver_at)}`;
 }
 function updateEarth(stale) {
-  if (document.getElementById("earth-messages").closest("section").hidden) return;
   const list = document.getElementById("earth-messages");
+  if (!list || list.closest("section")?.hidden) return;
   const notice = document.getElementById("earth-notice");
   const delay = frame?.comms_one_way_delay_s;
   document.getElementById("earth-delay").textContent = stale || !numeric(delay)
@@ -653,7 +663,7 @@ function acceptFrame(incoming) {
   render();
 }
 function currentDemoKey() {
-  return document.getElementById("demo-key").value || params.get("key");
+  return document.getElementById("demo-key")?.value || urlDemoKey;
 }
 // True when the server guards demo controls with a key this viewer has not supplied.
 let controlLocked = false;
@@ -724,6 +734,10 @@ function configureScenarioSelect() {
 function configureDemo() {
   if (params.get("demo") !== "1") return;
   document.getElementById("demo-panel").hidden = false;
+  const demoKeyInput = document.getElementById("demo-key");
+  if (demoKeyInput && urlDemoKey && !demoKeyInput.value) {
+    demoKeyInput.value = urlDemoKey;
+  }
   const speedButtons = document.getElementById("speed-buttons");
   for (const scale of SPEED_PRESETS) {
     const button = el("button", "scenario-button speed-button", `×${scale}`);
@@ -802,8 +816,8 @@ async function start() {
   if (mockMode) {
     document.getElementById("source-label").textContent = "LOCAL MOCK · Decisions are fixed demo examples";
     try {
-      const { startMock, mockHistory } = await import("./mock.js");
-      await loadRecentHistory(() => mockHistory(120));
+      const { startMock, mockNasaResponse } = await import("./mock.js");
+      await loadRecentHistory(() => mockNasaResponse("/api/history?limit=120"));
       stopMock = startMock(acceptFrame);
     } catch { transportState = "closed"; invalidPacket = true; render(); }
   } else {
