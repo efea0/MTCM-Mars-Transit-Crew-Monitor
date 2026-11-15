@@ -21,7 +21,6 @@ function svgNode(tag, attributes, text = "") {
   return node;
 }
 const clock = time => new Date(time).toISOString().slice(11, 19);
-const displayUnit = unit => ({ "nefes/dk": "breaths/min", "µGy/saat": "µGy/h" })[unit] ?? unit ?? "";
 
 export function drawDetailChart(svg, series, events, format) {
   svg.replaceChildren();
@@ -136,7 +135,7 @@ export function createCrewDetail({ session, labels, format, evidenceList, decisi
       const reading = member?.vitals[metric];
       const valid = !unavailable && usable(reading);
       view.card.dataset.tone = valid ? reading.status : "unknown";
-      view.value.textContent = valid ? `${format(reading.value)} ${displayUnit(reading.unit)}` : "no data";
+      view.value.textContent = valid ? `${format(reading.value)} ${reading.unit ?? ""}` : "no data";
       view.status.textContent = valid ? labels.status[reading.status] ?? labels.status.unknown
         : `Unknown · ${unavailable ? "current data unavailable" : labels.quality[reading?.quality] ?? "missing"}`;
       drawDetailChart(view.svg, metricSeries(frames, crewId, metric), events, format);
