@@ -83,9 +83,8 @@ class Metric(str, Enum):
     cabin_temp = "cabin_temp"  # °C
     rel_humidity = "rel_humidity"  # %
     radiation_dose_rate = "radiation_dose_rate"  # µGy/h
-    pio2 = "pio2"  # mmHg, solunan O₂ kısmi basıncı (kabin pp_o2'den türetilir)
-    # kişi bazlı radyasyon (simüle)
-    event_dose = "event_dose"  # mSv, aktif güneş parçacık olayında alınan doz
+    pio2 = "pio2"  # mmHg, inspired O₂ partial pressure (derived from cabin pp_o2)
+    event_dose = "event_dose"  # mSv, dose received during an active solar particle event
 
 
 METRIC_UNITS: dict[Metric, str] = {
