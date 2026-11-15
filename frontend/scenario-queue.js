@@ -91,8 +91,8 @@ export function createFinishCard({ root, order, labels, start, restart = null, c
       next = nextScenario(order, scenario);
       root.hidden = false;
       title.textContent = "Simulation finished";
-      replay.textContent = `Replay ${label(scenario)}`;
-      skip.textContent = `Skip to ${label(next)}`;
+      replay.textContent = `Restart ${label(scenario)}`;
+      skip.textContent = `Next scenario: ${label(next)}`;
       spinner.hidden = false;
       setBusy(false);
       pausedAt = null;
