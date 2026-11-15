@@ -34,10 +34,10 @@
   </header>
   <main class="dashboard">
     <div id="data-notice" class="data-notice" role="status">NO DATA · Waiting for telemetry packets.</div>
-    <div id="finish-card" class="finish-card" role="status" aria-live="polite" data-state="counting" hidden>
+    <div id="finish-card" class="finish-card" data-state="counting" hidden>
       <span class="finish-spinner" aria-hidden="true"></span>
       <div class="finish-text">
-        <strong class="finish-title">Simulation finished</strong>
+        <strong class="finish-title" role="status">Simulation finished</strong>
         <span class="finish-detail">Showing the final packet.</span>
       </div>
       <div class="finish-actions">

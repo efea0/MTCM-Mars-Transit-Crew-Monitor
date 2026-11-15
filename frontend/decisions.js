@@ -72,7 +72,8 @@ export function createDecisionBand({ list, note, helpers }) {
 
   function createView() {
     const root = document.createElement("article");
-    root.className = "decision-item";
+    root.className = "decision-item is-new";
+    root.addEventListener("animationend", () => root.classList.remove("is-new"), { once: true });
     const head = document.createElement("div");
     head.className = "decision-item-head";
     const owner = document.createElement("strong");
@@ -160,7 +161,7 @@ export function createDecisionBand({ list, note, helpers }) {
       note.textContent = "No decisions require attention";
       const crew = (frame?.crew ?? []).filter(Boolean);
       showEmpty("All crew nominal", "nominal",
-        `${crew.length} of ${crew.length} crew within personal baseline · no active alerts.`,
+        `${crew.length} crew · every decision Normal · 0 active alerts.`,
         `Last packet ${helpers.formatClock(frame?.ts)}`);
       return;
     }

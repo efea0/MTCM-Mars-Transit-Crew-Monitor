@@ -24,6 +24,8 @@ export function createFinishCard({ root, order, labels, start, seconds = NEXT_SC
   let deadline = 0;
   let pausedAt = null;
   let busy = false;
+  let generation = 0;
+  let lastLeft = null;
 
   const label = scenario => labels[scenario] ?? scenario;
   const remaining = () => Math.max(0, Math.ceil(((pausedAt ?? performance.now()) - deadline) / -1000));
@@ -36,6 +38,8 @@ export function createFinishCard({ root, order, labels, start, seconds = NEXT_SC
   }
   function renderCountdown() {
     const left = remaining();
+    if (left === lastLeft) return;
+    lastLeft = left;
     detail.textContent = `Next scenario: ${label(next)} · starts in ${left} s`;
     root.style.setProperty("--finish-progress", String(1 - left / seconds));
   }
@@ -43,16 +47,25 @@ export function createFinishCard({ root, order, labels, start, seconds = NEXT_SC
     window.clearInterval(timer);
     timer = null;
   }
-  async function go(scenario) {
+  async function go(scenario, automatic = false) {
     if (busy) return;
     stopTimer();
     setBusy(true);
+    const mine = generation;
     title.textContent = `Starting ${label(scenario)}…`;
     detail.textContent = "Waiting for the first telemetry packet.";
     const result = await start(scenario);
-    if (result.ok) return;
+    // The card was hidden or restarted while the request was in flight: this answer is stale.
+    if (result.ok || mine !== generation) return;
     // Failure: stay on the card, keep the buttons usable, and do not retry automatically.
     setBusy(false);
+    if (automatic && result.status === 401) {
+      // Key-protected server: the viewer never asked for this, so explain instead of showing an error.
+      root.dataset.state = "passive";
+      title.textContent = "Simulation finished";
+      detail.textContent = "The server returns to the starting scenario shortly. Add the demo key (?demo=1) to choose one.";
+      return;
+    }
     root.dataset.state = "error";
     title.textContent = "Could not start the scenario";
     detail.textContent = result.message;
@@ -60,7 +73,7 @@ export function createFinishCard({ root, order, labels, start, seconds = NEXT_SC
   function tick() {
     if (document.hidden) { pausedAt ??= performance.now(); return; }
     if (pausedAt !== null) { deadline += performance.now() - pausedAt; pausedAt = null; }
-    if (remaining() <= 0) { go(next); return; }
+    if (remaining() <= 0) { go(next, true); return; }
     renderCountdown();
   }
 
@@ -72,6 +85,8 @@ export function createFinishCard({ root, order, labels, start, seconds = NEXT_SC
     /** Idempotent: calling it every clock tick keeps the same countdown running. */
     show(scenario) {
       if (!root.hidden && current === scenario) return;
+      generation += 1;
+      lastLeft = null;
       current = scenario;
       next = nextScenario(order, scenario);
       root.hidden = false;
@@ -89,6 +104,7 @@ export function createFinishCard({ root, order, labels, start, seconds = NEXT_SC
     },
     hide() {
       if (root.hidden) return;
+      generation += 1;
       stopTimer();
       root.hidden = true;
       current = null;

@@ -8,8 +8,15 @@ async function check(name, test) {
 }
 const order = ["a", "b", "c"];
 const labels = { a: "Alpha", b: "Beta", c: "Gamma" };
-const root = document.getElementById("finish-card");
-function make(start, seconds = 1) { return createFinishCard({ root, order, labels, start, seconds }); }
+let root = document.getElementById("finish-card");
+// Each card gets fresh DOM so listeners from earlier checks cannot fire.
+function make(start, seconds = 1) {
+  const fresh = root.cloneNode(true);
+  root.replaceWith(fresh);
+  root = fresh;
+  root.hidden = true;
+  return createFinishCard({ root, order, labels, start, seconds });
+}
 await check("Next scenario wraps around the fixed order", () => {
   assert(nextScenario(order, "a") === "b" && nextScenario(order, "c") === "a", "Wrong order");
 });
@@ -40,6 +47,22 @@ await check("A failed start stays on the card and does not retry", async () => {
   card.show("a"); await wait(1700);
   assert(calls === 1 && root.dataset.state === "error" && root.querySelector(".finish-detail").textContent.includes("Demo key"), "Error handling");
   assert(!root.querySelector(".finish-skip").disabled, "Buttons stay usable");
+  card.hide();
+});
+await check("An automatic 401 shows a passive note, a clicked 401 shows the error", async () => {
+  const card = make(async () => ({ ok: false, status: 401, message: "Demo key is required" }), 1);
+  card.show("a"); await wait(1700);
+  assert(root.dataset.state === "passive" && !root.querySelector(".finish-detail").textContent.includes("Demo key is required"), "Passive state");
+  root.querySelector(".finish-skip").click(); await wait(20);
+  assert(root.dataset.state === "error" && root.querySelector(".finish-detail").textContent.includes("Demo key"), "Clicked 401 error");
+  card.hide();
+});
+await check("A late answer after hide() is ignored", async () => {
+  let release;
+  const card = make(() => new Promise(resolve => { release = resolve; }), 30);
+  card.show("a"); root.querySelector(".finish-skip").click(); card.hide(); card.show("a");
+  release({ ok: false, message: "late" }); await wait(20);
+  assert(root.dataset.state === "counting" && !root.querySelector(".finish-detail").textContent.includes("late"), "Stale answer leaked");
   card.hide();
 });
 const failed = results.filter(item => !item.ok);

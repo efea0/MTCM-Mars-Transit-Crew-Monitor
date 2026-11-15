@@ -662,7 +662,7 @@ async function requestScenario(scenario) {
       method: "POST", headers,
       signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
     });
-    if (response.status === 401) return { ok: false, message: "Demo key is required or incorrect (401). Open the page with ?demo=1 and enter the key." };
+    if (response.status === 401) return { ok: false, status: 401, message: "Demo key is required or incorrect (401). Open the page with ?demo=1 and enter the key." };
     if (!response.ok) {
       const reason = response.status === 404 ? "Scenario endpoint or scenario not found"
         : response.status === 405 ? "Scenario endpoint does not allow POST"
