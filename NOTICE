@@ -1,0 +1,17 @@
+Mars Transit Crew Monitor
+Copyright 2026 the project contributors.
+
+Original project contributions are licensed under the Apache License,
+Version 2.0. See LICENSE for the full license text.
+
+Third-party materials retain their respective licenses and terms:
+
+- IBM Plex Sans and IBM Plex Mono fonts:
+  Copyright 2017 IBM Corp., with Reserved Font Name "Plex".
+  Licensed under the SIL Open Font License, Version 1.1.
+  See frontend/fonts/OFL-IBM-Plex.txt and frontend/fonts/KAYNAK.md.
+
+- External dependencies and NASA data and reference materials remain
+  subject to their own applicable licenses and terms. The project's
+  Apache 2.0 license does not replace those terms. Data sources are
+  identified in README.md and the corresponding data files.

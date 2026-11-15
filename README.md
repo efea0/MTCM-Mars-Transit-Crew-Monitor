@@ -14,8 +14,13 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 | What | Link |
 |---|---|
 | Live demo | **[TODO: add after first deploy]** (Render free tier) |
-| Project demo (≤ 30 s video or ≤ 7 slides) | **[TODO]** |
+| Project demo (≤ 30 s video or ≤ 7 slides) | [Watch 30 s Demo Video on YouTube](https://youtu.be/JIceT53aJFk) |
 | Space Apps project page | **[TODO]** |
+| Source code | <https://github.com/efea0/space-apps-2026-health-monitoring> |
+
+### 30-Second Project Demo
+
+[![Mars Transit Crew Monitor — 30s Demo Video](https://img.youtube.com/vi/JIceT53aJFk/maxresdefault.jpg)](https://www.youtube.com/watch?v=JIceT53aJFk)
 
 > **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
 > without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
@@ -30,12 +35,15 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 - **Body + cabin in one model.** O₂ use is estimated from each person's heart rate, and that feeds the cabin O₂/CO₂ mass balance.
   Example: *"Katherine: stop exercising, SpO₂ is dropping and cabin PIO₂ is below normoxia."*
 - **Two countdowns.** Hours until O₂ reaches its lower limit and until CO₂ reaches its upper limit.
-- **"Why?" for every alert.** The evidence (values, baseline, threshold) and the source of the threshold.
+- **"Why?" for every alert.** The evidence behind the decision: the measured value, the threshold and a short note
+  (for example how far a vital sign is from that person's baseline, and for how many readings). The source of every
+  threshold is listed in `ranges.json` and under "NASA data and sources" below.
 - **Exercise does not cause false alarms.** A higher heart rate during exercise is expected and is not flagged as cardiac load.
 - **Missing data is never "normal".** A missing sensor shows **NO DATA**.
 - **Radiation warning before the dose.** During a solar particle event the system projects the end-of-event dose and
   sends the crew to the storm shelter *before* it is received.
-- **Delayed Earth link.** Reports go to Earth through a 3–22 min one-way delay queue (shortened in the demo, and labeled).
+- **Delayed Earth link.** Reports go to Earth with a one-way light delay of 3–22 min in mission time. On the ×600 demo
+  clock that is about 0.3–2.2 s.
   The Earth link panel shows each message and the light delay.
 
 **Planned, not built yet:**
@@ -50,7 +58,10 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 This is the live presentation flow, about 3 minutes. The Space Apps "Project Demo" link is a separate video of 30 seconds or less, or a deck of 7 slides or fewer.
 The step-by-step script with timings is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
-Scenarios are started from a hidden demo panel. Randomness uses a fixed seed, and the demo needs neither the internet nor voice. The simulation clock runs at ×600, and the screen says so. A measurement is taken every 5 mission minutes, which is 0.5 s in the demo.
+Scenarios are started from the demo panel. It is hidden until the page is opened with `?demo=1` (for example
+<http://127.0.0.1:8000/?demo=1>), and on the live demo it asks for the demo key. Randomness uses a fixed seed, and the
+demo needs neither the internet nor voice. The simulation clock runs at ×600; the screen shows the mission elapsed
+time, not the speed. A measurement is taken every 5 mission minutes, which is 0.5 s in the demo.
 
 The five scenarios run in this order: **nominal → hypoxia → hypercapnia → solar_storm → sensor_dropout**.
 
@@ -83,10 +94,11 @@ backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  ba
 - **Frontend:** plain HTML, CSS and JavaScript with no build step. Trend charts are drawn as inline SVG and the fonts are stored locally,
   so the demo does not need the internet.
 - **API:** `/api/stream` (SSE telemetry), `/api/state`, `/api/history`, `/api/limits`, `/api/sep-event`, `/api/scenarios`
-  and `/api/health`. Demo controls (`/api/scenario/{name}`, `/api/control`, `/api/speed`) need the `X-Demo-Key` header.
+  and `/api/health`. Demo controls (`/api/scenario/{name}`, `/api/control`, `/api/speed`) need the `X-Demo-Key` header
+  when `DEMO_CONTROL_KEY` is set on the server.
 - **Data contract:** Pydantic models in `backend/models.py`, exported to `docs/contract.json`.
-- **Texts on screen:** `data/reference/messages.json`. Thresholds in the texts are placeholders filled from `ranges.json`,
-  so the screen and the rules always use the same numbers.
+- **Alert texts:** the texts on screen are written in `backend/rules.py`, and the thresholds in them come from `ranges.json`.
+  `data/reference/messages.json` holds the reviewed text drafts with their sources; the code does not read it yet.
 
 ### Status (2026-11-15)
 
@@ -94,7 +106,8 @@ backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  ba
 |---|---|
 | Data contract (`models.py`, `contract.json`) | done, tested |
 | O₂/CO₂ mass balance and countdowns (`atmosphere.py`) | done, tested |
-| Reference limits and alert texts (`ranges.json`, `messages.json`) | done |
+| Reference limits (`ranges.json`) | done, read by the engine |
+| Alert text drafts (`messages.json`) | done; not read by the code yet (texts are in `rules.py`) |
 | DONKI event record (`data/donki/`) | done |
 | Simulator, rules engine, API (SSE), Habitat panel | done, tested |
 | Earth link delay queue (`backend/comms.py`) and Earth link panel | done, tested |
@@ -108,7 +121,8 @@ python -m pytest -q
 uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Then open <http://127.0.0.1:8000>.
+Then open <http://127.0.0.1:8000>. Add `?demo=1` to show the demo panel. Locally no demo key is needed unless you set
+`DEMO_CONTROL_KEY` before starting the server.
 
 Refresh the DONKI record (optional, needs the internet; uses `DEMO_KEY` unless `NASA_API_KEY` is set; the key is never saved):
 
@@ -192,11 +206,19 @@ Where it is marked:
 - `Co-Authored-By: Claude` lines in commits.
 
 The Space Apps **demo video is AI-assisted**: its motion graphics are written as code with HyperFrames and scripted with Claude Code,
-and the video carries a visible SI watermark. It uses no NASA logos, flags or mission identifiers. The screen recording in it is the real app.
-No other AI-generated images are used. AI-generated audio: **[TODO: confirm before submission]**.
+and the video carries a visible SI watermark. It uses no NASA logos, flags or mission identifiers. The crew panels in it are motion graphics drawn after the app's
+screens and scenarios (labeled "SIMULATED DATA"); it is not a screen recording.
+No other AI-generated images are used. The video has no audio, so no AI-generated audio is used.
 
 ## Team
 
 **Los Galacticos** · Aydın (backend & frontend), Barış (validation & Earth link), Efe (reference data & delivery)
 
-Team working rules and branch model: [AGENTS.md](AGENTS.md). Some internal planning documents in `docs/` and `reports/` are in Turkish.
+Team working rules and branch model: [AGENTS.md](AGENTS.md).
+`reports/` holds two day-0 research notes written before any code existed; the app as built is described in this README.
+
+## License
+
+Original project contributions: [Apache License 2.0](LICENSE); see also [NOTICE](NOTICE).
+Bundled fonts (IBM Plex Sans, IBM Plex Mono): SIL Open Font License 1.1, see `frontend/fonts/`.
+NASA DONKI data and NASA-STD-3001 values are public NASA information; this project is not endorsed by NASA.

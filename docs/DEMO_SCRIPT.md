@@ -37,7 +37,18 @@ The DONKI event name is not shown on the panel yet (see "Open points"), so the 2
 
 ## Part 2: live presentation (~3 min)
 
-Start each scenario from the demo panel. You need the demo key, which is set on Render and is not stored in the repo.
+Start each scenario from the demo panel. Open the live link with `?demo=1` at the end to show the panel, and type the demo key
+into its **Demo key** field. The key is set on Render and is not stored in the repo.
+
+The panel buttons use these labels:
+
+| Scenario | Button |
+|---|---|
+| `nominal` | Nominal cruise |
+| `hypoxia` | O₂ failure |
+| `hypercapnia` | CO₂ rise |
+| `solar_storm` | Solar storm |
+| `sensor_dropout` | Sensor dropout |
 Before the demo, open the live link once, because the Render service takes about 1 minute to wake.
 
 ### 1. nominal (about 20 s; the scenario lasts 18 s)

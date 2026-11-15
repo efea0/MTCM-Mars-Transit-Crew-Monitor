@@ -30,12 +30,20 @@ CABIN_RULE_LABELS: Final[dict[str, str]] = {
 }
 CABIN_METRIC_UNITS: Final[dict[str, str]] = {"pio2": "mmHg", "pp_co2": "mmHg"}
 
-# (ranges.json key, id prefix, label, unit, sign applied to the threshold, comparator)
-VITAL_SPECS: Final[tuple[tuple[str, str, str, str, int, str], ...]] = (
-    ("spo2_dusus", "spo2-drop", "SpO2 drop from personal baseline", "% points", -1, "<="),
-    ("nabiz_artis_dinlenme", "hr-rise", "Resting heart rate rise from baseline", "bpm", 1, ">="),
-    ("solunum_artis", "rr-rise", "Respiratory rate rise from baseline", "breaths/min", 1, ">="),
-    ("isi_artis", "temp-rise", "Body temperature rise from baseline", "°C", 1, ">="),
+# (ranges.json key, id prefix, label, telemetry metric, unit, threshold sign, comparator)
+VITAL_SPECS: Final[tuple[tuple[str, str, str, str, str, int, str], ...]] = (
+    ("spo2_dusus", "spo2-drop", "SpO2 drop from personal baseline", "spo2", "% points", -1, "<="),
+    (
+        "nabiz_artis_dinlenme",
+        "hr-rise",
+        "Resting heart rate rise from baseline",
+        "heart_rate",
+        "bpm",
+        1,
+        ">=",
+    ),
+    ("solunum_artis", "rr-rise", "Respiratory rate rise from baseline", "resp_rate", "breaths/min", 1, ">="),
+    ("isi_artis", "temp-rise", "Body temperature rise from baseline", "core_temp", "°C", 1, ">="),
 )
 # (ranges.json key, severity, label suffix)
 VITAL_LEVELS: Final[tuple[tuple[str, str, str], ...]] = (
@@ -43,9 +51,9 @@ VITAL_LEVELS: Final[tuple[tuple[str, str, str], ...]] = (
     ("eylem", "critical", "action"),
 )
 RADIATION_UNIT: Final[str] = "mSv"
-RADIATION_LIMITS: Final[tuple[tuple[str, str, str], ...]] = (
-    ("spe_tasarim_esigi", "radiation-spe", "Solar particle event dose"),
-    ("kariyer_limiti", "radiation-career", "Career effective dose"),
+RADIATION_LIMITS: Final[tuple[tuple[str, str, str, str], ...]] = (
+    ("spe_tasarim_esigi", "radiation-spe", "Solar particle event dose", "event_dose_msv"),
+    ("kariyer_limiti", "radiation-career", "Career effective dose", "cumulative_dose_msv"),
 )
 THRESHOLD_DIGITS: Final[int] = 6
 
@@ -131,7 +139,7 @@ def _vital_items(data: dict[str, Any]) -> list[dict[str, Any]]:
     except (KeyError, TypeError, ValueError):
         consecutive = None
     items: list[dict[str, Any]] = []
-    for key, prefix, label, unit, sign, comparator in VITAL_SPECS:
+    for key, prefix, label, metric, unit, sign, comparator in VITAL_SPECS:
         params = vitals.get(key)
         if not isinstance(params, dict):
             continue
@@ -145,7 +153,7 @@ def _vital_items(data: dict[str, Any]) -> list[dict[str, Any]]:
                     f"{prefix}-{level_name}",
                     "vitals",
                     f"{label} ({level_name})",
-                    metric=None,
+                    metric=metric,
                     severity=severity,
                     comparator=comparator,
                     threshold=threshold,
@@ -163,7 +171,7 @@ def _radiation_items(data: dict[str, Any]) -> list[dict[str, Any]]:
     yellow = data.get("vital_karar_parametreleri", {}).get("sari_kademe_genel", {})
     ratio = yellow.get("oran")
     items: list[dict[str, Any]] = []
-    for key, prefix, label in RADIATION_LIMITS:
+    for key, prefix, label, metric in RADIATION_LIMITS:
         entry = radiation.get(key)
         if not isinstance(entry, dict) or "deger" not in entry:
             continue
@@ -173,7 +181,7 @@ def _radiation_items(data: dict[str, Any]) -> list[dict[str, Any]]:
                 f"{prefix}-limit",
                 "radiation",
                 f"{label} limit",
-                metric=None,
+                metric=metric,
                 severity="critical",
                 comparator=">=",
                 threshold=limit,
@@ -189,7 +197,7 @@ def _radiation_items(data: dict[str, Any]) -> list[dict[str, Any]]:
                     f"{prefix}-watch",
                     "radiation",
                     f"{label} watch level",
-                    metric=None,
+                    metric=metric,
                     severity="caution",
                     comparator=">=",
                     threshold=round(ratio * limit, THRESHOLD_DIGITS),
