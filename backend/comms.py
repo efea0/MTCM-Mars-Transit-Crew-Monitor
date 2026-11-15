@@ -42,6 +42,12 @@ AlertKey = tuple[str, ...]
 _SECONDS_PER_UNIT = {"saniye": 1.0, "dakika": 60.0}
 
 
+def _check_delay_bounds_s(low: float, high: float) -> None:
+    """K1: tek yön gecikme sınırları pozitif ve sıralı olmalı (0 < min <= max)."""
+    if not 0 < low <= high:
+        raise ValueError(f"tek yön gecikme aralığı geçersiz: {low}-{high} s (0 < min <= max olmalı)")
+
+
 def load_delay_bounds_s(path: Path | str = RANGES_PATH) -> tuple[float, float]:
     """Tek yön gecikme sınırlarını (min, max; saniye) ranges.json iletisim.mars_tek_yon_gecikme'den okur."""
     try:
@@ -50,8 +56,10 @@ def load_delay_bounds_s(path: Path | str = RANGES_PATH) -> tuple[float, float]:
         low, high = float(record["min"]) * scale, float(record["max"]) * scale
     except (OSError, KeyError, TypeError, ValueError) as error:
         raise ValueError(f"{path}: iletisim.mars_tek_yon_gecikme okunamadı ({error!r})") from error
-    if not 0 < low <= high:
-        raise ValueError(f"{path}: iletisim.mars_tek_yon_gecikme aralığı geçersiz: {low}-{high}")
+    try:
+        _check_delay_bounds_s(low, high)
+    except ValueError as error:
+        raise ValueError(f"{path}: iletisim.mars_tek_yon_gecikme {error}") from error
     return low, high
 
 
@@ -135,6 +143,7 @@ class DelayedLink:
         if ground_processing_s < 0:
             raise ValueError("ground_processing_s negatif olamaz")
         self.min_delay_s, self.max_delay_s = delay_bounds_s or load_delay_bounds_s()
+        _check_delay_bounds_s(self.min_delay_s, self.max_delay_s)
         self.set_delay(one_way_delay_s)
         self.ground_processing_s = ground_processing_s
         self.replies = dict(replies or {})
