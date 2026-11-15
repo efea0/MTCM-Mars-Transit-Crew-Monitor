@@ -44,7 +44,7 @@ const LABELS = {
   decision: { normal: "✓ Normal", watch: "◉ Watch", action: "! Action", unknown: "? Unknown" },
   activity: { resting: "Resting", exercise: "Exercise", sleep: "Sleeping", unknown: "Unknown" },
   quality: { ok: "Valid", stale: "stale", missing: "missing", sensor_fault: "sensor fault" },
-  scenario: { nominal: "Nominal cruise", hypoxia: "O₂ failure", hypercapnia: "CO₂ rise", solar_storm: "Solar storm", sensor_dropout: "Sensor dropout" },
+  scenario: { nominal: "Nominal cruise", hypoxia: "O₂ failure", hypercapnia: "CO₂ rise", sleep_deprivation: "Sleep deficit", solar_storm: "Solar storm", sensor_dropout: "Sensor dropout" },
   sender: { crew: "Crew", mission_control: "Mission Control", system: "System" },
 };
 const PRIMARY_METRICS = ["heart_rate", "spo2", "resp_rate", "core_temp"];
@@ -354,7 +354,9 @@ function updateCrew(stale) {
 
     view.role.textContent = member?.role ?? "Waiting for role";
     view.decision.textContent = stale ? "? NO DATA" : LABELS.decision[decision] ?? LABELS.decision.unknown;
-    view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}`;
+    const lastSleep = stale ? null : member?.sleep?.hours;
+    const sleepText = numeric(lastSleep?.value) && lastSleep.quality === "ok" ? ` · Last sleep ${number(lastSleep.value)} h` : "";
+    view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}${sleepText}`;
     const deviating = !stale && decision === "normal"
       && Object.values(member?.vitals ?? {}).some(reading => reading?.status && reading.status !== "nominal");
     view.deviation.hidden = !deviating;
