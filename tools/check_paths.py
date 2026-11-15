@@ -134,10 +134,38 @@ def changed_files(base_ref: str, head_ref: str = "HEAD") -> list[str]:
     return [p for p in res.stdout.split("\0") if p]
 
 
-def staged_files() -> list[str]:
-    """Commit'e hazırlanmış (git add) dosyalar."""
+def _merge_head() -> str | None:
+    """Süren bir birleştirme (git merge) varsa MERGE_HEAD, yoksa None."""
     res = subprocess.run(
-        ["git", "-c", "core.quotePath=false", "diff", "--cached", "--name-only", "--no-renames", "-z"],
+        ["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        env=clean_git_env(),
+    )
+    return res.stdout.strip() or None if res.returncode == 0 else None
+
+
+def staged_files() -> list[str]:
+    """Commit'e hazırlanmış (git add) dosyalar.
+
+    Birleştirme commit'inde HEAD'e göre fark, birleştirilen taraftan (örn. develop) gelen herkesin
+    dosyalarını da kapsar. Bu yüzden MERGE_HEAD'e göre bakılır: yalnızca bu branch'in kendi farkı sayılır.
+    """
+    against = _merge_head()
+    res = subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.quotePath=false",
+            "diff",
+            "--cached",
+            "--name-only",
+            "--no-renames",
+            "-z",
+            *([against] if against else []),
+        ],
         capture_output=True,
         text=True,
         encoding="utf-8",

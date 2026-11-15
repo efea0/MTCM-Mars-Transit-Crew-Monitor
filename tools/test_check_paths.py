@@ -144,6 +144,34 @@ def test_renames_and_unicode_paths(tmp_path, monkeypatch):
     assert "reports/görev planı.md" in files
 
 
+def test_staged_files_in_merge_ignore_merged_in_side(tmp_path, monkeypatch):
+    def git(*args):
+        _git(tmp_path, *args)
+
+    git("init", "-q", "-b", "develop")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "t")
+    (tmp_path / "backend").mkdir()
+    (tmp_path / "backend" / "a.py").write_text("a", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-qm", "base")
+    git("switch", "-qc", "feat/backend/x")
+    (tmp_path / "backend" / "mine.py").write_text("m", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-qm", "mine")
+    git("switch", "-q", "develop")
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "theirs.json").write_text("t", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-qm", "theirs")
+    git("switch", "-q", "feat/backend/x")
+    git("merge", "--no-commit", "--no-ff", "develop")
+    monkeypatch.chdir(tmp_path)
+    assert cp.staged_files() == ["backend/mine.py"]
+    git("merge", "--abort")
+    assert cp.staged_files() == []
+
+
 def test_git_env_leak_does_not_reach_temp_repo(tmp_path, monkeypatch):
     # Kanca ortamını taklit et: GIT_DIR bir "gerçek" depoyu gösteriyormuş gibi, ama bu yol
     # geçici dizinin içinde ve var olmayan bir yol. Sızıntı varsa git init bu yolu oluşturur.
