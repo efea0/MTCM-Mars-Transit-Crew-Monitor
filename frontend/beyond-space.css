@@ -1,5 +1,14 @@
 /* "Beyond space" information dialog: reuses the NASA dialog look (native dialog, no animation). */
 .beyond-trigger { white-space: nowrap; }
+/* Header button: brand-gradient outline on the dark header, with a slow gradient drift on hover. */
+.mission-meta .beyond-trigger {
+  color: var(--on-header); border: 1px solid transparent; position: relative;
+  background: linear-gradient(var(--topbar-bg), var(--topbar-bg)) padding-box,
+    linear-gradient(90deg, var(--brand-pink), var(--brand-yellow), var(--brand-blue), var(--brand-pink)) border-box;
+  background-size: 100% 100%, 300% 100%; background-position: 0 0, 0% 0;
+  transition: background-position 700ms ease;
+}
+.mission-meta .beyond-trigger:hover { background-position: 0 0, 100% 0; text-decoration: none; }
 .beyond-dialog .beyond-story { max-width: 78ch; margin: 0 0 var(--space-3); line-height: 1.6; }
 .beyond-dialog .beyond-list { margin: 0; padding-left: var(--space-5); line-height: 1.7; max-width: 90ch; }
 .beyond-dialog .beyond-list a { color: var(--accent-ink); overflow-wrap: anywhere; }

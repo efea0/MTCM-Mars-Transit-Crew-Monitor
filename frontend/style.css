@@ -63,12 +63,14 @@ h1 { font-size: 24px; letter-spacing: -.02em; font-weight: 600; }
 .theme-toggle:hover { background: var(--surface-hover); }
 /* The brand header has the same tested white-on-blue contrast as primary controls. */
 /* Header palette: exactly three tokens (base, gradient end, accent) plus white text. */
-.topbar { background: linear-gradient(90deg, var(--topbar-bg-end), var(--topbar-bg) 45%); color: var(--on-accent); }
+.topbar { position: relative; background: linear-gradient(90deg, var(--topbar-bg-end), var(--topbar-bg) 45%); color: var(--on-header); }
+/* Brand stripe: the three brand colours, decoration only (never carries status). */
+.topbar::after { content: ""; position: absolute; inset: auto 0 0 0; block-size: 3px; background: linear-gradient(90deg, var(--brand-pink) 0 33.4%, var(--brand-yellow) 33.4% 66.7%, var(--brand-blue) 66.7%); }
 .topbar h1, .topbar .eyebrow, .topbar .meta-label, .topbar .mission-meta strong,
-.topbar .connection-meta > span, .topbar #connection[data-tone] { color: var(--on-accent); }
-.topbar .connection-meta { border-color: var(--on-accent); }
-.topbar .orbit { color: var(--topbar-bg); background: var(--on-accent); border-color: var(--on-accent); }
-.topbar .theme-toggle { color: var(--on-accent); border-color: var(--on-accent); background: transparent; }
+.topbar .connection-meta > span, .topbar #connection[data-tone] { color: var(--on-header); }
+.topbar .connection-meta { border-color: var(--on-header); }
+.topbar .orbit { color: var(--topbar-bg); background: var(--on-header); border-color: var(--on-header); }
+.topbar .theme-toggle { color: var(--on-header); border-color: var(--on-header); background: transparent; }
 .topbar .theme-toggle:hover { background: var(--topbar-bg-end); text-decoration: underline; }
 
 
@@ -233,7 +235,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
 }
 
 /* Wide layout: four crew cards in one row to keep the overview within 1080p. */
-@media (min-width: 1600px) and (min-height: 941px) {
+@media (min-width: 1600px) and (min-height: 1050px) {
   .topbar { padding: var(--space-4) var(--space-7); }
   .dashboard { padding: var(--space-4) var(--space-7) 0; gap: var(--space-4); }
   .crew-card { padding: var(--space-4); }
@@ -263,7 +265,7 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
   footer { padding: var(--space-2) var(--space-7); font-size: 12px; }
 }
 /* Short-screen layout, including 1366x768: keep the overview within the viewport. */
-@media (max-height: 940px) and (min-width: 1100px) {
+@media (max-height: 1049px) and (min-width: 1100px) {
   .topbar { min-height: 56px; padding: var(--space-1) var(--space-5); }
   .brand { gap: var(--space-3); }
   .orbit { width: 32px; height: 32px; font-size: 18px; }
@@ -408,15 +410,15 @@ footer > span:last-child { letter-spacing: .08em; white-space: nowrap; font-fami
 
 .crew-card-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
 .crew-card-actions .why-button { width: auto; }
-@media (max-height: 940px) and (min-width: 1100px) { .crew-detail-button { padding: 1px var(--space-2); font-size: 10px; } }
+@media (max-height: 1049px) and (min-width: 1100px) { .crew-detail-button { padding: 1px var(--space-2); font-size: 10px; } }
 
-@media (min-width: 1600px) and (min-height: 941px) { footer { padding-top: var(--space-1); padding-bottom: var(--space-1); } }
+@media (min-width: 1600px) and (min-height: 1050px) { footer { padding-top: var(--space-1); padding-bottom: var(--space-1); } }
 
-@media (max-height: 940px) and (min-width: 1100px) { .crew-card .baseline { display: none; } }
+@media (max-height: 1049px) and (min-width: 1100px) { .crew-card .baseline { display: none; } }
 
 /* Telemetry changes content, never the geometry of controls or the scrolling header. */
 html { scrollbar-gutter: stable; }
-.topbar { position: static; }
+.topbar { position: relative; }
 .mission-meta { min-width: 0; }
 .connection-meta { min-inline-size: 22ch; }
 .theme-toggle { min-inline-size: 15ch; justify-content: center; }
@@ -435,7 +437,7 @@ html { scrollbar-gutter: stable; }
 .reading-status { margin: 0; white-space: nowrap; }
 .reading-state:not([data-quality="ok"]) .reading-status { display: none; }
 .reading-state .quality { margin: 0; padding-block: 0; line-height: 1.2; }
-.decision-list { block-size: 11rem; align-items: stretch; }
+.decision-list { block-size: 7.5rem; align-items: stretch; }
 .decision-item { block-size: 100%; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
 .decision-message { white-space: normal; overflow: visible; text-overflow: clip; }
 .decision-note { overflow-wrap: anywhere; }
@@ -452,7 +454,7 @@ html { scrollbar-gutter: stable; }
 .detail-notice[hidden] { display: block !important; visibility: hidden; }
 .detail-toolbar { min-block-size: 3.5rem; flex-wrap: wrap; }
 .detail-event-list { min-block-size: 6rem; }
-@media (max-height: 940px) and (min-width: 1100px) {
+@media (max-height: 1049px) and (min-width: 1100px) {
   .decision-list { block-size: 7rem; }
   .crew-identity > div { min-block-size: 2.6em; }
   .reading-value { min-inline-size: 6ch; }
@@ -471,7 +473,7 @@ html { scrollbar-gutter: stable; }
 }
 
 .primary-readings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (max-height: 940px) and (min-width: 1100px) {
+@media (max-height: 1049px) and (min-width: 1100px) {
   .crew-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .crew-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .crew-identity { grid-column: 1 / -1; }
@@ -490,12 +492,12 @@ html { scrollbar-gutter: stable; }
 .reading-output { grid-template-rows: calc(var(--reading-number-size) * 1.2) calc(var(--reading-unit-size) * 1.4); }
 .reading .reading-value { font-size: var(--reading-number-size); line-height: 1.2; }
 .reading-unit { font-size: var(--reading-unit-size); }
-@media (min-width: 1600px) and (min-height: 941px) {
+@media (min-width: 1600px) and (min-height: 1050px) {
   .crew-card .reading { --reading-number-size: 27px; --reading-unit-size: 11px; }
   .crew-card .reading.secondary { --reading-number-size: 18px; --reading-unit-size: 9px; }
   .cabin-readings .reading { --reading-number-size: 17px; --reading-unit-size: 10px; }
 }
-@media (max-height: 940px) and (min-width: 1100px) {
+@media (max-height: 1049px) and (min-width: 1100px) {
   .crew-card .reading { --reading-number-size: 19px; --reading-unit-size: 10px; }
   .crew-card .reading.secondary { --reading-number-size: 15px; --reading-unit-size: 9px; }
   .cabin-readings .reading { --reading-number-size: 15px; --reading-unit-size: 10px; }
@@ -503,7 +505,7 @@ html { scrollbar-gutter: stable; }
 
 
 /* Independent Habitat wordmark; no agency logo or insignia. */
-.habitat-mark { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; background: var(--topbar-accent); border: 1px solid var(--on-accent); border-radius: var(--radius-sm); color: var(--on-accent); font: 600 24px var(--font-mono); }
+.habitat-mark { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; background: var(--brand-pink); border: 1px solid var(--brand-pink); border-radius: var(--radius-sm); color: var(--on-accent); font: 600 24px var(--font-mono); }
 /* Tactile button treatment inspired by 21st.dev Hero Button; native CSS, no runtime package. */
 .mission-meta .nasa-trigger, .nasa-dialog .nasa-button { transition: transform 80ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
 .mission-meta .nasa-trigger:hover, .nasa-dialog .nasa-button:hover { box-shadow: inset 0 -2px 0 currentColor; }
@@ -518,7 +520,7 @@ html { scrollbar-gutter: stable; }
 }
 
 /* Finish card: countdown to the next scenario with two shortcuts. Transform/opacity animation only. */
-.finish-card { position: fixed; inset-inline: var(--space-4); inset-block-end: var(--space-4); z-index: 20; margin-inline: auto; max-inline-size: 760px; box-shadow: 0 10px 28px var(--lift-shadow); overflow: hidden; display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; background: var(--surface-raised); border: 1px solid var(--accent-ink); border-left-width: 4px; border-radius: var(--radius); padding: var(--space-3) var(--space-4); animation: toast-reveal 240ms ease-out both; }
+.finish-card { position: fixed; inset-inline-start: auto; inset-inline-end: var(--space-4); inset-block-end: var(--space-4); z-index: 20; inline-size: min(460px, calc(100vw - 2 * var(--space-4))); box-shadow: 0 10px 28px var(--lift-shadow); overflow: hidden; display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; background: var(--surface-raised); border: 1px solid var(--accent-ink); border-left-width: 4px; border-radius: var(--radius); padding: var(--space-3) var(--space-4); animation: toast-reveal 240ms ease-out both; }
 .finish-card[hidden] { display: none; }
 .finish-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
 .finish-title { font-size: 14px; }
@@ -545,8 +547,8 @@ html { scrollbar-gutter: stable; }
 .earth-body { font-size: 13px; line-height: 1.4; }
 .earth-meta { display: block; font-size: 11px; }
 .alerts-panel { max-height: 218px; }
-@media (min-width: 1600px) and (min-height: 941px) { .alerts-panel { max-height: 172px; } }
-@media (max-height: 940px) and (min-width: 1100px) {
+@media (min-width: 1600px) and (min-height: 1050px) { .alerts-panel { max-height: 172px; } }
+@media (max-height: 1049px) and (min-width: 1100px) {
   .earth-list { max-height: 108px; }
   .earth-body { font-size: 12.5px; line-height: 1.35; }
   .earth-meta { display: none; }
@@ -569,12 +571,20 @@ html { scrollbar-gutter: stable; }
 @keyframes dialog-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* Header focus ring stays visible on the dark header in both themes. */
-.topbar :focus-visible, .topbar .nasa-button:focus-visible { outline: 2px solid var(--on-accent); outline-offset: 3px; }
-/* Leave scroll room so the floating finish card never hides the footer or the demo controls. */
-body:has(.finish-card:not([hidden])) footer { padding-block-end: 96px; }
+.topbar :focus-visible, .topbar .nasa-button:focus-visible { outline: 2px solid var(--on-header); outline-offset: 3px; }
 @media (max-width: 600px) {
-  body:has(.finish-card:not([hidden])) footer { padding-block-end: 180px; }
   .finish-card { inset-inline: var(--space-2); inset-block-end: var(--space-2); padding: var(--space-2) var(--space-3); gap: var(--space-2); }
   .finish-spinner { display: none; }
   .finish-text { flex-basis: 100%; }
 }
+
+/* One-screen layout: slim demo strip, shorter decision band, thin footer. */
+.demo-panel { padding: var(--space-2) var(--space-3); gap: var(--space-3); flex-wrap: wrap; }
+.demo-panel > div:first-child { display: flex; align-items: baseline; gap: var(--space-3); }
+.demo-panel p { margin: 0; }
+.demo-key { flex-direction: row; align-items: center; gap: var(--space-2); }
+.demo-key input { padding: 3px var(--space-2); inline-size: 14ch; }
+.scenario-button { padding: 4px var(--space-3); }
+#demo-result { font-size: 12px; color: var(--muted); }
+footer { padding-block: var(--space-1); }
+@media (max-width: 1150px) { .demo-note { display: none; } }

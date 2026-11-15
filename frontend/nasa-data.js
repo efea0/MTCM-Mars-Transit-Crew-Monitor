@@ -1,3 +1,4 @@
+import { closeOnBackdrop } from "./ui.js";
 const GROUPS = { cabin: "Cabin atmosphere", vitals: "Personal vital deviations", radiation: "Radiation" };
 const VERIFICATION = {
   verified: ["✓ Verified", "verified"], partial: ["◐ Partially verified", "partial"],
@@ -135,6 +136,7 @@ export function createNasaData({ trigger, banner, mock = false, load = path => f
   trigger.addEventListener("click", () => open());
   banner.addEventListener("click", () => open("sep"));
   close.addEventListener("click", () => dialog.close());
+  closeOnBackdrop(dialog);
   dialog.addEventListener("close", () => lastFocus?.isConnected && lastFocus.focus({ preventScroll: true }));
   tableButton.addEventListener("click", () => scrollTo(limitsTitle));
   eventButton.addEventListener("click", () => scrollTo(sepTitle));
