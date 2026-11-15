@@ -86,6 +86,11 @@ function el(tag, className = "", text = "") {
   node.textContent = text;
   return node;
 }
+function markNew(node) {
+  node.classList.add("is-new");
+  node.addEventListener("animationend", () => node.classList.remove("is-new"), { once: true });
+  return node;
+}
 function tone(node, value) {
   node.dataset.tone = Object.hasOwn(LABELS.status, value) ? value : "unknown";
 }
@@ -454,7 +459,7 @@ function updateAlerts(stale) {
   alerts.forEach((alert, index) => {
     let view = alertViews.get(alert.id);
     if (!view) {
-      const root = el("details", "alert-row");
+      const root = markNew(el("details", "alert-row"));
       const summary = el("summary");
       const heading = el("span", "alert-heading");
       const owner = el("strong", "alert-owner");
@@ -505,7 +510,7 @@ function uniqueMessages(messages) {
   return [...byId.values()].sort((a, b) => Date.parse(a.sent_at) - Date.parse(b.sent_at));
 }
 function createEarthRow() {
-  const root = el("li", "earth-row");
+  const root = markNew(el("li", "earth-row"));
   const head = el("div", "earth-row-head");
   const sender = el("strong", "earth-sender");
   const status = el("span", "badge earth-status");
