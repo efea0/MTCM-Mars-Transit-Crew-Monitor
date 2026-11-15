@@ -108,6 +108,63 @@ await check("Reopening uses cached responses", async () => {
 dialog.close();
 await new Promise(resolve => setTimeout(resolve,20));
 await check("Focus returns to overview trigger", () => { assert(document.activeElement === trigger, "Focus not restored"); });
+
+// Retry failures independently: unavailable references must not silently become fixtures.
+dialog.remove();
+let failLimits = true;
+const alternate = structuredClone(fixture); alternate.items[0].threshold = null; alternate.items[0].status = "unexpected";
+const errorView = createNasaData({ trigger: document.createElement("button"), banner: document.createElement("button"), load: async path => {
+  if (path === "/api/limits" && failLimits) throw new Error("Unavailable");
+  return path === "/api/limits" ? alternate : { ...event, linked_events: [] };
+} });
+await errorView.ready();
+const errorDialog = document.getElementById("nasa-data");
+await check("Limit failures remain unavailable with retry and no fallback values", () => {
+  assert(errorDialog.querySelectorAll("tbody tr").length === 0, "Fabricated thresholds on failure");
+  assert(errorView.sourceNode("pio2-hypoxia-low").textContent.includes("unavailable"), "Failure shown as verified");
+});
+failLimits = false;
+[...errorDialog.querySelectorAll("button")].find(button => button.textContent === "Retry limits").click();
+await errorView.ready();
+await check("Retry preserves null limits and unknown verification", () => {
+  const row = errorDialog.querySelector('tr[data-rule-id="pio2-hypoxia-low"]');
+  assert(row.textContent.includes("Limit unavailable") && row.textContent.includes("Verification unknown"), "Missing values/unknown status fabricated");
+});
+errorView.open("sep"); await new Promise(resolve => setTimeout(resolve,20));
+await check("Missing linked activities do not fabricate flare or CME", () => {
+  assert(errorDialog.querySelectorAll(".nasa-stage").length === 3, "Missing event stages");
+  assert(errorDialog.querySelector(".nasa-stage-flr").textContent.includes("No linked record"), "Flare inferred");
+  assert(errorDialog.querySelector(".nasa-stage-cme").textContent.includes("No linked record"), "CME inferred");
+});
+errorDialog.close();
+await check("Live API envelopes validate without mock substitution", async () => {
+  const liveLimits = validateLimits(await fetchNasaResponse("/api/limits"));
+  const liveEvent = validateSep(await fetchNasaResponse("/api/sep-event"));
+  assert(liveLimits.version !== "LOCAL MOCK" && liveLimits.items.length > 0, "Not live limits");
+  assert(liveEvent.sep_id && liveEvent.fetched_at, "No event provenance");
+});
+for (const [width,height] of [[1920,1080],[400,300]]) {
+  await check(`${width} x ${height}: NASA entry and dialog remain accessible`, async () => {
+    const frame = document.createElement("iframe"); frame.width = String(width); frame.height = String(height); frame.style.cssText = "border:0;box-sizing:content-box;display:block"; frame.src = "/?mock=1";
+    const loaded = new Promise(resolve => frame.addEventListener("load",resolve,{ once: true })); document.body.append(frame); await loaded;
+    try {
+      const doc = frame.contentDocument; const win = frame.contentWindow;
+      for (let attempt=0; attempt<100 && !doc.querySelector(".crew-name")?.textContent.includes("Neil"); attempt++) await new Promise(resolve => setTimeout(resolve,20));
+      await doc.fonts.ready;
+      assert(win.innerWidth === width && doc.documentElement.scrollWidth <= width, `Page horizontal overflow: viewport ${win.innerWidth}, page ${doc.documentElement.scrollWidth}, expected ${width}`);
+      const open = doc.getElementById("nasa-trigger"); const rect = open.getBoundingClientRect();
+      assert(rect.width > 0 && rect.right <= width, "Trigger off screen");
+      open.click();
+      for (let attempt=0; attempt<100 && !doc.querySelector(".nasa-table tbody tr"); attempt++) await new Promise(resolve => setTimeout(resolve,20));
+      const modal = doc.getElementById("nasa-data");
+      assert(modal.open && modal.scrollWidth <= modal.clientWidth, "Modal horizontal overflow");
+      assert(doc.querySelectorAll(".nasa-table-wrap").length === 3, "Reference groups not loaded");
+      doc.querySelector('[aria-label="Close NASA data and limits"]').click();
+      assert(!modal.open, "Cannot close reference view");
+      if (width === 1920) assert(doc.documentElement.scrollHeight <= height, "Overview no longer fits 1080p");
+    } finally { frame.remove(); }
+  });
+}
 for (const result of results) { const row = document.createElement("li"); row.textContent = `${result.ok ? "PASS" : "FAIL"} · ${result.name}`; document.getElementById("checks").append(row); }
 const failed = results.filter(result => !result.ok).length;
 document.getElementById("result").textContent = `${results.length-failed}/${results.length} NASA data checks passed`;

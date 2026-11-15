@@ -235,8 +235,9 @@ export function createNasaData({ trigger, banner, mock = false, load = path => f
     })(); return sepTask;
   }
   function updateBanner() {
-    banner.textContent = sepState === "ready" ? `${mock ? "MOCK" : "NASA DONKI"} · ${new Date(sep.event_time).toISOString().slice(0, 10)} SEP · Dose simulated ↗`
+    const text = sepState === "ready" ? `${mock ? "MOCK" : "NASA DONKI"} · ${new Date(sep.event_time).toISOString().slice(0, 10)} SEP · Dose simulated ↗`
       : sepState === "error" ? "DONKI record unavailable · inspect ↗" : "NASA DONKI · Loading record · Dose simulated";
+    if (banner.textContent !== text) banner.textContent = text;
   }
   limitRetry.addEventListener("click", () => { void ensureLimits(); });
   sepRetry.addEventListener("click", () => { void ensureSep(); });
