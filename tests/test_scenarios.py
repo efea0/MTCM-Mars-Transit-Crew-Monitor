@@ -1104,9 +1104,6 @@ def test_sleep_scenario_is_loadable_and_runs_in_the_real_simulator() -> None:
     assert ticks > 0 and {"sleep", "resting"} <= activities
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="Known gap (contract, Aydın): sleep_hours is not a contract Metric yet.",
-)
 def test_contract_has_sleep_hours_metric() -> None:
+    """The sleep scenario's metric name is a contract Metric (added with SleepSummary, #156)."""
     assert "sleep_hours" in m.Metric.__members__
