@@ -638,7 +638,6 @@ def test_api_stream_sse() -> None:
 @pytest.mark.parametrize(
     ("method_path", "body"),
     [
-        ("/api/scenario/hypoxia", None),
         ("/api/control", {"action": "pause"}),
         ("/api/speed", {"time_scale": 600.0}),
     ],
@@ -652,6 +651,12 @@ def test_control_endpoints_require_demo_key_when_configured(
     assert client.post(method_path, json=body, headers={"X-Demo-Key": "test-anahtari"}).status_code == 200
 
 
+def test_scenario_switch_open_with_demo_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEMO_CONTROL_KEY", "test-anahtari")
+    assert client.post("/api/scenario/hypoxia").status_code == 200
+    assert client.post("/api/scenario/nominal").status_code == 200
+
+
 def test_read_endpoints_stay_open_with_demo_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DEMO_CONTROL_KEY", "test-anahtari")
     assert client.get("/api/health").status_code == 200
@@ -663,12 +668,12 @@ def test_empty_demo_key_leaves_control_open(client: TestClient, monkeypatch: pyt
     assert client.post("/api/control", json={"action": "resume"}).status_code == 200
 
 
-def test_finished_scenario_restarts_nominal_after_delay(
+def test_finished_scenario_advances_to_next_after_delay(
     isolated_manager: SimulationManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async def check() -> None:
         local = isolated_manager
-        local.set_scenario("hypoxia")
+        local.set_scenario("nominal")
         frame = local.pipeline.step()
         steps = [frame, SimulationFinished, *([frame] * 50)]
         monkeypatch.setattr(local.pipeline, "step", Mock(side_effect=steps))
@@ -678,9 +683,9 @@ def test_finished_scenario_restarts_nominal_after_delay(
         try:
             for _ in range(100):
                 await asyncio.sleep(0.02)
-                if local.pipeline.scenario == Scenario.nominal and not local.finished:
+                if local.pipeline.scenario == Scenario.hypoxia and not local.finished:
                     break
-            assert local.pipeline.scenario == Scenario.nominal
+            assert local.pipeline.scenario == Scenario.hypoxia
             assert not local.finished
             assert local.running
         finally:
