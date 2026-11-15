@@ -181,7 +181,7 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   view.status.textContent = LABELS.status[state] ?? LABELS.status.unknown;
   const delta = usable && numeric(reading.baseline_delta) ? reading.baseline_delta : null;
   view.delta.textContent = delta === null ? "Compared with baseline: —"
-    : `${delta < 0 ? "−" : "+"}${number(Math.abs(delta))} ${unit} compared with baseline`;
+    : `${delta < 0 ? "−" : "+"}${number(Math.abs(delta))} ${reading.unit} compared with baseline`;
   const quality = stale ? "stale" : reading?.quality ?? "missing";
   view.quality.hidden = quality === "ok";
   view.quality.textContent = LABELS.quality[quality] ?? "missing";
