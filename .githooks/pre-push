@@ -1,12 +1,15 @@
 #!/bin/sh
 # Proje yasası, push öncesi denetim: alan kapsamı (develop'a göre) ve testler.
 PY=$(command -v python || command -v python3)
-branch=$(git symbolic-ref --short HEAD 2>/dev/null) || exit 0
+if ! branch=$(git symbolic-ref --short HEAD 2>/dev/null); then
+  echo "HATA: Detached HEAD durumunda commit/push yasaktir. Bir gorev branch'ine gecin." >&2
+  exit 1
+fi
 case "$branch" in
   main|develop)
     echo "HATA: '$branch' branch'ine doğrudan push yok. Kendi branch'ini push et, develop'a PR aç." >&2
     exit 1 ;;
 esac
 git fetch -q origin develop || exit 1
-"$PY" tools/check_paths.py "$branch" --base develop --base-ref origin/develop || exit 1
+"$PY" tools/check_paths.py "$branch" --base develop --base-ref origin/develop --require-role || exit 1
 "$PY" -m pytest -q || { echo "HATA: testler geçmiyor; push durduruldu." >&2; exit 1; }

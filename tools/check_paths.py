@@ -59,6 +59,7 @@ AREAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
             "pyproject.toml",
             ".gitignore",
             ".gitattributes",
+            "render.yaml",
         ),
         (),
     ),
@@ -196,10 +197,16 @@ def check(
     same_repo: bool = True,
     role: str | None = None,
     staged: bool = False,
+    require_role: bool = False,
 ) -> list[str]:
     errors: list[str] = []
+    if require_role and role is None:
+        errors.append(
+            f"Rol tanımlı değil ({ROLE_FILE} eksik veya --role verilmedi). "
+            "Çalıştır: python tools/setup_agent.py <rol>"
+        )
     if role is not None and role not in ROLE_AREAS:
-        return [f"Geçersiz rol '{role}' ({ROLE_FILE}). Seçenekler: {', '.join(ROLE_AREAS)}"]
+        return errors + [f"Geçersiz rol '{role}' ({ROLE_FILE}). Seçenekler: {', '.join(ROLE_AREAS)}"]
 
     if not same_repo:
         return ["Fork'tan gelen PR kabul edilmez; branch'i ana repoda aç."]
@@ -259,9 +266,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--repo", default=None, help="Ana repo (owner/name)")
     p.add_argument("--staged", action="store_true", help="Yalnızca commit'e hazırlanan dosyaları denetle")
     p.add_argument("--role", default=None, help=f"aydin|baris|enis (varsayılan: {ROLE_FILE} dosyası)")
+    p.add_argument(
+        "--require-role",
+        action="store_true",
+        help=f"Rol kontrolünü zorunlu tut ({ROLE_FILE} veya --role)",
+    )
     a = p.parse_args(argv)
 
     same_repo = a.head_repo is None or a.repo is None or a.head_repo == a.repo
+    role = a.role or read_role()
     errors = check(
         a.branch,
         a.base,
@@ -269,8 +282,9 @@ def main(argv: list[str] | None = None) -> int:
         a.base_ref or f"origin/{a.base}",
         a.head_ref,
         same_repo=same_repo,
-        role=a.role or read_role(),
+        role=role,
         staged=a.staged,
+        require_role=a.require_role,
     )
     for e in errors:
         print(f"HATA: {e}", file=sys.stderr)

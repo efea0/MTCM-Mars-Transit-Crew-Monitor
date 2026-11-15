@@ -60,6 +60,7 @@ def test_invalid_branch_names(branch):
         ("frontend", "frontend/app.js", True),
         ("frontend", "backend/main.py", False),
         ("infra", ".github/workflows/path-guard.yml", True),
+        ("infra", "render.yaml", True),
         ("infra", "Makefile", True),  # sahipsiz kök dosya -> infra
         ("infra", "README.md", False),
         ("backend", "backend/comms.py", False),
@@ -220,3 +221,19 @@ def test_read_role(tmp_path):
     assert cp.read_role(str(f)) is None
     f.write_text("baris\n# not\n", encoding="utf-8")
     assert cp.read_role(str(f)) == "baris"
+
+
+def test_require_role(monkeypatch):
+    monkeypatch.setattr(cp, "changed_files", lambda *_: ["tools/check_paths.py"])
+    assert cp.check("fix/infra/ci", "develop", None, "x", role=None, require_role=False) == []
+    errors = cp.check("fix/infra/ci", "develop", None, "x", role=None, require_role=True)
+    assert any("Rol tanımlı değil" in e for e in errors)
+    assert cp.check("fix/infra/ci", "develop", None, "x", role="aydin", require_role=True) == []
+
+
+def test_main_require_role_cli(monkeypatch):
+    monkeypatch.setattr(cp, "read_role", lambda *_: None)
+    monkeypatch.setattr(cp, "changed_files", lambda *_: ["tools/check_paths.py"])
+    assert cp.main(["fix/infra/ci", "--base-ref", "develop"]) == 0
+    assert cp.main(["fix/infra/ci", "--base-ref", "develop", "--require-role"]) == 1
+    assert cp.main(["fix/infra/ci", "--base-ref", "develop", "--require-role", "--role", "aydin"]) == 0
