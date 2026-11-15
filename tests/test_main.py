@@ -417,7 +417,12 @@ def test_api_scenario_invalid(client: TestClient) -> None:
     assert "not found" in data["detail"].lower()
 
 
-def test_api_scenario_valid_enum_missing_file(client: TestClient) -> None:
+def test_api_scenario_valid_enum_missing_file(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A valid scenario name whose file is missing is 404. Every scenario file exists now, so the
+    scenarios directory is pointed at an empty folder to create the missing-file case."""
+    monkeypatch.setattr("backend.main.SCENARIOS_DIR", tmp_path)
     res = client.post("/api/scenario/sleep_deprivation")
     assert res.status_code == 404
     assert "not found" in res.json()["detail"].lower()

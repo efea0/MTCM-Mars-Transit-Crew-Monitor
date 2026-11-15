@@ -13,3 +13,9 @@
 .beyond-dialog .beyond-list { margin: 0; padding-left: var(--space-5); line-height: 1.7; max-width: 90ch; }
 .beyond-dialog .beyond-list a { color: var(--accent-ink); overflow-wrap: anywhere; }
 .beyond-dialog .beyond-table { min-width: 760px; }
+.beyond-dialog .beyond-subhead { margin: var(--space-4) 0 var(--space-2); font-size: 14px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.beyond-dialog .beyond-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-4) 0 var(--space-3); }
+.beyond-dialog .beyond-result { border: 1px solid var(--border-strong); border-left: 3px solid var(--caution-ink); background: var(--surface-raised); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); }
+.beyond-dialog .beyond-result span, .beyond-dialog .beyond-result small { display: block; color: var(--muted); font-size: 12px; }
+.beyond-dialog .beyond-result strong { display: block; margin: var(--space-1) 0; font: 600 26px var(--font-mono); letter-spacing: -.02em; }
+@media (max-width: 600px) { .beyond-dialog .beyond-results { grid-template-columns: minmax(0, 1fr); } }

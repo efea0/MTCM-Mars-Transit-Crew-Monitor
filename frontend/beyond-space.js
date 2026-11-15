@@ -35,6 +35,28 @@ const STORY = [
   "Underground exploration, such as caving, was part of the inspiration. Caves are not modeled here: they are not sealed environments and we have no sourced limits for them. Limits are prepared for the two sealed environments in the table below.",
 ];
 
+// Worked example (illustrative arithmetic, NOT the live engine): the refuge-chamber failure from ranges.json
+// (profiller.yeralti_siginagi.ariza_senaryosu). tests/test_frontend_beyond_space.py recomputes these numbers.
+export const EXAMPLE = {
+  title: "Worked example: refuge chamber failure",
+  intro: "The same air-budget arithmetic the astronaut monitor uses, applied to the underground refuge chamber when the scrubber and the O₂ supply go offline. This is an illustrative calculation, not the live engine.",
+  assumptions: [
+    "10 people in 30 m³ at 760 mmHg and 295 K (demo assumptions).",
+    "Average metabolic rates: 0.84 kg O₂ and 1.0 kg CO₂ per person-day.",
+    "Starting air: 21 % O₂ and about 0.04 % CO₂.",
+    "Scrubber and O₂ supply offline; limits from 30 CFR 7.506 (CO₂ 1.0 % average = 7.6 mmHg, O₂ not below 18.5 %).",
+  ],
+  steps: [
+    "Pressure change = mass ÷ molar mass × R·T ÷ volume. In 30 m³, 1 kg of CO₂ adds about 13.9 mmHg and 1 kg of O₂ removes about 19.2 mmHg.",
+    "For 10 people: CO₂ rises about 5.8 mmHg per hour and O₂ falls about 6.7 mmHg per hour.",
+  ],
+  results: [
+    { label: "CO₂ reaches its limit in", value: "about 1.3 h", detail: "1.26 h (1 h 15 min)" },
+    { label: "O₂ reaches its lower bound in", value: "about 2.8 h", detail: "2.83 h (2 h 50 min)" },
+  ],
+  note: "This is why the monitor shows two countdowns. CO and methane are not modeled. Volume, crew and capacities are demo assumptions; only the limits are sourced.",
+};
+
 function node(tag, className = "", text = "") {
   const element = document.createElement(tag);
   if (className) element.className = className;
@@ -65,6 +87,25 @@ function profileTable() {
   table.append(body);
   return table;
 }
+function listOf(items) {
+  const list = node("ul", "beyond-list");
+  for (const text of items) list.append(node("li", "", text));
+  return list;
+}
+function exampleSection() {
+  const section = node("section", "nasa-section beyond-example");
+  section.append(node("h3", "", EXAMPLE.title), node("p", "beyond-story", EXAMPLE.intro));
+  section.append(node("h4", "beyond-subhead", "Assumptions"), listOf(EXAMPLE.assumptions));
+  section.append(node("h4", "beyond-subhead", "Arithmetic"), listOf(EXAMPLE.steps));
+  const results = node("div", "beyond-results");
+  for (const result of EXAMPLE.results) {
+    const card = node("div", "beyond-result");
+    card.append(node("span", "beyond-result-label", result.label), node("strong", "", result.value), node("small", "", result.detail));
+    results.append(card);
+  }
+  section.append(results, node("p", "nasa-muted", EXAMPLE.note));
+  return section;
+}
 export function createBeyondSpace({ trigger }) {
   const dialog = node("dialog", "nasa-dialog beyond-dialog");
   dialog.id = "beyond-space";
@@ -89,6 +130,7 @@ export function createBeyondSpace({ trigger }) {
   wrap.setAttribute("role", "region"); wrap.setAttribute("aria-label", "Environment profiles table, scrolls sideways on small screens");
   wrap.append(profileTable());
   profiles.append(wrap);
+  const example = exampleSection();
   const limits = node("section", "nasa-section");
   limits.append(node("h3", "", "What this view does not do"));
   const list = node("ul", "beyond-list");
@@ -111,7 +153,7 @@ export function createBeyondSpace({ trigger }) {
     sourceList.append(item);
   }
   sources.append(sourceList);
-  content.append(why, profiles, limits, sources);
+  content.append(why, profiles, example, limits, sources);
   dialog.append(head, disclaimer, content);
   document.body.append(dialog);
   trigger.setAttribute("aria-haspopup", "dialog");

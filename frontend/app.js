@@ -204,11 +204,11 @@ function createCrew(index) {
   trendArea.append(trendLabel, trend);
   const why = el("button", "why-button", "Why? ↗");
   why.type = "button";
-  why.setAttribute("aria-expanded", "false");
+  why.setAttribute("aria-expanded", "true");
   why.setAttribute("aria-controls", `crew-evidence-${index}`);
   const evidence = el("div", "crew-evidence");
   evidence.id = `crew-evidence-${index}`;
-  evidence.hidden = true;
+  evidence.hidden = false;
   why.addEventListener("click", () => {
     evidence.hidden = !evidence.hidden;
     why.setAttribute("aria-expanded", String(!evidence.hidden));
@@ -545,6 +545,7 @@ function render() {
   const stale = packetStale();
   document.getElementById("simulated").hidden = false;
   document.getElementById("scenario").textContent = LABELS.scenario[frame?.scenario] ?? "Waiting for packets";
+  syncScenarioSelect();
   document.getElementById("mission_elapsed_s").textContent = missionTime(frame?.mission_elapsed_s);
   document.getElementById("mission_elapsed_s").classList.toggle("muted", stale);
   updateCrew(stale); updateCabin(stale); updateAlerts(stale); updateEarth(stale);
@@ -665,6 +666,7 @@ async function probeControl() {
       signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
     });
     controlLocked = response.status === 401;
+    syncScenarioSelect();
   } catch { return; }
   finishCard.hide();
 }
@@ -698,6 +700,24 @@ function requestScenario(scenario) {
 // Restart replays the current scenario from its first tick; the backend guards it with the same demo key.
 function requestRestart() {
   return demoRequest(CONTROL_URL, JSON.stringify({ action: "restart" }), "restart scenario");
+}
+function syncScenarioSelect() {
+  const select = document.getElementById("scenario-select");
+  if (frame?.scenario && Object.hasOwn(LABELS.scenario, frame.scenario) && !select.matches(":focus")) select.value = frame.scenario;
+  select.disabled = controlLocked;
+  document.getElementById("scenario-select-note").textContent = controlLocked ? "Demo key required (?demo=1)" : "";
+}
+function configureScenarioSelect() {
+  const select = document.getElementById("scenario-select");
+  for (const [scenario, label] of Object.entries(LABELS.scenario)) select.append(new Option(label, scenario));
+  select.addEventListener("change", async () => {
+    const note = document.getElementById("scenario-select-note");
+    select.disabled = true;
+    note.textContent = "Requesting scenario…";
+    const outcome = await requestScenario(select.value);
+    note.textContent = outcome.ok && mockMode ? "Local mock continues its own sequence." : outcome.ok ? "" : outcome.message;
+    select.disabled = controlLocked;
+  });
 }
 function configureDemo() {
   if (params.get("demo") !== "1") return;
@@ -767,7 +787,7 @@ async function start() {
     cabinTrendViews.set(metric, view);
     document.getElementById("cabin-trends").append(view.root);
   }
-  configureDemo(); render();
+  configureScenarioSelect(); configureDemo(); render();
   if (!mockMode) {
     probeControl();
     let probeTimer = null;

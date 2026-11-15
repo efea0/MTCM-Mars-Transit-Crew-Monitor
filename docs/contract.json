@@ -285,6 +285,18 @@
           "description": "Dose received during an active solar particle event (mSv, simulated); null if no event.",
           "title": "Event Dose Msv"
         },
+        "sleep": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SleepSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Last completed sleep period; null when the scenario carries no sleep data. Missing sleep data never counts as enough sleep."
+        },
         "status": {
           "$ref": "#/$defs/Status",
           "default": "unknown"
@@ -412,7 +424,8 @@
         "rel_humidity",
         "radiation_dose_rate",
         "pio2",
-        "event_dose"
+        "event_dose",
+        "sleep_hours"
       ],
       "title": "Metric",
       "type": "string"
@@ -514,6 +527,28 @@
       ],
       "title": "Severity",
       "type": "string"
+    },
+    "SleepSummary": {
+      "additionalProperties": false,
+      "description": "Most recently completed sleep period of one crew member (simulated, not a medical record).",
+      "properties": {
+        "period": {
+          "description": "Counter of completed sleep periods; increases by one with each new period. rules.py counts consecutive short periods by watching this counter change.",
+          "minimum": 0,
+          "title": "Period",
+          "type": "integer"
+        },
+        "hours": {
+          "$ref": "#/$defs/Reading",
+          "description": "Duration of that period in hours (unit 'h'); status filled by rules.py."
+        }
+      },
+      "required": [
+        "period",
+        "hours"
+      ],
+      "title": "SleepSummary",
+      "type": "object"
     },
     "Status": {
       "description": "Overall status of a measurement, a crew member, or the cabin.",

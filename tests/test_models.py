@@ -256,3 +256,28 @@ def test_units_are_english() -> None:
     assert m.METRIC_UNITS[m.Metric.resp_rate] == "breaths/min"
     assert m.METRIC_UNITS[m.Metric.radiation_dose_rate] == "µGy/h"
     assert not {"nefes/dk", "µGy/saat", "atım/dk"} & set(m.METRIC_UNITS.values())
+
+
+def test_sleep_is_optional_and_defaults_to_none() -> None:
+    assert crew_member(1).sleep is None
+
+
+def test_crew_member_accepts_a_completed_sleep_period() -> None:
+    summary = m.SleepSummary(period=2, hours=reading(5.5))
+    member = crew_member(1).model_copy(update={"sleep": summary})
+    assert m.CrewMember.model_validate(member.model_dump()).sleep == summary
+
+
+def test_sleep_period_counter_cannot_be_negative() -> None:
+    with pytest.raises(ValidationError):
+        m.SleepSummary(period=-1, hours=reading(7.0))
+
+
+def test_missing_sleep_hours_is_never_ok() -> None:
+    with pytest.raises(ValidationError):
+        m.SleepSummary(period=0, hours=m.Reading(value=None, unit="h", ts=T0))
+
+
+def test_sleep_hours_metric_is_in_hours() -> None:
+    assert m.METRIC_UNITS[m.Metric.sleep_hours] == "h"
+    assert "sleep_hours" in m.build_contract()["$defs"]["Metric"]["enum"]

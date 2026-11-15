@@ -85,6 +85,7 @@ class Metric(str, Enum):
     radiation_dose_rate = "radiation_dose_rate"  # µGy/h
     pio2 = "pio2"  # mmHg, inspired O₂ partial pressure (derived from cabin pp_o2)
     event_dose = "event_dose"  # mSv, dose received during an active solar particle event
+    sleep_hours = "sleep_hours"  # h, duration of one completed sleep period
 
 
 METRIC_UNITS: dict[Metric, str] = {
@@ -103,6 +104,7 @@ METRIC_UNITS: dict[Metric, str] = {
     Metric.radiation_dose_rate: "µGy/h",
     Metric.pio2: "mmHg",
     Metric.event_dose: "mSv",
+    Metric.sleep_hours: "h",
 }
 
 
@@ -208,6 +210,19 @@ class CabinAtmosphere(_Model):
         return self
 
 
+class SleepSummary(_Model):
+    """Most recently completed sleep period of one crew member (simulated, not a medical record)."""
+
+    period: int = Field(
+        ge=0,
+        description="Counter of completed sleep periods; increases by one with each new period. "
+        "rules.py counts consecutive short periods by watching this counter change.",
+    )
+    hours: Reading = Field(
+        description="Duration of that period in hours (unit 'h'); status filled by rules.py."
+    )
+
+
 class CrewMember(_Model):
     id: str = Field(pattern=r"^crew-[1-9]$", description="E.g. 'crew-1'.")
     name: str
@@ -223,6 +238,11 @@ class CrewMember(_Model):
         default=None,
         ge=0,
         description="Dose received during an active solar particle event (mSv, simulated); null if no event.",
+    )
+    sleep: SleepSummary | None = Field(
+        default=None,
+        description="Last completed sleep period; null when the scenario carries no sleep data. "
+        "Missing sleep data never counts as enough sleep.",
     )
     status: Status = Status.unknown
     decision: CrewDecision = Field(
