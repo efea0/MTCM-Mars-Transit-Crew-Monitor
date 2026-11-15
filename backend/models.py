@@ -1,14 +1,15 @@
-"""Tek doğruluk kaynağı: tüm API sözleşmesi bu Pydantic v2 modellerinden türetilir.
+"""Single source of truth: the entire API contract is derived from these Pydantic v2 models.
 
-Değiştirdikten sonra sözleşmeyi yeniden üret:
+After changing anything, regenerate the contract:
     python -m backend.models
-Sözleşme değişikliği Barış + Efe ortak kararıdır.
+Contract changes are a joint decision of Barış and Efe.
 
-Temel ilkeler:
-- Eksik veri asla "nominal" sayılmaz: value=None olan okuma quality != ok taşır,
-  durumu unknown olur.
-- Her uyarı (Alert) en az bir kanıt (Evidence) taşır ve art arda ölçümle tetiklenir.
-- Sayısal eşikler burada değil, rules.py içindedir. Burada yalnızca yapı vardır.
+Core principles:
+- Missing data is never treated as "nominal": a reading with value=None carries
+  quality != ok and its status is unknown.
+- Every alert (Alert) carries at least one piece of evidence (Evidence) and is
+  triggered by consecutive measurements.
+- Numeric thresholds live in rules.py, not here. This module defines structure only.
 """
 
 from __future__ import annotations
@@ -28,21 +29,18 @@ class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", use_enum_values=True)
 
 
-# ---------------------------------------------------------------- enumlar
-
-
 class Status(str, Enum):
-    """Bir ölçümün, kişinin veya kabinin genel durumu."""
+    """Overall status of a measurement, a crew member, or the cabin."""
 
     nominal = "nominal"
     caution = "caution"
     warning = "warning"
     critical = "critical"
-    unknown = "unknown"  # eksik/bozuk veri; asla nominal yerine geçmez
+    unknown = "unknown"
 
 
 class CrewDecision(str, Enum):
-    """Kişi bazlı karar: normal = Normal, watch = İzle, action = Eylem, unknown = Bilinmiyor."""
+    """Per-crew-member decision: normal = Normal, watch = Watch, action = Action, unknown = Unknown."""
 
     normal = "normal"
     watch = "watch"
@@ -58,9 +56,9 @@ class Severity(str, Enum):
 
 class Quality(str, Enum):
     ok = "ok"
-    stale = "stale"  # son değer eski
-    missing = "missing"  # veri hiç gelmedi
-    sensor_fault = "sensor_fault"  # sensör hata bildirdi / fiziksel olarak imkânsız değer
+    stale = "stale"
+    missing = "missing"
+    sensor_fault = "sensor_fault"
 
 
 class Comparator(str, Enum):
@@ -68,31 +66,27 @@ class Comparator(str, Enum):
     le = "<="
     gt = ">"
     ge = ">="
-    missing = "missing"  # eksik-veri kuralı
+    missing = "missing"
 
 
 class Metric(str, Enum):
-    # mürettebat
     heart_rate = "heart_rate"  # bpm
     hrv_rmssd = "hrv_rmssd"  # ms
     spo2 = "spo2"  # %
-    resp_rate = "resp_rate"  # nefes/dk
+    resp_rate = "resp_rate"  # breaths/min
     core_temp = "core_temp"  # °C
     systolic_bp = "systolic_bp"  # mmHg
     diastolic_bp = "diastolic_bp"  # mmHg
-    # kabin
     pp_co2 = "pp_co2"  # mmHg
-    pp_o2 = "pp_o2"  # mmHg (kabin kısmi basıncı; PIO₂ değil)
+    pp_o2 = "pp_o2"  # mmHg (cabin partial pressure; not PIO₂)
     cabin_pressure = "cabin_pressure"  # mmHg
     cabin_temp = "cabin_temp"  # °C
     rel_humidity = "rel_humidity"  # %
-    radiation_dose_rate = "radiation_dose_rate"  # µGy/saat
-    pio2 = "pio2"  # mmHg, solunan O₂ kısmi basıncı (kabin pp_o2'den türetilir)
-    # kişi bazlı radyasyon (simüle)
-    event_dose = "event_dose"  # mSv, aktif güneş parçacık olayında alınan doz
+    radiation_dose_rate = "radiation_dose_rate"  # µGy/hour
+    pio2 = "pio2"  # mmHg, inspired O₂ partial pressure (derived from cabin pp_o2)
+    event_dose = "event_dose"  # mSv, dose received during an active solar particle event
 
 
-# Her metriğin sözleşmedeki birimi. Enum yorumlarıyla aynı tutulur; tests/test_models.py sabitler.
 METRIC_UNITS: dict[Metric, str] = {
     Metric.heart_rate: "bpm",
     Metric.hrv_rmssd: "ms",
@@ -114,20 +108,21 @@ METRIC_UNITS: dict[Metric, str] = {
 
 class Scenario(str, Enum):
     nominal = "nominal"
-    hypoxia = "hypoxia"  # O₂ düşüşü
-    hypercapnia = "hypercapnia"  # CO₂ yükselişi / scrubber arızası
+    hypoxia = "hypoxia"
+    hypercapnia = "hypercapnia"
     sleep_deprivation = "sleep_deprivation"
-    solar_storm = "solar_storm"  # radyasyon artışı (DONKI ile bağlanabilir)
-    sensor_dropout = "sensor_dropout"  # eksik veri davranışını göstermek için
+    solar_storm = "solar_storm"
+    sensor_dropout = "sensor_dropout"
 
 
 class Activity(str, Enum):
-    """Astronotun o anki etkinliği. Egzersizde nabız/solunum artışı alarm ve kanıt sayılmaz."""
+    """Astronaut's current activity. Raised heart/respiratory rate during exercise
+    is not counted as an alarm or evidence."""
 
     resting = "resting"
     exercise = "exercise"
     sleep = "sleep"
-    unknown = "unknown"  # bilinmiyorsa 'dinleniyor' varsayılmaz
+    unknown = "unknown"
 
 
 class Sender(str, Enum):
@@ -136,37 +131,34 @@ class Sender(str, Enum):
     system = "system"
 
 
-# ---------------------------------------------------------------- ölçüm
-
-
 class Reading(_Model):
-    """Tek bir sensör okuması. value=None ise quality 'ok' olamaz."""
+    """A single sensor reading. If value=None, quality cannot be 'ok'."""
 
-    value: float | None = Field(description="Ölçülen değer; veri yoksa null.")
-    unit: str = Field(description="Örn. 'bpm', '%', 'mmHg'.")
-    ts: datetime = Field(description="Ölçüm zamanı (UTC, ISO-8601).")
+    value: float | None = Field(description="Measured value; null if no data.")
+    unit: str = Field(description="E.g. 'bpm', '%', 'mmHg'.")
+    ts: datetime = Field(description="Measurement time (UTC, ISO-8601).")
     quality: Quality = Quality.ok
     status: Status = Field(
         default=Status.unknown,
-        description="rules.py doldurur; değerlendirilmemişse unknown.",
+        description="Filled in by rules.py; unknown if not evaluated.",
     )
     baseline_delta: float | None = Field(
         default=None,
-        description="Yalnızca kişi vitallerinde: değer − kişinin kendi baz çizgisi (okumanın biriminde). "
-        "Kabin okumalarında ve veri yokken null.",
+        description="Crew vitals only: value minus the person's own baseline (in the reading's unit). "
+        "Null for cabin readings and when there is no data.",
     )
 
     @model_validator(mode="after")
     def _missing_is_never_normal(self) -> Reading:
         if self.value is None:
             if self.quality == Quality.ok.value:
-                raise ValueError("value=None iken quality 'ok' olamaz")
+                raise ValueError("quality cannot be 'ok' when value=None")
             if self.status != Status.unknown.value:
-                raise ValueError("value=None iken status yalnızca 'unknown' olabilir")
+                raise ValueError("status can only be 'unknown' when value=None")
             if self.baseline_delta is not None:
-                raise ValueError("value=None iken baseline_delta null olmalı")
+                raise ValueError("baseline_delta must be null when value=None")
         elif self.quality != Quality.ok.value and self.status == Status.nominal.value:
-            raise ValueError("kalitesi 'ok' olmayan okuma 'nominal' sayılamaz")
+            raise ValueError("a reading whose quality is not 'ok' cannot be counted as 'nominal'")
         return self
 
 
@@ -191,14 +183,14 @@ class CabinAtmosphere(_Model):
     hours_until_o2_limit: float | None = Field(
         default=None,
         ge=0,
-        description="O₂ limitine kalan süre (saat); None = limite yaklaşmıyor veya hesaplanamıyor; "
-        "0.0 = limit zaten aşıldı.",
+        description="Time until the O₂ limit (hours); None = not approaching it or not computable; "
+        "0.0 = limit already exceeded.",
     )
     hours_until_co2_limit: float | None = Field(
         default=None,
         ge=0,
-        description="CO₂ limitine kalan süre (saat); None = limite yaklaşmıyor veya hesaplanamıyor; "
-        "0.0 = limit zaten aşıldı.",
+        description="Time until the CO₂ limit (hours); None = not approaching it or not computable; "
+        "0.0 = limit already exceeded.",
     )
 
     @model_validator(mode="after")
@@ -212,30 +204,30 @@ class CabinAtmosphere(_Model):
             "radiation_dose_rate",
         ):
             if getattr(self, field).baseline_delta is not None:
-                raise ValueError(f"{field}: kabin okumasında baseline_delta null olmalı")
+                raise ValueError(f"{field}: baseline_delta must be null on a cabin reading")
         return self
 
 
 class CrewMember(_Model):
-    id: str = Field(pattern=r"^crew-[1-9]$", description="Örn. 'crew-1'.")
+    id: str = Field(pattern=r"^crew-[1-9]$", description="E.g. 'crew-1'.")
     name: str
-    role: str = Field(description="Örn. 'Commander', 'Flight Surgeon'.")
+    role: str = Field(description="E.g. 'Commander', 'Flight Surgeon'.")
     vitals: CrewVitals
     activity: Activity = Activity.unknown
     cumulative_dose_msv: float | None = Field(
         default=None,
         ge=0,
-        description="Kariyer kümülatif efektif doz (mSv, simüle); 600 mSv kariyer limitine oranlanır.",
+        description="Career cumulative effective dose (mSv, simulated); vs. the 600 mSv career limit.",
     )
     event_dose_msv: float | None = Field(
         default=None,
         ge=0,
-        description="Aktif güneş parçacık olayında alınan doz (mSv, simüle); olay yoksa null.",
+        description="Dose received during an active solar particle event (mSv, simulated); null if no event.",
     )
     status: Status = Status.unknown
     decision: CrewDecision = Field(
         default=CrewDecision.unknown,
-        description="Kişi bazlı karar; rules.py doldurur. Değerlendirilmemiş veya eksik veride unknown.",
+        description="Per-crew-member decision; set by rules.py. unknown if not evaluated or data missing.",
     )
 
     @model_validator(mode="after")
@@ -245,54 +237,55 @@ class CrewMember(_Model):
             and self.decision != CrewDecision.unknown
         ):
             raise ValueError(
-                "eksik veri asla normal sayılmaz; tüm vitaller eksikken decision yalnızca unknown olabilir"
+                "missing data is never normal; decision can only be unknown when all vitals are missing"
             )
         return self
 
 
-# ---------------------------------------------------------------- uyarı
-
-
 class Evidence(_Model):
-    """Bir uyarının 'neden?' listesindeki tek kanıt maddesi."""
+    """A single evidence item in an alert's 'why?' list."""
 
     metric: Metric
     value: float | None
-    threshold: float | None = Field(description="Aşılan sınır; eksik-veri kanıtında null.")
+    threshold: float | None = Field(description="Limit that was crossed; null for missing-data evidence.")
     comparator: Comparator
     ts: datetime
-    note: str = Field(description="İnsan-okunur açıklama, örn. 'SpO2 3 ölçümdür eşiğin altında'.")
+    note: str = Field(
+        description="Human-readable explanation, e.g. 'SpO2 below threshold for 3 measurements'."
+    )
 
 
 class ThresholdRule(_Model):
-    """Kural yapısı. Sayısal değerler ve kaynakları rules.py içinde tanımlanır."""
+    """Rule structure. Numeric values and their sources are defined in rules.py."""
 
     id: str
     metric: Metric
     severity: Severity
     comparator: Comparator
-    threshold: float | None = Field(description="comparator=missing ise null.")
-    consecutive_required: int = Field(ge=1, description="Uyarı için art arda kaç ölçüm.")
+    threshold: float | None = Field(description="Null if comparator=missing.")
+    consecutive_required: int = Field(
+        ge=1, description="Number of consecutive measurements required to raise an alert."
+    )
     average_window_s: float | None = Field(
         default=None,
         gt=0,
-        description="Ortalama penceresi (s); örn. CO₂ için 3600 = 1 saatlik ortalama. null = anlık değer.",
+        description="Averaging window (s); e.g. 3600 for CO₂ = 1-hour average. null = instantaneous value.",
     )
     relative_to_baseline: bool = Field(
         default=False,
-        description="True ise kıyaslanan nicelik 'değer − kişinin baz çizgisi', threshold da aynı "
-        "birimde fark olarak okunur (örn. nabız +15, SpO₂ −3). False = mutlak eşik.",
+        description="If true, the compared quantity is 'value minus the person's baseline' and threshold is "
+        "read as a difference in the same unit (e.g. heart rate +15, SpO₂ −3). False = absolute threshold.",
     )
     skip_when: list[Activity] = Field(
         default_factory=list,
-        description="Bu etkinliklerde kural çalışmaz; örn. nabız sapması için ['exercise'].",
+        description="Rule is skipped during these activities; e.g. ['exercise'] for heart-rate deviation.",
     )
-    source: str = Field(description="Eşiğin kaynağı (NASA-STD-3001 vb.) veya 'HİPOTEZ'.")
+    source: str = Field(description="Source of the threshold (NASA-STD-3001 etc.) or 'HYPOTHESIS'.")
 
 
 class Alert(_Model):
     id: str
-    crew_id: str | None = Field(description="Kabin uyarısında null.")
+    crew_id: str | None = Field(description="Null for a cabin alert.")
     metric: Metric
     severity: Severity
     message: str
@@ -300,16 +293,13 @@ class Alert(_Model):
     consecutive_count: int = Field(ge=1)
     first_seen: datetime
     last_seen: datetime
-    why: list[Evidence] = Field(min_length=1, description="En az bir kanıt zorunlu.")
+    why: list[Evidence] = Field(min_length=1, description="At least one piece of evidence is required.")
 
     @model_validator(mode="after")
     def _time_order(self) -> Alert:
         if self.last_seen < self.first_seen:
-            raise ValueError("last_seen, first_seen'den önce olamaz")
+            raise ValueError("last_seen cannot be earlier than first_seen")
         return self
-
-
-# ---------------------------------------------------------------- iletişim
 
 
 class CommsMessage(_Model):
@@ -317,30 +307,25 @@ class CommsMessage(_Model):
     sender: Sender
     body: str
     sent_at: datetime
-    deliver_at: datetime = Field(description="sent_at + tek yön ışık gecikmesi.")
+    deliver_at: datetime = Field(description="sent_at + one-way light delay.")
     one_way_delay_s: float = Field(ge=0)
 
 
-# ---------------------------------------------------------------- SSE paketi
-
-
 class TelemetryFrame(_Model):
-    """SSE ile her tick'te gönderilen tam paket (event: telemetry)."""
+    """Full packet sent over SSE on every tick (event: telemetry)."""
 
     contract_version: str = CONTRACT_VERSION
     tick: int = Field(ge=0)
     ts: datetime
     mission_elapsed_s: float = Field(ge=0)
     scenario: Scenario
-    simulated: bool = Field(default=True, description="Ekranda 'SİMÜLE' etiketi için.")
+    simulated: bool = Field(default=True, description="Drives the 'SIMULATED' label on screen.")
     crew: list[CrewMember] = Field(min_length=CREW_SIZE, max_length=CREW_SIZE)
     cabin: CabinAtmosphere
     alerts: list[Alert] = Field(default_factory=list)
     comms_one_way_delay_s: float = Field(ge=0)
     messages: list[CommsMessage] = Field(default_factory=list)
 
-
-# ---------------------------------------------------------------- sözleşme üretimi
 
 CONTRACT_MODELS: list[type[BaseModel]] = [TelemetryFrame, Alert, ThresholdRule, CommsMessage]
 CONTRACT_PATH = Path(__file__).resolve().parent.parent / "docs" / "contract.json"
@@ -376,4 +361,4 @@ def write_contract(path: Path = CONTRACT_PATH) -> Path:
 
 
 if __name__ == "__main__":
-    print(f"yazıldı: {write_contract()}")
+    print(f"written: {write_contract()}")
