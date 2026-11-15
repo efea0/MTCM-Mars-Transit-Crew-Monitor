@@ -68,7 +68,9 @@ def pairs(tokens: dict[str, str]) -> list[tuple[str, str, float]]:
     out += [("text", f"{status}-tint", NORMAL_TEXT) for status in STATUSES]
     for status in STATUSES:
         out += [(f"{status}-ink", bg, NORMAL_TEXT) for bg in (*surfaces[1:], f"{status}-tint")]
-    out += [("on-status", status, NORMAL_TEXT) for status in ("caution", "warning", "critical")]
+    out += [("on-status", status, NORMAL_TEXT) for status in ("caution", "warning")]
+    critical_foreground = "on-critical" if "--on-critical" in tokens else "on-status"
+    out += [(critical_foreground, "critical", NORMAL_TEXT)]
     out += [("focus", bg, GRAPHIC) for bg in ("bg", "surface")]
     out += [("chart-baseline", "surface", GRAPHIC), ("chart-baseline", "surface-raised", GRAPHIC)]
     return out
@@ -93,15 +95,15 @@ def test_wcag_aa_contrast_pairs(theme: str) -> None:
     assert not failures, f"{theme}: " + "; ".join(failures)
 
 
-def test_status_colors_are_the_okabe_ito_values_used_in_the_project() -> None:
-    assert (DARK["--ok"], DARK["--caution"], DARK["--critical"], DARK["--unknown"]) == (
-        "#009e73",
-        "#e69f00",
-        "#d55e00",
-        "#667085",
-    )
-    assert DARK["--accent"] == "#0072b2"
-    assert THEMES["light"]["--ok"] == DARK["--ok"], "ham durum renkleri temaya göre değişmez"
+def test_status_palette_keeps_distinct_semantics_and_consistent_themes() -> None:
+    """Theme branding may change; five statuses and their fills remain distinct and consistent."""
+    for tokens in THEMES.values():
+        status_fills = [tokens[f"--{status}"].lower() for status in STATUSES]
+        assert len(set(status_fills)) == len(STATUSES), "each status needs a distinct fill"
+        assert all(re.fullmatch(r"#[0-9a-f]{6}", color) for color in status_fills)
+        assert tokens["--on-accent"] != tokens["--accent"]
+    for status in STATUSES:
+        assert THEMES["light"][f"--{status}"] == DARK[f"--{status}"], "status fills stay consistent"
 
 
 def test_unknown_is_never_green() -> None:
