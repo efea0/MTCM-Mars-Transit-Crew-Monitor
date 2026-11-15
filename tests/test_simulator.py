@@ -1,4 +1,4 @@
-"""Simülatör mantığı bağımsız, küçük JSON girdileriyle doğrulanır."""
+"""Simulator logic is verified with independent, small JSON inputs."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def scenario() -> dict[str, Any]:
         "crew": [
             {
                 "id": f"crew-{index + 1}",
-                "name": f"Kişi {index + 1}",
+                "name": f"Person {index + 1}",
                 "role": "Commander",
                 "baseline": {metric: {"mean": mean, "sd": sd} for metric, (mean, sd) in BASELINES.items()},
             }
@@ -186,7 +186,6 @@ def test_nominal_bounds_and_regulation(tmp_path: Path, ranges_path: Path, scenar
         assert frame.cabin.hours_until_o2_limit is frame.cabin.hours_until_co2_limit is None
         for member in frame.crew:
             for metric, (mean, sd) in BASELINES.items():
-                # 6 sigma ve küçük sirkadiyen payı; eşik/klinik iddiası değildir.
                 assert abs(getattr(member.vitals, metric).value - mean) < 6 * sd + 0.5
 
 
@@ -229,7 +228,6 @@ def test_nonzero_failure_multiplier_uses_original_capacity(
     sim.tick()
     second = sim.tick()
     profile = atmosphere.load_profile(ranges_path, "mars_transit")
-    # İlk aralıkta rampa ve sirkadiyen katkı sıfır; sensör gürültüsü tüketimi etkilemez.
     rates = [(person["baseline"]["heart_rate"]["mean"],) * 2 for person in scenario["crew"]]
     loads = [atmosphere.metabolic_rates(*pair, profile.ranges.metabolism) for pair in rates]
     days = INTERVAL_MIN * SECONDS_PER_MIN / atmosphere.SECONDS_PER_DAY
@@ -378,7 +376,6 @@ def test_sensor_quality_only_changes_target_reading(
         actual = sim.tick()
         first_run.append(actual.model_dump())
         assert TelemetryFrame.model_validate_json(actual.model_dump_json()) == actual
-        # Fiziksel durum, her iki gaz ve geri sayımlar sensör verisinden bağımsızdır.
         assert sim._state.pp_o2_mmhg == original.cabin.pp_o2.value
         assert sim._state.pp_co2_mmhg == original.cabin.pp_co2.value
         assert actual.cabin.hours_until_o2_limit == original.cabin.hours_until_o2_limit
@@ -393,7 +390,6 @@ def test_sensor_quality_only_changes_target_reading(
             assert reading.quality == quality
             assert reading.status == "unknown"
             assert reading.baseline_delta is None
-            # Tek okuma dışındaki tüm kare (RNG akışı dahil) birebir aynı kalır.
             setattr(owner, metric, getattr(original_owner, metric))
         assert actual == original
     sim.reset()
@@ -408,14 +404,14 @@ def test_sensor_quality_only_changes_target_reading(
         ({"metric": "invalid"}, "metric"),
         ({"metric": "pp_co2"}, "metric"),
         ({"crew_id": None}, "metric"),
-        ({"crew_id": "crew-9"}, "bilinmeyen kişi crew-9"),
+        ({"crew_id": "crew-9"}, "unknown crew member crew-9"),
         ({"until_min": 10}, "until_min"),
         ({"until_min": 9}, "until_min"),
         ({"until_min": None}, "until_min"),
-        ({"value": None}, "değer alanı"),
-        ({"value": 1.0}, "değer alanı"),
-        ({"stale_value": 97.0}, "değer alanı"),
-        ({"reported_value": 12.0}, "değer alanı"),
+        ({"value": None}, "value field"),
+        ({"value": 1.0}, "value field"),
+        ({"stale_value": 97.0}, "value field"),
+        ({"reported_value": 12.0}, "value field"),
         ({"quality": "stale"}, "stale_value"),
         ({"quality": "stale", "stale_value": None}, "stale_value"),
         ({"quality": "sensor_fault"}, "reported_value"),
@@ -564,7 +560,7 @@ def test_sep_state_lifecycle(
         frame = sim.tick()
         minute = frame.mission_elapsed_s / SECONDS_PER_MIN
         state = sim.sep_state
-        assert sim.sep_state == state  # Okumak simülasyonu ilerletmez.
+        assert sim.sep_state == state
         if minute < onset_min or (end_min is not None and minute >= end_min):
             assert state == inactive
             if end_min is not None and end_min <= minute < end_min + INTERVAL_MIN:
@@ -596,7 +592,7 @@ def test_sep_state_lifecycle(
 @pytest.mark.skipif(
     not (REAL_DATA / "scenarios" / "solar_storm.json").is_file()
     or not (REAL_DATA / "reference" / "ranges.json").is_file(),
-    reason="Gerçek solar_storm senaryosu veya referans yok",
+    reason="Real solar_storm scenario or reference missing",
 )
 def test_real_solar_storm_sep_state_and_radiation_decision() -> None:
     sim = Simulator(Scenario.solar_storm)
@@ -698,7 +694,7 @@ def test_finish_and_reset(
     rest = collect(sim)
     assert rest[-1].tick == last_tick
     assert sim.finished
-    with pytest.raises(SimulationFinished, match="tamamlandı"):
+    with pytest.raises(SimulationFinished, match="completed"):
         sim.tick()
     sim.reset()
     assert not sim.finished
@@ -753,7 +749,6 @@ def _pio2_mmhg(pp_o2_mmhg: float, total_mmhg: float, water_vapour_mmhg: float) -
 
 
 def _condition_minute(samples: list[tuple[float, float]], threshold: float, required: int) -> float | None:
-    """PIO2'nin eşiğin altında art arda `required` ölçüm tamamladığı dakika (ölçüm sırasıyla)."""
     run = 0
     for minute, pio2 in samples:
         run = run + 1 if pio2 < threshold else 0
@@ -765,7 +760,7 @@ def _condition_minute(samples: list[tuple[float, float]], threshold: float, requ
 @pytest.mark.skipif(
     not (REAL_DATA / "scenarios" / "hypoxia.json").is_file()
     or not (REAL_DATA / "reference" / "ranges.json").is_file(),
-    reason="Gerçek hypoxia senaryosu veya referans yok",
+    reason="Real hypoxia scenario or reference missing",
 )
 def test_real_hypoxia_pio2_crossing_times() -> None:
     scenario_data = json.loads((REAL_DATA / "scenarios" / "hypoxia.json").read_text(encoding="utf-8"))
@@ -783,7 +778,7 @@ def test_real_hypoxia_pio2_crossing_times() -> None:
     assert samples[1][0] - samples[0][0] == pytest.approx(interval_min)
     for threshold, rule_id in PIO2_RULES.items():
         condition_min = _condition_minute(samples, threshold, CONSECUTIVE_MEASUREMENTS)
-        assert condition_min is not None, f"PIO2 {threshold} altına hiç inmedi"
+        assert condition_min is not None, f"PIO2 never dropped below {threshold}"
         window = alerts[rule_id]
         assert window["t_earliest"] <= condition_min <= window["t_latest"], rule_id
 
@@ -791,7 +786,7 @@ def test_real_hypoxia_pio2_crossing_times() -> None:
 @pytest.mark.skipif(
     not (REAL_DATA / "scenarios" / "hypercapnia.json").is_file()
     or not (REAL_DATA / "reference" / "ranges.json").is_file(),
-    reason="Gerçek hypercapnia senaryosu veya referans yok",
+    reason="Real hypercapnia scenario or reference missing",
 )
 def test_real_hypercapnia_co2_condition_windows() -> None:
     with (REAL_DATA / "scenarios" / "hypercapnia.json").open(encoding="utf-8") as stream:
@@ -804,7 +799,6 @@ def test_real_hypercapnia_co2_condition_windows() -> None:
         minute = frame.mission_elapsed_s / SECONDS_PER_MIN
         if frame.cabin.pp_co2.value > spec["thresholds"]["ppco2_yellow"]:
             first_conditions.setdefault("cabin_pp_co2_caution", minute)
-        # Tam bir saatlik pencere: uç örnekler yarım ağırlıklı (trapez integrasyonu).
         if index >= window_samples:
             values = [item.cabin.pp_co2.value for item in frames[index - window_samples : index + 1]]
             average = (sum(values) - (values[0] + values[-1]) / 2) / window_samples
@@ -814,16 +808,16 @@ def test_real_hypercapnia_co2_condition_windows() -> None:
         if expected["crew_id"] is None:
             minute = first_conditions[expected["rule_id"]]
             assert expected["t_earliest"] <= minute <= expected["t_latest"], (
-                f"{expected['rule_id']}: koşul {minute:g} dk, "
-                f"beklenen pencere {expected['t_earliest']}..{expected['t_latest']} dk; "
-                "arızadan önceki CO2 regülasyonu senaryonun sabit giderme hesabından farklı"
+                f"{expected['rule_id']}: condition at {minute:g} min, "
+                f"expected window {expected['t_earliest']}..{expected['t_latest']} min; "
+                "pre-fault CO2 regulation differs from the scenario's fixed removal calculation"
             )
 
 
 @pytest.mark.skipif(
     not (REAL_DATA / "scenarios" / "sensor_dropout.json").is_file()
     or not (REAL_DATA / "reference" / "ranges.json").is_file(),
-    reason="Barış'ın PR #36 sensor_dropout senaryosu veya referans yok",
+    reason="PR #36 sensor_dropout scenario or reference missing",
 )
 def test_real_sensor_dropout_readings_and_physics(tmp_path: Path) -> None:
     with (REAL_DATA / "scenarios" / "sensor_dropout.json").open(encoding="utf-8") as stream:
@@ -872,7 +866,7 @@ def test_real_sensor_dropout_readings_and_physics(tmp_path: Path) -> None:
             marks=pytest.mark.skipif(
                 not (REAL_DATA / "scenarios" / f"{name}.json").is_file()
                 or not (REAL_DATA / "reference" / "ranges.json").is_file(),
-                reason="Gerçek senaryo veya referans yok",
+                reason="Real scenario or reference missing",
             ),
         )
         for name in ("nominal", "hypercapnia", "solar_storm")
