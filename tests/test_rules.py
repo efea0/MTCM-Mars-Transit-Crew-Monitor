@@ -680,6 +680,77 @@ def test_alert_lifecycle_and_immutability() -> None:
     assert alert2.last_seen == t4
 
 
+def _evaluate_crew1(
+    engine: r.RulesEngine,
+    tick: int,
+    activity: Activity,
+    *,
+    hr: float = 64.0,
+    spo2: float = 98.0,
+    pp_o2: float,
+) -> TelemetryFrame:
+    c1 = CrewMember(
+        id="crew-1",
+        name="Alper",
+        role="CDR",
+        vitals=make_vitals(hr=hr, spo2=spo2),
+        activity=activity,
+    )
+    frame = make_frame(
+        tick=tick,
+        cabin=make_cabin(pp_o2=pp_o2, pressure=760.0),
+        crew_list=[c1] + [c for c in make_frame().crew if c.id != "crew-1"],
+    )
+    return engine.evaluate(frame)
+
+
+def test_hypoxia_severity_ignores_pio2_below_hafif_hipoksi() -> None:
+    engine = r.RulesEngine()
+    low_pp_o2 = 120.0 * 760.0 / 713.0  # PIO2 120 < pio2_hafif_hipoksi_alt
+    for tick in range(1, 4):
+        evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=95.0, pp_o2=low_pp_o2)
+    alert = next(a for a in evaluated.alerts if a.id == "crew-1:karar-olasi_hipoksi")
+    assert alert.severity == Severity.caution
+
+    for tick in range(4, 7):
+        evaluated = _evaluate_crew1(engine, tick, Activity.exercise, spo2=91.0, pp_o2=low_pp_o2)
+    alert = next(a for a in evaluated.alerts if a.id == "crew-1:karar-olasi_hipoksi")
+    assert alert.severity == Severity.critical
+
+
+def test_cardiac_load_alert_holds_through_single_noisy_reading() -> None:
+    engine = r.RulesEngine()
+    pp_o2 = 145.0 * 760.0 / 713.0
+    tick = 0
+    for _ in range(3):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.resting, hr=80.0, pp_o2=pp_o2)
+    assert any(a.id == "crew-1:karar-kalp_yuku" for a in evaluated.alerts)
+
+    for _ in range(engine.consecutive_required - 1):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.resting, hr=70.0, pp_o2=pp_o2)
+        assert any(a.id == "crew-1:karar-kalp_yuku" for a in evaluated.alerts)
+
+    tick += 1
+    evaluated = _evaluate_crew1(engine, tick, Activity.resting, hr=80.0, pp_o2=pp_o2)
+    assert any(a.id == "crew-1:karar-kalp_yuku" for a in evaluated.alerts)
+    for _ in range(engine.consecutive_required):
+        tick += 1
+        evaluated = _evaluate_crew1(engine, tick, Activity.resting, hr=70.0, pp_o2=pp_o2)
+    assert not any(a.id == "crew-1:karar-kalp_yuku" for a in evaluated.alerts)
+
+
+def test_cardiac_load_alert_clears_immediately_on_exercise() -> None:
+    engine = r.RulesEngine()
+    pp_o2 = 145.0 * 760.0 / 713.0
+    for tick in range(1, 4):
+        evaluated = _evaluate_crew1(engine, tick, Activity.resting, hr=80.0, pp_o2=pp_o2)
+    assert any(a.id == "crew-1:karar-kalp_yuku" for a in evaluated.alerts)
+    evaluated = _evaluate_crew1(engine, 4, Activity.exercise, hr=80.0, pp_o2=pp_o2)
+    assert not any(a.id == "crew-1:karar-kalp_yuku" for a in evaluated.alerts)
+
+
 def test_zero_magic_numbers_custom_ranges(tmp_path: Path) -> None:
     orig_path = r.DEFAULT_RANGES
     with open(orig_path, encoding="utf-8") as f:

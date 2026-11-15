@@ -929,19 +929,7 @@ def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
         pytest.param("hypercapnia", id="hypercapnia"),
         pytest.param("solar_storm", id="solar_storm"),
         pytest.param("sensor_dropout", id="sensor_dropout"),
-        pytest.param(
-            "hypoxia",
-            id="hypoxia",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "Known engine deviation (Aydın): (1) while crew-3 PIO2 < 127, olasi_hipoksi "
-                    "becomes critical; the ranges.json action condition has no PIO2 term, only the SpO2 "
-                    "drop. (2) crew-1 kalp_yuku flickers at the last measurement (pulse noise), "
-                    "so the end state depends on the last frame."
-                ),
-            ),
-        ),
+        pytest.param("hypoxia", id="hypoxia"),
     ],
 )
 def test_engine_end_status_matches_expected(name: str) -> None:
