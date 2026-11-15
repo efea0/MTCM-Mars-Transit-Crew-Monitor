@@ -639,7 +639,6 @@ def test_api_stream_sse() -> None:
     ("method_path", "body"),
     [
         ("/api/control", {"action": "pause"}),
-        ("/api/speed", {"time_scale": 600.0}),
     ],
 )
 def test_control_endpoints_require_demo_key_when_configured(
@@ -651,9 +650,10 @@ def test_control_endpoints_require_demo_key_when_configured(
     assert client.post(method_path, json=body, headers={"X-Demo-Key": "test-anahtari"}).status_code == 200
 
 
-def test_scenario_switch_open_with_demo_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_scenario_and_speed_open_with_demo_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DEMO_CONTROL_KEY", "test-anahtari")
     assert client.post("/api/scenario/hypoxia").status_code == 200
+    assert client.post("/api/speed", json={"time_scale": 600.0}).status_code == 200
     assert client.post("/api/scenario/nominal").status_code == 200
 
 

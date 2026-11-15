@@ -494,7 +494,7 @@ async def post_control(req: ControlRequest) -> dict[str, bool]:
     return {"running": manager.running}
 
 
-@app.post("/api/speed", dependencies=[Depends(require_demo_key)])
+@app.post("/api/speed")
 async def post_speed(req: SpeedRequest) -> dict[str, float]:
     manager.set_time_scale(req.time_scale)
     return {"time_scale": manager.time_scale}
