@@ -48,6 +48,9 @@ from backend.models import (
 DEFAULT_RANGES: Final[Path] = Path(__file__).resolve().parent.parent / "data" / "reference" / "ranges.json"
 MISSING_ALERT_AFTER: Final[int] = 3
 CO2_LIMIT_WINDOW_S: Final[float] = 3600.0
+# Design parameter (HYPOTHESIS, not a limit): an Action-level decision is released only after this many
+# times consecutive_required clean readings, so it stays visible long enough to be acted on.
+ACTION_HOLD_FACTOR: Final[int] = 2
 MMHG_PER_KPA: Final[float] = 7.50062
 
 SEVERITY_BY_LEVEL: Final[dict[str, Severity]] = {
@@ -744,20 +747,41 @@ class RulesEngine:
 
         return Status.nominal
 
-    def _hold_cardiac_alert(self, hr_id: str, crew: CrewMember, hr_ok: bool) -> bool:
-        """Keep an active resting cardiac-load alert until the rise is gone for consecutive_required readings.
+    def _hold_alert(self, alert_id: str, *, can_hold: bool = True) -> bool:
+        """Keep an active decision alert until its trigger has been gone for enough consecutive readings.
 
-        The rule is "persistent over consecutive readings" (ranges.json kalp_yuku); the same
-        art_arda_olcum count is used to clear, so single noisy readings below the threshold
-        do not flicker the alert. Missing/poor data or exercise clears immediately.
+        Caution-level alerts are released after consecutive_required clean readings (the same
+        art_arda_olcum count used to raise them); Action-level (critical) alerts need
+        ACTION_HOLD_FACTOR times as many. Missing or poor input data (can_hold=False) clears at once.
         """
-        if hr_id not in self._active_alerts or crew.activity != Activity.resting.value or not hr_ok:
+        alert = self._active_alerts.get(alert_id)
+        if alert is None or not can_hold:
             return False
-        cleared = self._clear_counts.get(hr_id, 0) + 1
-        if cleared >= self.consecutive_required:
+        severity = getattr(alert.severity, "value", alert.severity)
+        needed = self.consecutive_required * (
+            ACTION_HOLD_FACTOR if severity == Severity.critical.value else 1
+        )
+        cleared = self._clear_counts.get(alert_id, 0) + 1
+        if cleared >= needed:
             return False
-        self._clear_counts[hr_id] = cleared
+        self._clear_counts[alert_id] = cleared
         return True
+
+    def _latch_severity(self, alert_id: str, severity: Severity) -> Severity:
+        """While triggered: keep Action until the lower level has persisted long enough."""
+        self._clear_counts[alert_id] = 0
+        down_key = f"{alert_id}#down"
+        previous = self._active_alerts.get(alert_id)
+        was_critical = previous is not None and (
+            getattr(previous.severity, "value", previous.severity) == Severity.critical.value
+        )
+        if was_critical and severity != Severity.critical:
+            downgrades = self._clear_counts.get(down_key, 0) + 1
+            if downgrades < self.consecutive_required * ACTION_HOLD_FACTOR:
+                self._clear_counts[down_key] = downgrades
+                return Severity.critical
+        self._clear_counts.pop(down_key, None)
+        return severity
 
     def _evaluate_crew_decisions(
         self,
@@ -820,7 +844,10 @@ class RulesEngine:
         if hipoksi_cond:
             assert spo2_r.baseline_delta is not None
             assert pio2_mmhg is not None
-            sev = Severity.critical if spo2_r.baseline_delta <= -self.spo2_eylem else Severity.caution
+            sev = self._latch_severity(
+                hipoksi_id,
+                Severity.critical if spo2_r.baseline_delta <= -self.spo2_eylem else Severity.caution,
+            )
             count = self._consecutive_counts.get(hipoksi_id, 0) + 1
             self._consecutive_counts[hipoksi_id] = count
             if count == 1:
@@ -903,8 +930,11 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+        elif self._hold_alert(hipoksi_id, can_hold=spo2_ok and pio2_ok):
+            pass
         else:
             self._consecutive_counts[hipoksi_id] = 0
+            self._clear_counts.pop(hipoksi_id, None)
             self._alert_first_seen.pop(hipoksi_id, None)
             self._active_alerts.pop(hipoksi_id, None)
 
@@ -935,7 +965,10 @@ class RulesEngine:
         if co2_cond:
             assert co2_mmhg is not None
             assert rr_r.baseline_delta is not None
-            sev = Severity.critical if "cabin:ppco2-limit" in self._active_alerts else Severity.caution
+            sev = self._latch_severity(
+                co2_id,
+                Severity.critical if "cabin:ppco2-limit" in self._active_alerts else Severity.caution,
+            )
             count = self._consecutive_counts.get(co2_id, 0) + 1
             self._consecutive_counts[co2_id] = count
             if count == 1:
@@ -984,8 +1017,11 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+        elif self._hold_alert(co2_id, can_hold=co2_ok):
+            pass
         else:
             self._consecutive_counts[co2_id] = 0
+            self._clear_counts.pop(co2_id, None)
             self._alert_first_seen.pop(co2_id, None)
             self._active_alerts.pop(co2_id, None)
 
@@ -1000,7 +1036,10 @@ class RulesEngine:
 
         if temp_cond:
             assert temp_r.baseline_delta is not None
-            sev = Severity.critical if temp_r.baseline_delta >= self.temp_eylem else Severity.caution
+            sev = self._latch_severity(
+                temp_id,
+                Severity.critical if temp_r.baseline_delta >= self.temp_eylem else Severity.caution,
+            )
             count = self._consecutive_counts.get(temp_id, 0) + 1
             self._consecutive_counts[temp_id] = count
             if count == 1:
@@ -1034,8 +1073,11 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+        elif self._hold_alert(temp_id, can_hold=temp_ok):
+            pass
         else:
             self._consecutive_counts[temp_id] = 0
+            self._clear_counts.pop(temp_id, None)
             self._alert_first_seen.pop(temp_id, None)
             self._active_alerts.pop(temp_id, None)
 
@@ -1053,7 +1095,10 @@ class RulesEngine:
 
         if hr_cond:
             assert hr_r.baseline_delta is not None
-            sev = Severity.critical if hr_r.baseline_delta >= self.hr_eylem else Severity.caution
+            sev = self._latch_severity(
+                hr_id,
+                Severity.critical if hr_r.baseline_delta >= self.hr_eylem else Severity.caution,
+            )
             count = self._consecutive_counts.get(hr_id, 0) + 1
             self._consecutive_counts[hr_id] = count
             if count == 1:
@@ -1088,7 +1133,7 @@ class RulesEngine:
                     why=why,
                 )
             self._clear_counts[hr_id] = 0
-        elif self._hold_cardiac_alert(hr_id, crew, hr_ok):
+        elif self._hold_alert(hr_id, can_hold=crew.activity == Activity.resting.value and hr_ok):
             pass
         else:
             self._consecutive_counts[hr_id] = 0
@@ -1132,7 +1177,10 @@ class RulesEngine:
         rad_cond = career_triggered or sep_triggered
 
         if rad_cond:
-            sev = Severity.critical if (career_critical or sep_critical) else Severity.caution
+            sev = self._latch_severity(
+                rad_id,
+                Severity.critical if (career_critical or sep_critical) else Severity.caution,
+            )
             count = self._consecutive_counts.get(rad_id, 0) + 1
             self._consecutive_counts[rad_id] = count
             if count == 1:
@@ -1192,8 +1240,11 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why_rad,
                 )
+        elif self._hold_alert(rad_id, can_hold=True):
+            pass
         else:
             self._consecutive_counts[rad_id] = 0
+            self._clear_counts.pop(rad_id, None)
             self._alert_first_seen.pop(rad_id, None)
             self._active_alerts.pop(rad_id, None)
 

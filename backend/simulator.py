@@ -43,7 +43,7 @@ VITAL_UNITS = {
     "heart_rate": "bpm",
     "hrv_rmssd": "ms",
     "spo2": "%",
-    "resp_rate": "nefes/dk",
+    "resp_rate": "breaths/min",
     "core_temp": "°C",
     "systolic_bp": "mmHg",
     "diastolic_bp": "mmHg",
@@ -54,7 +54,7 @@ CABIN_UNITS = {
     "cabin_pressure": "mmHg",
     "cabin_temp": "°C",
     "rel_humidity": "%",
-    "radiation_dose_rate": "µGy/saat",
+    "radiation_dose_rate": "µGy/h",
 }
 
 

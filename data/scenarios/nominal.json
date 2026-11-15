@@ -1,6 +1,6 @@
 {
   "scenario": "nominal",
-  "title": "Normal durum",
+  "title": "Nominal cruise",
   "purpose": "To show there is no false alarm when everything is fine. crew-1's exercise pulse does not count as an alarm.",
   "simulated": true,
   "seed": 42,
@@ -50,7 +50,7 @@
       "baseline": {
         "heart_rate": {
           "mean": 64,
-          "sd": 2.0
+          "sd": 0.5
         },
         "hrv_rmssd": {
           "mean": 48,
@@ -209,7 +209,7 @@
     },
     "radiation_dose_rate": {
       "value": 20,
-      "unit": "µGy/saat",
+      "unit": "µGy/h",
       "note": "MSL RAD transit ≈ 0.48 mGy/day (≈1.8 mSv/day)"
     }
   },

@@ -47,7 +47,6 @@ const CABIN_METRICS = ["pp_o2", "pp_co2", "cabin_pressure", "cabin_temp", "rel_h
 const CREW_NAMES = {
   Ayşe: "Neil Armsted", Can: "Sally Ryder", Ece: "Katherine Johnston", Mert: "John Glennard",
 };
-const UNIT_LABELS = { "nefes/dk": "breaths/min", "µGy/saat": "µGy/h" };
 const CABIN_TREND_METRICS = ["pp_co2", "pp_o2"];
 const DECISION_TONE = { normal: "nominal", watch: "caution", action: "critical", unknown: "unknown" };
 const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
@@ -169,12 +168,11 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   showValue(view.value, usable ? reading.value : null);
   view.root.title = usable ? `${LABELS.metric[view.root.dataset.metric]} · ${formatClock(reading.ts)}` : "";
   view.value.classList.toggle("no-value", !usable);
-  const unit = Object.hasOwn(UNIT_LABELS, reading?.unit) ? UNIT_LABELS[reading.unit] : reading?.unit;
-  setText(view.unit, usable ? unit : "");
+  setText(view.unit, usable ? reading.unit : "");
   setText(view.status, LABELS.status[state] ?? LABELS.status.unknown);
   const delta = usable && numeric(reading.baseline_delta) ? reading.baseline_delta : null;
   setText(view.delta, delta === null ? "Baseline: no data"
-    : `Δ ${delta < 0 ? "−" : "+"}${readingFormat.format(Math.abs(delta))} ${unit}`);
+    : `Δ ${delta < 0 ? "−" : "+"}${readingFormat.format(Math.abs(delta))} ${reading.unit}`);
   view.delta.title = delta === null ? "Personal baseline unavailable" : `${view.delta.textContent} compared with personal baseline`;
   const quality = stale ? "stale" : reading?.quality ?? "missing";
   view.state.dataset.quality = quality;
