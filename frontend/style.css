@@ -615,3 +615,6 @@ footer { padding-block: var(--space-1); }
 .speed-button[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 1px; }
 .speed-button { padding: 4px var(--space-2); }
 .demo-key input { inline-size: 11ch; }
+
+/* Activity line may carry the last sleep duration; keep it on one line inside the card. */
+.activity { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
