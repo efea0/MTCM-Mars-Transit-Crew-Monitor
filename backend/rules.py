@@ -744,32 +744,34 @@ class RulesEngine:
         )
 
     def _evaluate_sleep(self, crew: CrewMember, frame: TelemetryFrame) -> SleepSummary | None:
-        """Short-sleep decision: a caution or critical alert after N consecutive short sleep periods.
+        """Short-sleep rules: one alert per rule (caution, critical) after N consecutive short periods.
 
+        Like the cabin rules, both alerts can be active together; the crew decision follows the heaviest.
         A period counts once, when its counter first appears. Missing or poor sleep data never counts as
-        enough sleep: it neither clears nor raises anything. No sleep data at all removes the alert.
+        enough sleep: it neither clears nor raises anything. No sleep data at all removes the alerts.
         """
         cid = crew.id
-        alert_id = f"{cid}:karar-uyku_eksikligi"
+        rule_ids = {Severity.caution: "sleep-short-caution", Severity.critical: "sleep-short-critical"}
         sleep = crew.sleep
         if self.sleep_thresholds is None:
             return sleep
         if sleep is None:
             self._sleep_last_period.pop(cid, None)
             self._sleep_counts.pop(cid, None)
-            self._sleep_first_seen.pop(cid, None)
-            self._active_alerts.pop(alert_id, None)
+            for rule_id in rule_ids.values():
+                self._sleep_first_seen.pop(f"{cid}:{rule_id}", None)
+                self._active_alerts.pop(f"{cid}:{rule_id}", None)
             return None
 
         hours = sleep.hours
         valid = hours.value is not None and hours.quality == Quality.ok.value
-        caution_below = self.sleep_thresholds[Severity.caution]
-        critical_below = self.sleep_thresholds[Severity.critical]
         if not valid:
             reading = hours.model_copy(update={"status": Status.unknown})
             return sleep.model_copy(update={"hours": reading})
         assert hours.value is not None
 
+        caution_below = self.sleep_thresholds[Severity.caution]
+        critical_below = self.sleep_thresholds[Severity.critical]
         if hours.value < critical_below:
             status = Status.critical
         elif hours.value < caution_below:
@@ -781,46 +783,49 @@ class RulesEngine:
         if sleep.period != self._sleep_last_period.get(cid):
             self._sleep_last_period[cid] = sleep.period
             counts = self._sleep_counts.setdefault(cid, {"caution": 0, "critical": 0})
-            counts["caution"] = counts["caution"] + 1 if hours.value < caution_below else 0
-            counts["critical"] = counts["critical"] + 1 if hours.value < critical_below else 0
-            if counts["caution"] == 1:
-                self._sleep_first_seen[cid] = hours.ts
+            for severity in (Severity.caution, Severity.critical):
+                short = hours.value < self.sleep_thresholds[severity]
+                counts[severity.value] = counts[severity.value] + 1 if short else 0
+                if counts[severity.value] == 1:
+                    self._sleep_first_seen[f"{cid}:{rule_ids[severity]}"] = hours.ts
 
         counts = self._sleep_counts.get(cid, {"caution": 0, "critical": 0})
-        if counts["critical"] >= self.sleep_periods_required:
-            severity, threshold, count = Severity.critical, critical_below, counts["critical"]
-            action = "Arrange a recovery sleep period and hand over demanding tasks."
-        elif counts["caution"] >= self.sleep_periods_required:
-            severity, threshold, count = Severity.caution, caution_below, counts["caution"]
-            action = "Plan extra rest and avoid scheduling demanding tasks."
-        else:
-            self._active_alerts.pop(alert_id, None)
-            return updated
-
-        self._active_alerts[alert_id] = Alert(
-            id=alert_id,
-            crew_id=cid,
-            metric=Metric.sleep_hours,
-            severity=severity,
-            message=f"{crew.name}: Short sleep ({severity.value}). {action}",
-            rule_id="karar-uyku_eksikligi",
-            consecutive_count=count,
-            first_seen=self._sleep_first_seen.get(cid, hours.ts),
-            last_seen=frame.ts,
-            why=[
-                Evidence(
-                    metric=Metric.sleep_hours,
-                    value=hours.value,
-                    threshold=threshold,
-                    comparator=Comparator.lt,
-                    ts=hours.ts,
-                    note=(
-                        f"Last sleep period {hours.value:.1f} h (below {threshold:g} h), "
-                        f"{count} consecutive periods"
-                    ),
-                )
-            ],
-        )
+        actions = {
+            Severity.caution: "Plan extra rest and avoid scheduling demanding tasks.",
+            Severity.critical: "Arrange a recovery sleep period and hand over demanding tasks.",
+        }
+        for severity in (Severity.caution, Severity.critical):
+            rule_id = rule_ids[severity]
+            alert_id = f"{cid}:{rule_id}"
+            count = counts[severity.value]
+            if count < self.sleep_periods_required:
+                self._active_alerts.pop(alert_id, None)
+                continue
+            threshold = self.sleep_thresholds[severity]
+            self._active_alerts[alert_id] = Alert(
+                id=alert_id,
+                crew_id=cid,
+                metric=Metric.sleep_hours,
+                severity=severity,
+                message=f"{crew.name}: Short sleep ({severity.value}). {actions[severity]}",
+                rule_id=rule_id,
+                consecutive_count=count,
+                first_seen=self._sleep_first_seen.get(alert_id, hours.ts),
+                last_seen=frame.ts,
+                why=[
+                    Evidence(
+                        metric=Metric.sleep_hours,
+                        value=hours.value,
+                        threshold=threshold,
+                        comparator=Comparator.lt,
+                        ts=hours.ts,
+                        note=(
+                            f"Last sleep period {hours.value:.1f} h (below {threshold:g} h), "
+                            f"{count} consecutive periods"
+                        ),
+                    )
+                ],
+            )
         return updated
 
     def _evaluate_vital_reading_status(
