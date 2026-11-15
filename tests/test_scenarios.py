@@ -27,14 +27,21 @@ ROOT = Path(__file__).resolve().parent.parent
 SCENARIO_DIR = ROOT / "data" / "scenarios"
 RANGES_PATH = ROOT / "data" / "reference" / "ranges.json"
 SCENARIO_FILES = sorted(SCENARIO_DIR.glob("*.json"))
-REQUIRED_SCENARIOS = {"nominal", "hypoxia", "hypercapnia", "solar_storm", "sensor_dropout"}
+REQUIRED_SCENARIOS = {
+    "nominal",
+    "hypoxia",
+    "hypercapnia",
+    "solar_storm",
+    "sensor_dropout",
+    "sleep_deprivation",
+}
 
 CREW_METRICS = set(m.CrewVitals.model_fields)
 CABIN_METRICS = {
     name for name, field in m.CabinAtmosphere.model_fields.items() if field.annotation is m.Reading
 }
 SEVERITIES = {s.value for s in m.Severity}
-CREW_ALERT_EXTRA_METRICS = {"event_dose"}
+CREW_ALERT_EXTRA_METRICS = {"event_dose", "sleep_hours"}
 STATUSES = {s.value for s in m.Status}
 
 GAS_CONSTANT = 8.314
@@ -531,14 +538,22 @@ def first_fire_index(flags: list[bool], n: int) -> int | None:
 
 
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
-def test_alerts_need_three_consecutive_measurements(path: Path) -> None:
+def test_alerts_need_required_consecutive_measurements(path: Path) -> None:
+    """Vital and cabin rules need 3 measurements in a row (5-minute grid); the sleep rule needs 2 sleep
+    periods in a row, measured at the end of each period, so it alerts when the 2nd period ends."""
     s = json.loads(path.read_text(encoding="utf-8"))
     interval = s["model"]["measurement_interval_min"]
     for a in s["expected_alerts"]:
         rule = s["proposed_rules"][a["rule_id"]]
-        assert rule["consecutive_required"] == REQUIRED_CONSECUTIVE, a["rule_id"]
-        fires = a["t_condition"] + (REQUIRED_CONSECUTIVE - 1) * interval
-        assert fires <= a["t_latest"], f"{a['rule_id']}: 3rd measurement is outside the window"
+        if rule["metric"] == "sleep_hours":
+            assert rule["consecutive_required"] == s["sleep_thresholds"]["art_arda_donem"] == 2, a["rule_id"]
+            fires = a["t_condition"]
+        else:
+            assert rule["consecutive_required"] == REQUIRED_CONSECUTIVE, a["rule_id"]
+            fires = a["t_condition"] + (REQUIRED_CONSECUTIVE - 1) * interval
+        assert (
+            fires <= a["t_latest"]
+        ), f"{a['rule_id']}: required consecutive measurement is outside the window"
 
 
 def test_single_blip_does_not_fire_but_sustained_condition_does() -> None:
@@ -841,6 +856,8 @@ KNOWN_ENGINE_RULE_IDS = {
     "pio2-normoxia-low",
     "pio2-hypoxia-low",
     "pio2-normoxia-high",
+    "sleep-short-caution",  # ranges.json uyku_kurallari; the engine does not produce them yet
+    "sleep-short-critical",
 }
 
 
@@ -848,7 +865,9 @@ KNOWN_ENGINE_RULE_IDS = {
 def test_expected_alerts_name_their_engine_counterpart(path: Path) -> None:
     s = json.loads(path.read_text(encoding="utf-8"))
     for a in s["expected_alerts"]:
-        assert a["engine_metric"] in m.Metric.__members__, a["rule_id"]
+        assert (
+            a["engine_metric"] in m.Metric.__members__ or a["engine_metric"] in CREW_ALERT_EXTRA_METRICS
+        ), a["rule_id"]
         known = a["engine_rule_id"] in KNOWN_ENGINE_RULE_IDS or a["engine_rule_id"].startswith("missing-")
         assert known, (a["rule_id"], a["engine_rule_id"])
 
@@ -950,3 +969,144 @@ def test_hypoxia_engine_no_forbidden_heart_alerts() -> None:
     neil = next((t for k, t in first.items() if k[0] == "crew-1" and k[1] == "heart_rate"), None)
     assert neil is not None, "Neil must produce kalp_yuku"
     assert 172 <= neil <= 215, f"engine warned Neil at {neil} min; window [172, 215]"
+
+
+# ---------------------------------------------------------------- sleep_deprivation
+# Sleep length rule (ranges.json uyku_kurallari, HYPOTHESIS): measured at the end of each sleep period,
+# two periods in a row. sleep_hours is the scenario/contract name; ranges.json calls the metric uyku_suresi.
+
+SLEEP_RULES = {"crew_sleep_short_caution": "izle_saat", "crew_sleep_short_critical": "eylem_saat"}
+SLEEP_RANGE_IDS = {"izle_saat": "sleep-short-caution", "eylem_saat": "sleep-short-critical"}
+SEVERITY_RANK = {"nominal": 0, "caution": 1, "critical": 2}
+
+
+def sleep_periods(s: Scenario, crew_id: str) -> list[tuple[float, float]]:
+    """A person's sleep periods: from activity == sleep to the next other activity (minutes)."""
+    events = sorted(
+        (e for e in s["events"] if e.get("crew_id") == crew_id and "activity" in e), key=lambda e: e["t_min"]
+    )
+    periods: list[tuple[float, float]] = []
+    start: float | None = None
+    for e in events:
+        if e["activity"] == "sleep" and start is None:
+            start = e["t_min"]
+        elif e["activity"] != "sleep" and start is not None:
+            periods.append((start, e["t_min"]))
+            start = None
+    assert start is None, f"{crew_id}: unfinished sleep period"
+    return periods
+
+
+def sleep_alerts(s: Scenario, crew_id: str) -> dict[str, float]:
+    """Reference rule: N periods in a row below the threshold alert at the end of the Nth period."""
+    th = s["sleep_thresholds"]
+    out: dict[str, float] = {}
+    for rule_id, key in SLEEP_RULES.items():
+        run = 0
+        for start, end in sleep_periods(s, crew_id):
+            run = run + 1 if (end - start) / 60 < th[key] else 0
+            if run == th["art_arda_donem"] and rule_id not in out:
+                out[rule_id] = end
+    return out
+
+
+@pytest.fixture(scope="module")
+def sleep() -> Scenario:
+    return load("sleep_deprivation")
+
+
+def test_sleep_events_are_well_formed(sleep: Scenario) -> None:
+    for c in sleep["crew"]:
+        periods = sleep_periods(sleep, c["id"])
+        assert len(periods) == 2, c["id"]
+        assert all(0 <= a < b <= sleep["duration_min"] for a, b in periods), c["id"]
+        assert periods[0][1] < periods[1][0], f"{c['id']}: periods must not overlap"
+    assert all(e["activity"] in {a.value for a in m.Activity} for e in sleep["events"] if "activity" in e)
+
+
+def test_sleep_expected_alerts_match_reference_rule(sleep: Scenario) -> None:
+    """Expected alerts equal the reference rule computed independently from the sleep periods."""
+    expected = {(a["crew_id"], a["rule_id"]): a for a in sleep["expected_alerts"]}
+    computed = {(c["id"], rule): t for c in sleep["crew"] for rule, t in sleep_alerts(sleep, c["id"]).items()}
+    assert set(expected) == set(computed)
+    for key, t in computed.items():
+        a = expected[key]
+        assert a["t_condition"] == t
+        assert a["t_earliest"] <= a["t_condition"] <= a["t_latest"] <= sleep["duration_min"], key
+
+
+def test_sleep_single_short_period_and_healthy_sleep_do_not_alert(sleep: Scenario) -> None:
+    th = sleep["sleep_thresholds"]
+    hours = [(b - a) / 60 for a, b in sleep_periods(sleep, "crew-4")]
+    assert hours[0] < th["eylem_saat"] and hours[1] >= th["izle_saat"], "one short period, then a normal one"
+    assert sleep_alerts(sleep, "crew-4") == {}
+    assert sleep_alerts(sleep, "crew-1") == {}
+    assert not {(a["crew_id"], a["metric"]) for a in sleep["expected_alerts"]} & {
+        (f["crew_id"], f["metric"]) for f in sleep["forbidden_alerts"]
+    }
+    produced = {(c["id"], rule) for c in sleep["crew"] for rule in sleep_alerts(sleep, c["id"])}
+    expected_rules = {(a["crew_id"], a["rule_id"]) for a in sleep["expected_alerts"]}
+    for f in sleep["forbidden_rules"]:
+        assert (f["crew_id"], f["rule_id"]) not in expected_rules
+        assert (f["crew_id"], f["rule_id"]) not in produced
+
+
+def test_sleep_end_status_is_worst_alert_severity(sleep: Scenario) -> None:
+    for c in sleep["crew"]:
+        severities = [a["severity"] for a in sleep["expected_alerts"] if a["crew_id"] == c["id"]]
+        worst = max(severities, key=SEVERITY_RANK.__getitem__, default="nominal")
+        assert sleep["expected_status_end"][c["id"]] == worst, c["id"]
+    assert sleep["expected_status_end"]["cabin"] == "nominal"
+
+
+def range_path(ranges: dict[str, Any], ref: str) -> Any:
+    """Resolve 'a.b[id=x].c' against ranges.json (list items are picked by their id)."""
+    node: Any = ranges
+    for part in ref.split("."):
+        name, _, selector = part.partition("[id=")
+        node = node[name]
+        if selector:
+            node = next(item for item in node if item["id"] == selector.rstrip("]"))
+    return node
+
+
+def test_sleep_thresholds_match_ranges(ranges: dict[str, Any]) -> None:
+    """Thresholds equal ranges.json uyku_kurallari.kurallar (not the main kurallar list)."""
+    if "uyku_kurallari" not in ranges:
+        pytest.skip("sleep rules are not in ranges.json yet (#146)")
+    s = load("sleep_deprivation")
+    th = s["sleep_thresholds"]
+    rules = {r["id"]: r for r in ranges["uyku_kurallari"]["kurallar"]}
+    assert set(rules) == set(SLEEP_RANGE_IDS.values())
+    for key, rule_id in SLEEP_RANGE_IDS.items():
+        assert rules[rule_id]["threshold"] == th[key], rule_id
+        assert rules[rule_id]["consecutive_required"] == th["art_arda_donem"], rule_id
+    assert rules["sleep-short-caution"]["severity"] == "caution"
+    assert rules["sleep-short-critical"]["severity"] == "critical"
+    for key, ref in s["sleep_ranges_refs"].items():
+        assert range_path(ranges, ref) == th[key], ref
+
+
+def test_sleep_scenario_is_loadable_and_runs_in_the_real_simulator() -> None:
+    """The backend simulator accepts the file (activity events carry targets and ramp_min) and runs it."""
+    from backend.simulator import SimulationFinished, Simulator
+
+    simulator = Simulator(m.Scenario.sleep_deprivation)
+    activities: set[str] = set()
+    ticks = 0
+    while True:
+        try:
+            frame = simulator.tick()
+        except SimulationFinished:
+            break
+        ticks += 1
+        activities.update(member.activity for member in frame.crew)
+    assert ticks > 0 and {"sleep", "resting"} <= activities
+
+
+@pytest.mark.xfail(
+    strict=False,
+    reason="Known gap (contract, Aydın): sleep_hours is not a contract Metric yet.",
+)
+def test_contract_has_sleep_hours_metric() -> None:
+    assert "sleep_hours" in m.Metric.__members__
