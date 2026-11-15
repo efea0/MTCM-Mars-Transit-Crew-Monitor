@@ -518,6 +518,20 @@ def test_api_restart_and_scenario_change_after_finished(client: TestClient) -> N
     client.post("/api/scenario/nominal")
 
 
+def test_pipeline_solar_storm_radiation_alert_and_decisions() -> None:
+    """SEP bağlamı simülatörden gelir: kişi radyasyon uyarısı çıkar, karar unknown kalmaz."""
+    pipeline = Pipeline(Scenario.solar_storm)
+    rule_ids: set[str] = set()
+    sep_decisions: set[str] = set()
+    while not pipeline.finished:
+        frame = pipeline.step()
+        rule_ids.update(alert.rule_id for alert in frame.alerts)
+        if any(crew.event_dose_msv is not None for crew in frame.crew):
+            sep_decisions.update(str(getattr(crew.decision, "value", crew.decision)) for crew in frame.crew)
+    assert "karar-radyasyon_etkisi" in rule_ids
+    assert "unknown" not in sep_decisions
+
+
 def test_pipeline_all_scenarios_to_end() -> None:
     for sc in ("nominal", "hypoxia", "hypercapnia", "solar_storm", "sensor_dropout"):
         p = Pipeline(sc)
