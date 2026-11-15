@@ -20,7 +20,7 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 
 ### 30-Second Project Demo
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[![Watch 30 s Demo Video on YouTube](https://img.youtube.com/vi/5M8-BdbDQKI/hqdefault.jpg)](https://youtu.be/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP)
 
 [Watch 30 s Demo Video on YouTube](https://youtu.be/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP)
 
