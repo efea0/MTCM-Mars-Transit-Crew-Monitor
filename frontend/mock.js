@@ -7,6 +7,7 @@ const MOCK_GAP_AT_TICK = 40;
 const MOCK_GAP_DURATION_MS = 12000;
 const MOCK_MISSION_START_S = 12 * 24 * 60 * 60;
 const MOCK_SECONDS_PER_TICK = 60;
+const MOCK_ONE_WAY_DELAY_S = 720;
 const MOCK_BASELINES = [
   { heart_rate: 64, spo2: 98, resp_rate: 14, core_temp: 36.7, hrv_rmssd: 48, systolic_bp: 118, diastolic_bp: 76 },
   { heart_rate: 68, spo2: 98, resp_rate: 15, core_temp: 36.8, hrv_rmssd: 51, systolic_bp: 120, diastolic_bp: 78 },
@@ -31,6 +32,22 @@ function reading(metric, value, ts, baseline = null, status = "nominal", quality
 function mockAlert(id, crew_id, metric, severity, message, value, threshold, comparator, note, ts, first_seen, consecutive_count) {
   return { id, crew_id, metric, severity, message, rule_id: `mock-${id}`, consecutive_count,
     first_seen, last_seen: ts, why: [{ metric, value, threshold, comparator, ts, note }] };
+}
+// Fixed demo messages: a report goes out when the O₂ alert opens, Mission Control answers later.
+// Delivery is not part of the message; the panel derives it from frame.ts and deliver_at.
+function mockMessages(tick, phase, at) {
+  const cycle = Math.floor(tick / MOCK_CYCLE_TICKS);
+  const make = (suffix, sender, body, offset) => {
+    const sentAt = at(offset);
+    return { id: `mock-${cycle}-${suffix}`, sender, body, sent_at: sentAt,
+      deliver_at: new Date(Date.parse(sentAt) + MOCK_ONE_WAY_DELAY_S * 1000).toISOString(),
+      one_way_delay_s: MOCK_ONE_WAY_DELAY_S };
+  };
+  const messages = [];
+  if (phase >= 12) messages.push(make("watch", "system", "MOCK: Crew-3 SpO₂ is 3 points below baseline; cabin O₂ is falling.", 12));
+  if (phase >= 20) messages.push(make("action", "system", "MOCK: Crew-3 SpO₂ is 6 points below baseline; action required.", 20));
+  if (phase >= 26) messages.push(make("reply", "mission_control", "MOCK: Report received, evaluating.", 26));
+  return messages;
 }
 function makeFrame(tick, clock) {
   const phase = tick % MOCK_CYCLE_TICKS;
@@ -102,7 +119,8 @@ function makeFrame(tick, clock) {
   return { contract_version: CONTRACT_VERSION, tick, ts,
     mission_elapsed_s: MOCK_MISSION_START_S + tick * MOCK_SECONDS_PER_TICK,
     scenario: missingDemo ? "sensor_dropout" : o2Active ? "hypoxia" : "nominal",
-    simulated: true, crew, cabin, alerts, comms_one_way_delay_s: 720, messages: [] };
+    simulated: true, crew, cabin, alerts, comms_one_way_delay_s: MOCK_ONE_WAY_DELAY_S,
+    messages: mockMessages(tick, phase, at) };
 }
 export function startMock(onFrame) {
   const clock = Date.now();

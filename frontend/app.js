@@ -34,6 +34,7 @@ const LABELS = {
   activity: { resting: "Resting", exercise: "Exercise", sleep: "Sleep", unknown: "Unknown" },
   quality: { ok: "Valid", stale: "stale", missing: "missing", sensor_fault: "sensor fault" },
   scenario: { nominal: "Nominal cruise", hypoxia: "O₂ failure", hypercapnia: "CO₂ rise", solar_storm: "Solar storm", sensor_dropout: "Sensor dropout" },
+  sender: { crew: "Crew", mission_control: "Mission Control", system: "System" },
 };
 const PRIMARY_METRICS = ["heart_rate", "spo2", "resp_rate", "core_temp"];
 const SECONDARY_METRICS = ["hrv_rmssd", "systolic_bp", "diastolic_bp"];
@@ -51,6 +52,7 @@ const alertViews = new Map();
 const histories = new Map();
 const freshAlertIds = new Map();
 const cabinViews = new Map();
+const earthViews = new Map();
 let frame = null;
 let lastReceived = null;
 let transportState = "connecting";
@@ -392,13 +394,71 @@ function updateAlerts(stale) {
     if (container.children[index] !== view.root) container.insertBefore(view.root, container.children[index] ?? null);
   });
 }
+// CommsMessage has no status field: delivery is derived from the frame clock (frame.ts) and deliver_at.
+function deliveryState(message, now) {
+  const deliverAt = Date.parse(message.deliver_at);
+  if (Number.isNaN(deliverAt) || Number.isNaN(now)) return null;
+  return now < deliverAt ? { delivered: false, secondsLeft: (deliverAt - now) / 1000 } : { delivered: true, secondsLeft: 0 };
+}
+function timeLeft(seconds) {
+  const total = Math.max(0, Math.ceil(seconds));
+  return `${Math.floor(total / SECONDS_PER_MINUTE)} min ${total % SECONDS_PER_MINUTE} s left`;
+}
+// Messages come ordered by sent_at; a repeated id is shown once (the later copy wins).
+function uniqueMessages(messages) {
+  const byId = new Map();
+  for (const message of messages ?? []) byId.set(message.id, message);
+  return [...byId.values()].sort((a, b) => Date.parse(a.sent_at) - Date.parse(b.sent_at));
+}
+function createEarthRow() {
+  const root = el("li", "earth-row");
+  const head = el("div", "earth-row-head");
+  const sender = el("strong", "earth-sender");
+  const status = el("span", "badge earth-status");
+  const body = el("p", "earth-body");
+  const meta = el("p", "earth-meta");
+  head.append(sender, status);
+  root.append(head, body, meta);
+  return { root, sender, status, body, meta };
+}
+function updateEarthRow(view, message, now) {
+  const state = deliveryState(message, now);
+  tone(view.root, state?.delivered ? "nominal" : "unknown");
+  tone(view.status, state?.delivered ? "nominal" : "unknown");
+  view.sender.textContent = LABELS.sender[message.sender] ?? message.sender;
+  view.status.textContent = state === null ? "? Unknown" : state.delivered ? "✓ Delivered" : `→ In transit · ${timeLeft(state.secondsLeft)}`;
+  view.body.textContent = message.body;
+  view.meta.textContent = `Sent ${formatClock(message.sent_at)} · Arrives ${formatClock(message.deliver_at)}`;
+}
+function updateEarth(stale) {
+  const list = document.getElementById("earth-messages");
+  const notice = document.getElementById("earth-notice");
+  const delay = frame?.comms_one_way_delay_s;
+  document.getElementById("earth-delay").textContent = stale || !numeric(delay)
+    ? "Light delay: — min" : `Light delay: ${number(delay / SECONDS_PER_MINUTE)} min`;
+  const messages = stale ? [] : uniqueMessages(frame.messages);
+  notice.hidden = messages.length > 0;
+  notice.textContent = stale ? "NO DATA · Earth link status unknown." : "No alerts sent to Earth";
+  list.hidden = stale || messages.length === 0;
+  const ids = new Set(messages.map(message => message.id));
+  for (const [id, view] of earthViews) {
+    if (!ids.has(id)) { view.root.remove(); earthViews.delete(id); }
+  }
+  const now = Date.parse(frame?.ts);
+  messages.forEach((message, index) => {
+    let view = earthViews.get(message.id);
+    if (!view) { view = createEarthRow(); earthViews.set(message.id, view); }
+    updateEarthRow(view, message, now);
+    if (list.children[index] !== view.root) list.insertBefore(view.root, list.children[index] ?? null);
+  });
+}
 function render() {
   const stale = packetStale();
   document.getElementById("simulated").hidden = frame?.simulated === false;
   document.getElementById("scenario").textContent = LABELS.scenario[frame?.scenario] ?? "Waiting for packet";
   document.getElementById("mission_elapsed_s").textContent = missionTime(frame?.mission_elapsed_s);
   document.getElementById("mission_elapsed_s").classList.toggle("muted", stale);
-  updateCrew(stale); updateCabin(stale); updateAlerts(stale);
+  updateCrew(stale); updateCabin(stale); updateAlerts(stale); updateEarth(stale);
   wasStale = stale;
   updateClock();
 }
