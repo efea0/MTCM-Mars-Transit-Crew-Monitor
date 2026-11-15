@@ -209,7 +209,7 @@
     },
     "radiation_dose_rate": {
       "value": 20,
-      "unit": "µGy/saat",
+      "unit": "µGy/h",
       "note": "MSL RAD transit ≈ 0.48 mGy/day (≈1.8 mSv/day)"
     }
   },
