@@ -1,48 +1,49 @@
 @charset "UTF-8";
-/* Habitat palette: one dark theme built only from three colours (#2B2D42, #8D99AE, #EDF2F4) and mixes between them.
-   Status cannot use hue, so every state also has a text label and icon, and severity uses lightness plus
-   border weight and fill. The light-theme blocks below are intentionally empty stubs (the contrast tests still
-   look for them). */
+/* Habitat palette: one dark theme built only from three colours (#393D41 charcoal, #F6F8EC off-white, #E84F38
+   red-orange) and mixes between them. Red-orange is reserved for alert states, never decoration. Status cannot
+   rely on hue alone, so every state also has a text label and icon, and severity uses lightness, fill, line style
+   and an inset outline. The light-theme blocks below are intentionally empty stubs (the contrast tests still look
+   for them). */
 :root {
   color-scheme: dark;
-  --bg: #2b2d42;
-  --surface: #35384d;
-  --surface-raised: #3d4055;
-  --surface-hover: #464b60;
-  --border: #52586d;
-  --border-strong: #747e93;
-  --text: #edf2f4;
-  --muted: #b8c1ce;
-  --accent: #edf2f4;
-  --on-accent: #2b2d42;
-  --accent-ink: #edf2f4;
-  --focus: #edf2f4;
-  --ok: #8d99ae;
-  --caution: #b3bdca;
-  --warning: #d0d7df;
-  --critical: #edf2f4;
-  --unknown: #747e93;
-  --ok-ink: #c2cad4;
-  --caution-ink: #d5dce2;
-  --warning-ink: #e3e9ed;
-  --critical-ink: #edf2f4;
-  --unknown-ink: #b8c1ce;
-  --ok-tint: #393c51;
-  --caution-tint: #3f4358;
-  --warning-tint: #44495e;
-  --critical-tint: #4c5267;
-  --unknown-tint: #313348;
-  --on-status: #2b2d42;
-  --on-critical: #2b2d42;
-  --chart-baseline: #8d99ae;
-  --grid-line: rgb(141 153 174 / 4%);
-  --brand-light: #edf2f4;
-  --brand-mid: #8d99ae;
-  --on-header: #edf2f4;
-  --topbar-bg: #2b2d42;
-  --topbar-bg-end: #393c51;
-  --shine: rgb(237 242 244 / 22%);
-  --lift-shadow: rgb(43 45 66 / 70%);
+  --bg: #222527;
+  --surface: #2f3233;
+  --surface-raised: #393c3d;
+  --surface-hover: #484b4a;
+  --border: #595c5a;
+  --border-strong: #8c8e8a;
+  --text: #f6f8ec;
+  --muted: #c1c4bc;
+  --accent: #f6f8ec;
+  --on-accent: #0e0f10;
+  --accent-ink: #f6f8ec;
+  --focus: #f6f8ec;
+  --ok: #818480;
+  --caution: #aaada8;
+  --warning: #ee9b89;
+  --critical: #e84f38;
+  --unknown: #5d605e;
+  --ok-ink: #d0d3ca;
+  --caution-ink: #dfe2d7;
+  --warning-ink: #f3d3c4;
+  --critical-ink: #f1bdad;
+  --unknown-ink: #c1c4bc;
+  --ok-tint: #333637;
+  --caution-tint: #3e4041;
+  --warning-tint: #4a2d2a;
+  --critical-tint: #65332d;
+  --unknown-tint: #2a2d2f;
+  --on-status: #0e0f10;
+  --on-critical: #0b0c0d;
+  --chart-baseline: #c1c4bc;
+  --grid-line: rgb(246 248 236 / 4%);
+  --brand-light: #f6f8ec;
+  --brand-mid: #8c8e8a;
+  --on-header: #f6f8ec;
+  --topbar-bg: #222527;
+  --topbar-bg-end: #333637;
+  --shine: rgb(246 248 236 / 20%);
+  --lift-shadow: rgb(0 0 0 / 60%);
   --glow-strength: 0%;
   --space-1: 4px;
   --space-2: 8px;
