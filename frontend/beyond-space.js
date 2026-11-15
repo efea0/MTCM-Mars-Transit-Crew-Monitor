@@ -29,10 +29,25 @@ const SOURCES = [
   ["Submarine CO₂ exposure guideline study (2018), PubMed 30511437", "https://pubmed.ncbi.nlm.nih.gov/30511437/"],
   ["30 CFR 7.506, refuge alternative breathable air (eCFR)", "https://www.ecfr.gov/current/title-30/section-7.506"],
 ];
-const STORY = [
-  "People already live and work in sealed, air-limited places on Earth, such as submarines and underground refuge chambers. The same questions apply there: how long is the air safe, who needs to act, and what should they do?",
-  "On the Mars transit vehicle, the astronaut monitor answers them with a cabin air budget (O₂ and CO₂ mass balance) and decisions read against each person's own baseline. The design is meant to carry over to other environments by changing only the profile: volume, crew size, equipment capacity and limits.",
-  "Underground exploration, such as caving, was part of the inspiration. Caves are not modeled here: they are not sealed environments and we have no sourced limits for them. Limits are prepared for the two sealed environments in the table below.",
+// One story, four places. Each step says plainly what is modeled and what is not.
+const STORY_INTRO = "One question follows people into every sealed, air-limited place: how long is the air safe, who needs to act, and what should they do?";
+const STORY_STEPS = [
+  {
+    title: "Underground: where the idea began",
+    text: "Underground exploration, such as caving, was part of the inspiration. Caves are not sealed environments and we have no sourced limits for them, so they are not modeled here.",
+  },
+  {
+    title: "A submarine: the same air, for a long time",
+    text: "A crew breathes the same sealed air for long stretches. The NRC recommends keeping CO₂ below 0.8 % for 90-day exposure (a recommendation, not an official Navy limit). Our profile assumes 100 people in 2000 m³.",
+  },
+  {
+    title: "A refuge chamber: when the air systems fail",
+    text: "In a US coal-mine refuge chamber (30 CFR 7.506) a scrubber and bottled O₂ keep the air safe. If both stop, our calculation reaches the CO₂ limit in about 1.3 hours and the O₂ lower bound in about 2.8 hours (worked example below).",
+  },
+  {
+    title: "Mars: the live monitor",
+    text: "On the Mars transit vehicle the astronaut monitor answers the same question with a cabin air budget, two countdowns and decisions read against each person's own baseline. The design is meant to carry over to the places above by changing only the profile: volume, crew size, equipment capacity and limits.",
+  },
 ];
 
 // Worked example (illustrative arithmetic, NOT the live engine): the refuge-chamber failure from ranges.json
@@ -122,8 +137,14 @@ export function createBeyondSpace({ trigger }) {
   disclaimer.id = "beyond-disclaimer";
   const content = node("div", "nasa-content");
   const why = node("section", "nasa-section");
-  why.append(node("h3", "", "Why this matters on Earth"));
-  for (const line of STORY) why.append(node("p", "beyond-story", line));
+  why.append(node("h3", "", "One question, four places"), node("p", "beyond-story", STORY_INTRO));
+  const steps = node("ol", "beyond-steps");
+  for (const step of STORY_STEPS) {
+    const item = node("li", "beyond-step");
+    item.append(node("strong", "beyond-step-title", step.title), node("p", "beyond-step-text", step.text));
+    steps.append(item);
+  }
+  why.append(steps);
   const profiles = node("section", "nasa-section");
   profiles.append(node("h3", "", "Environment profiles"));
   const wrap = node("div", "nasa-table-wrap"); wrap.tabIndex = 0;

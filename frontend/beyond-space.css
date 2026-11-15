@@ -10,6 +10,11 @@
 }
 .mission-meta .beyond-trigger:hover { background-position: 0 0, 100% 0; text-decoration: none; }
 .beyond-dialog .beyond-story { max-width: 78ch; margin: 0 0 var(--space-3); line-height: 1.6; }
+.beyond-dialog .beyond-steps { list-style: none; counter-reset: step; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-3); max-width: 90ch; }
+.beyond-dialog .beyond-step { counter-increment: step; position: relative; padding: var(--space-2) 0 var(--space-2) 32px; border-left: 2px solid var(--border-strong); }
+.beyond-dialog .beyond-step::before { content: counter(step); position: absolute; left: -15px; top: var(--space-2); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 600 13px var(--font-mono); color: var(--on-accent); background: var(--accent); }
+.beyond-dialog .beyond-step-title { display: block; font-size: 16px; margin-bottom: var(--space-1); }
+.beyond-dialog .beyond-step-text { margin: 0; line-height: 1.6; color: var(--text); }
 .beyond-dialog .beyond-list { margin: 0; padding-left: var(--space-5); line-height: 1.7; max-width: 90ch; }
 .beyond-dialog .beyond-list a { color: var(--accent-ink); overflow-wrap: anywhere; }
 .beyond-dialog .beyond-table { min-width: 760px; }
