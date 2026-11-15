@@ -6,6 +6,7 @@ import json
 import math
 import random
 from copy import deepcopy
+from dataclasses import FrozenInstanceError
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -14,7 +15,8 @@ import pytest
 
 from backend import atmosphere, simulator
 from backend.models import Scenario, TelemetryFrame
-from backend.simulator import SIMULATION_EPOCH, SimulationFinished, Simulator
+from backend.rules import RulesEngine, SepContext
+from backend.simulator import SIMULATION_EPOCH, SepState, SimulationFinished, Simulator
 
 REAL_DATA = Path(__file__).resolve().parents[1] / "data"
 INTERVAL_MIN = 5
@@ -536,6 +538,105 @@ def test_off_grid_ramp_starts_at_scheduled_minute(
     assert frames[1].crew[0].vitals.heart_rate.value - control[1].crew[0].vitals.heart_rate.value == (
         pytest.approx(12)
     )
+
+
+@pytest.mark.parametrize("onset_min,end_min", [(5, 30), (0, 30), (2, 28), (5, None)])
+def test_sep_state_lifecycle(
+    tmp_path: Path,
+    ranges_path: Path,
+    scenario: dict[str, Any],
+    onset_min: int,
+    end_min: int | None,
+) -> None:
+    scenario["scenario"] = "solar_storm"
+    scenario["duration_min"] = 40
+    scenario["events"] = [
+        {"t_min": onset_min, "type": "sep_onset"},
+        {"t_min": 15, "type": "shelter"},
+    ]
+    if end_min is not None:
+        scenario["events"].append({"t_min": end_min, "type": "sep_end"})
+    sim = make_simulator(tmp_path, ranges_path, scenario)
+    inactive = SepState(False, None, None)
+    assert sim.sep_state == inactive
+    first_active: SepState | None = None
+    while not sim.finished:
+        frame = sim.tick()
+        minute = frame.mission_elapsed_s / SECONDS_PER_MIN
+        state = sim.sep_state
+        assert sim.sep_state == state  # Okumak simülasyonu ilerletmez.
+        if minute < onset_min or (end_min is not None and minute >= end_min):
+            assert state == inactive
+            if end_min is not None and end_min <= minute < end_min + INTERVAL_MIN:
+                assert all(member.event_dose_msv is not None for member in frame.crew)
+            continue
+        assert state.active
+        assert state.event_dose_rate_msv_per_h == (25.0 if minute < 15 else 6.25)
+        if end_min is None:
+            assert state.remaining_event_h is None
+        else:
+            assert state.remaining_event_h == pytest.approx((end_min - minute) / 60)
+            assert state.remaining_event_h >= 0
+        if first_active is None:
+            first_active = state
+        if minute == 15:
+            sim.reset()
+            assert sim.sep_state == inactive
+            for _ in range(frame.tick + 1):
+                sim.tick()
+            assert sim.sep_state == state
+    assert first_active is not None
+    assert first_active.event_dose_rate_msv_per_h == 25.0
+    with pytest.raises(FrozenInstanceError):
+        first_active.active = False
+    sim.reset()
+    assert sim.sep_state == inactive
+
+
+@pytest.mark.skipif(
+    not (REAL_DATA / "scenarios" / "solar_storm.json").is_file()
+    or not (REAL_DATA / "reference" / "ranges.json").is_file(),
+    reason="Gerçek solar_storm senaryosu veya referans yok",
+)
+def test_real_solar_storm_sep_state_and_radiation_decision() -> None:
+    sim = Simulator(Scenario.solar_storm)
+    engine = RulesEngine()
+    inactive = SepState(False, None, None)
+    assert sim.sep_state == inactive
+    critical_minutes: list[float] = []
+    while not sim.finished:
+        frame = sim.tick()
+        minute = frame.mission_elapsed_s / SECONDS_PER_MIN
+        state = sim.sep_state
+        if 30 <= minute < 750:
+            assert state.active
+            assert state.event_dose_rate_msv_per_h == (25.0 if minute < 45 else 6.25)
+            assert state.remaining_event_h == pytest.approx((750 - minute) / 60)
+        else:
+            assert state == inactive
+        if minute == 750:
+            assert all(member.event_dose_msv is not None for member in frame.crew)
+        elif minute > 750:
+            assert all(member.event_dose_msv is None for member in frame.crew)
+        evaluated = engine.evaluate(
+            frame,
+            sep=SepContext(
+                sep_active=state.active,
+                event_dose_rate_msv_per_h=state.event_dose_rate_msv_per_h,
+                remaining_event_h=state.remaining_event_h,
+            ),
+        )
+        if state.active:
+            assert all(member.decision != "unknown" for member in evaluated.crew)
+        for alert in evaluated.alerts:
+            if alert.rule_id == "karar-radyasyon_etkisi" and alert.severity == "critical":
+                assert alert.crew_id in {member.id for member in frame.crew}
+                assert alert.id == f"{alert.crew_id}:karar-radyasyon_etkisi"
+                assert alert.why
+                critical_minutes.append(minute)
+    assert any(30 <= minute <= 45 for minute in critical_minutes)
+    sim.reset()
+    assert sim.sep_state == inactive
 
 
 def test_solar_storm_dose_integration_and_reset(
