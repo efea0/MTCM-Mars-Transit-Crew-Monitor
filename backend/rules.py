@@ -117,6 +117,7 @@ class RulesEngine:
         self._missing_alerts: dict[tuple[str, Metric], Alert] = {}
 
         self._consecutive_counts: dict[str, int] = {}
+        self._clear_counts: dict[str, int] = {}
         self._alert_first_seen: dict[str, datetime] = {}
         self._active_alerts: dict[str, Alert] = {}
 
@@ -289,6 +290,7 @@ class RulesEngine:
         self._missing_first_seen.clear()
         self._missing_alerts.clear()
         self._consecutive_counts.clear()
+        self._clear_counts.clear()
         self._alert_first_seen.clear()
         self._active_alerts.clear()
 
@@ -742,6 +744,21 @@ class RulesEngine:
 
         return Status.nominal
 
+    def _hold_cardiac_alert(self, hr_id: str, crew: CrewMember, hr_ok: bool) -> bool:
+        """Keep an active resting cardiac-load alert until the rise is gone for consecutive_required readings.
+
+        The rule is "persistent over consecutive readings" (ranges.json kalp_yuku); the same
+        art_arda_olcum count is used to clear, so single noisy readings below the threshold
+        do not flicker the alert. Missing/poor data or exercise clears immediately.
+        """
+        if hr_id not in self._active_alerts or crew.activity != Activity.resting.value or not hr_ok:
+            return False
+        cleared = self._clear_counts.get(hr_id, 0) + 1
+        if cleared >= self.consecutive_required:
+            return False
+        self._clear_counts[hr_id] = cleared
+        return True
+
     def _evaluate_crew_decisions(
         self,
         crew: CrewMember,
@@ -803,11 +820,7 @@ class RulesEngine:
         if hipoksi_cond:
             assert spo2_r.baseline_delta is not None
             assert pio2_mmhg is not None
-            sev = (
-                Severity.critical
-                if (spo2_r.baseline_delta <= -self.spo2_eylem or pio2_mmhg < self.pio2_hafif_hipoksi_alt)
-                else Severity.caution
-            )
+            sev = Severity.critical if spo2_r.baseline_delta <= -self.spo2_eylem else Severity.caution
             count = self._consecutive_counts.get(hipoksi_id, 0) + 1
             self._consecutive_counts[hipoksi_id] = count
             if count == 1:
@@ -1074,8 +1087,12 @@ class RulesEngine:
                     last_seen=frame.ts,
                     why=why,
                 )
+            self._clear_counts[hr_id] = 0
+        elif self._hold_cardiac_alert(hr_id, crew, hr_ok):
+            pass
         else:
             self._consecutive_counts[hr_id] = 0
+            self._clear_counts.pop(hr_id, None)
             self._alert_first_seen.pop(hr_id, None)
             self._active_alerts.pop(hr_id, None)
 
