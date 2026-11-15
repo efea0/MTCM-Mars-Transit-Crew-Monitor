@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any, Final
+
+logger: Final = logging.getLogger(__name__)
 
 STATUS_MAP: Final[dict[str, str]] = {
     "doğrulandı": "verified",
@@ -126,7 +129,8 @@ def _cabin_items(data: dict[str, Any]) -> list[dict[str, Any]]:
                     status=rule.get("status"),
                 )
             )
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError) as err:
+            logger.warning("Skipping malformed cabin rule %r: %s", rule, err)
             continue
     return items
 
@@ -136,17 +140,20 @@ def _vital_items(data: dict[str, Any]) -> list[dict[str, Any]]:
     consecutive: int | None
     try:
         consecutive = int(vitals["art_arda_olcum"]["deger"])
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError) as err:
+        logger.warning("Could not parse consecutive measurement count from vitals: %s", err)
         consecutive = None
     items: list[dict[str, Any]] = []
     for key, prefix, label, metric, unit, sign, comparator in VITAL_SPECS:
         params = vitals.get(key)
         if not isinstance(params, dict):
+            logger.warning("Skipping vital parameter %r: expected dict, got %r", key, type(params).__name__)
             continue
         for level_key, severity, level_name in VITAL_LEVELS:
             try:
                 threshold = sign * params[level_key]
-            except (KeyError, TypeError):
+            except (KeyError, TypeError) as err:
+                logger.warning("Skipping vital level %r for %r: %s", level_key, key, err)
                 continue
             items.append(
                 _item(
@@ -174,6 +181,7 @@ def _radiation_items(data: dict[str, Any]) -> list[dict[str, Any]]:
     for key, prefix, label, metric in RADIATION_LIMITS:
         entry = radiation.get(key)
         if not isinstance(entry, dict) or "deger" not in entry:
+            logger.warning("Skipping radiation limit %r: missing dict entry or 'deger'", key)
             continue
         limit = entry["deger"]
         items.append(
@@ -212,6 +220,8 @@ def _radiation_items(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 def build_limits(ranges_path: Path) -> dict[str, Any]:
     data = json.loads(ranges_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"ranges.json must contain a JSON object, got {type(data).__name__}")
     version = data.get("meta", {}).get("surum")
     items = _cabin_items(data) + _vital_items(data) + _radiation_items(data)
     return {"version": str(version) if version is not None else None, "items": items}
