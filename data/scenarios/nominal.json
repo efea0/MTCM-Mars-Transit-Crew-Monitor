@@ -45,7 +45,7 @@
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -261,7 +261,7 @@
         "resp_rate": 24
       },
       "ramp_min": 5,
-      "note": "Ayşe is exercising; the rise in pulse and respiration is expected, not an alarm."
+      "note": "Neil is exercising; the rise in pulse and respiration is expected, not an alarm."
     },
     {
       "t_min": 90,

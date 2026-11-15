@@ -45,7 +45,7 @@
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -276,7 +276,7 @@
         "heart_rate": 80
       },
       "ramp_min": 20,
-      "note": "While Ece rests, her pulse rises from her own baseline of 58 to 80 (+22, threshold +15; margin left against noise sd 2.0): cardiac load Watch. This alert must also appear while crew-2's sensor is down."
+      "note": "While Katherine rests, her pulse rises from her own baseline of 58 to 80 (+22, threshold +15; margin left against noise sd 2.0): cardiac load Watch. This alert must also appear while crew-2's sensor is down."
     },
     {
       "t_min": 30,
@@ -285,7 +285,7 @@
       "metric": "heart_rate",
       "quality": "missing",
       "until_min": 60,
-      "note": "Can's pulse sensor gives no data (value=null)."
+      "note": "Sally's pulse sensor gives no data (value=null)."
     },
     {
       "t_min": 70,
@@ -295,7 +295,7 @@
       "quality": "stale",
       "until_min": 90,
       "stale_value": 97.0,
-      "note": "Mert's SpO2 sensor repeats its last value (97); there is a value but it is not reliable."
+      "note": "John's SpO2 sensor repeats its last value (97); there is a value but it is not reliable."
     },
     {
       "t_min": 100,
@@ -320,7 +320,7 @@
       "evidence_metrics": [
         "heart_rate"
       ],
-      "why": "While Ece rests, her pulse is more than 15 above her own baseline (58) (rises to +22; 3 consecutive measurements). This alert is not lost even if another astronaut's sensor is down at the same time.",
+      "why": "While Katherine rests, her pulse is more than 15 above her own baseline (58) (rises to +22; 3 consecutive measurements). This alert is not lost even if another astronaut's sensor is down at the same time.",
       "recommendation": "Eforu azalt, izle.",
       "engine_metric": "heart_rate",
       "engine_rule_id": "karar-kalp_yuku"
@@ -336,7 +336,7 @@
       "evidence_metrics": [
         "heart_rate"
       ],
-      "why": "No data from Can's pulse sensor for 3 consecutive measurements. Missing data is not counted as Normal.",
+      "why": "No data from Sally's pulse sensor for 3 consecutive measurements. Missing data is not counted as Normal.",
       "recommendation": "Check the sensor; until data returns this measurement cannot be used for decisions.",
       "engine_metric": "heart_rate",
       "engine_rule_id": "missing-heart_rate"
@@ -352,7 +352,7 @@
       "evidence_metrics": [
         "spo2"
       ],
-      "why": "Mert's SpO2 sensor repeats the old value (stale): no valid reading for 3 consecutive measurements. The old value is not counted as hypoxia evidence.",
+      "why": "John's SpO2 sensor repeats the old value (stale): no valid reading for 3 consecutive measurements. The old value is not counted as hypoxia evidence.",
       "recommendation": "Check the sensor; until data returns this measurement cannot be used for decisions.",
       "engine_metric": "spo2",
       "engine_rule_id": "missing-spo2"
@@ -447,8 +447,8 @@
     "cabin": "nominal"
   },
   "demo_notes": [
-    "Can's pulse cell shows 'NO DATA', not green; at the 3rd measurement a 'no data' alert appears. It turns green again when data returns.",
-    "Ece's alert still appears during the sensor dropout: the system does not go blind because of a dropped sensor.",
+    "Sally's pulse cell shows 'NO DATA', not green; at the 3rd measurement a 'no data' alert appears. It turns green again when data returns.",
+    "Katherine's alert still appears during the sensor dropout: the system does not go blind because of a dropped sensor.",
     "When the cabin CO2 sensor produces nonsense the system does not raise a red alarm; it says 'sensor fault / no data'."
   ],
   "forbidden_rules": [

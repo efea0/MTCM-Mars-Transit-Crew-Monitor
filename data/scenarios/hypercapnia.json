@@ -45,7 +45,7 @@
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -294,7 +294,7 @@
         "heart_rate": 68
       },
       "ramp_min": 30,
-      "note": "Ece's respiration rises (13 → 19, +6). Pulse 58 → 68 (+10) is below the resting threshold. Cabin ppCO2 is ≥ 2.8 mmHg at this point (NASA headache range)."
+      "note": "Katherine's respiration rises (13 → 19, +6). Pulse 58 → 68 (+10) is below the resting threshold. Cabin ppCO2 is ≥ 2.8 mmHg at this point (NASA headache range)."
     }
   ],
   "expected_alerts": [
@@ -326,7 +326,7 @@
         "resp_rate",
         "pp_co2"
       ],
-      "why": "While cabin ppCO2 is above 2.5, Ece's respiration is at least 4 above her baseline (13) (rises to +6).",
+      "why": "While cabin ppCO2 is above 2.5, Katherine's respiration is at least 4 above her baseline (13) (rises to +6).",
       "recommendation": "Rest, strengthen CO2 removal, monitor symptoms.",
       "engine_metric": "pp_co2",
       "engine_rule_id": "karar-olasi_co2_etkisi"
@@ -359,7 +359,7 @@
         "resp_rate",
         "pp_co2"
       ],
-      "why": "Ece's symptoms persist and the cabin 1-hour average is above the limit.",
+      "why": "Katherine's symptoms persist and the cabin 1-hour average is above the limit.",
       "recommendation": "Stop exercise, monitor until the level drops below 3 mmHg, report to Earth.",
       "engine_metric": "pp_co2",
       "engine_rule_id": "karar-olasi_co2_etkisi"

@@ -1,7 +1,7 @@
 {
   "scenario": "hypoxia",
   "title": "O2 unit failure: Astronaut 3 exercising",
-  "purpose": "O2 production stops and cabin PIO2 leaves normoxia (145). While Ece exercises her SpO2 drops and a personal hypoxia decision is raised; exercise pulse does not count as evidence. Personal pulse deviation in the same scenario: Ayşe's and Mert's pulse are both 80; Ayşe baseline 64 → +16 Watch, Mert baseline 67 → +13 normal. Same pulse, different baseline, different decision. Red when cabin PIO2 falls below 127.",
+  "purpose": "O2 production stops and cabin PIO2 leaves normoxia (145). While Katherine exercises her SpO2 drops and a personal hypoxia decision is raised; exercise pulse does not count as evidence. Personal pulse deviation in the same scenario: Neil's and John's pulse are both 80; Neil baseline 64 → +16 Watch, John baseline 67 → +13 normal. Same pulse, different baseline, different decision. Red when cabin PIO2 falls below 127.",
   "simulated": true,
   "seed": 42,
   "time_unit": "mission_min",
@@ -45,7 +45,7 @@
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -293,7 +293,7 @@
         "heart_rate": 80
       },
       "ramp_min": 120,
-      "note": "While Ayşe rests, her pulse rises from her own baseline of 64 to 80 (+16): cardiac load Watch. Same pulse as Mert (80); the baseline difference changes the decision. Unrelated to O2, SpO2 is normal."
+      "note": "While Neil rests, his pulse rises from his own baseline of 64 to 80 (+16): cardiac load Watch. Same pulse as John (80); the baseline difference changes the decision. Unrelated to O2, SpO2 is normal."
     },
     {
       "t_min": 60,
@@ -304,7 +304,7 @@
         "heart_rate": 80
       },
       "ramp_min": 120,
-      "note": "Mert's pulse also rises to 80 but his baseline is 67: +13, below the threshold (+15) → normal. Same pulse as Ayşe, different decision."
+      "note": "John's pulse also rises to 80 but his baseline is 67: +13, below the threshold (+15) → normal. Same pulse as Neil, different decision."
     },
     {
       "t_min": 600,
@@ -316,7 +316,7 @@
         "resp_rate": 26
       },
       "ramp_min": 5,
-      "note": "Ece starts exercising (cabin PIO2 is already below 145). The pulse/respiration rise comes from exercise; it is neither an alarm nor evidence."
+      "note": "Katherine starts exercising (cabin PIO2 is already below 145). The pulse/respiration rise comes from exercise; it is neither an alarm nor evidence."
     },
     {
       "t_min": 605,
@@ -355,7 +355,7 @@
       "evidence_metrics": [
         "heart_rate"
       ],
-      "why": "While Ayşe rests, her pulse is 15 above her own baseline (64) (3 consecutive measurements).",
+      "why": "While Neil rests, his pulse is 15 above his own baseline (64) (3 consecutive measurements).",
       "recommendation": "Eforu azalt, izle.",
       "engine_metric": "heart_rate",
       "engine_rule_id": "karar-kalp_yuku"
@@ -388,7 +388,7 @@
         "spo2",
         "pp_o2"
       ],
-      "why": "While Ece exercises, her SpO2 dropped 3 points below her own baseline (98); cabin PIO2 is below 145. Exercise pulse was not counted as evidence.",
+      "why": "While Katherine exercises, her SpO2 dropped 3 points below her own baseline (98); cabin PIO2 is below 145. Exercise pulse was not counted as evidence.",
       "recommendation": "Stop exercise, check the O2 source and cabin PIO2.",
       "engine_metric": "spo2",
       "engine_rule_id": "karar-olasi_hipoksi"
@@ -405,7 +405,7 @@
         "spo2",
         "pp_o2"
       ],
-      "why": "Ece's SpO2 dropped 6 points below her baseline; cabin PIO2 is below normoxia.",
+      "why": "Katherine's SpO2 dropped 6 points below her baseline; cabin PIO2 is below normoxia.",
       "recommendation": "Stop exercise, switch to backup O2, report to Earth.",
       "engine_metric": "spo2",
       "engine_rule_id": "karar-olasi_hipoksi"
@@ -441,12 +441,12 @@
     {
       "crew_id": "crew-4",
       "metric": "heart_rate",
-      "why": "Mert's pulse 80 = his baseline 67 + 13; below the threshold (+15). Same pulse as Ayşe (80), different decision."
+      "why": "John's pulse 80 = his baseline 67 + 13; below the threshold (+15). Same pulse as Neil (80), different decision."
     },
     {
       "crew_id": "crew-1",
       "metric": "spo2",
-      "why": "Ayşe's pulse rise is not hypoxia; SpO2 is normal."
+      "why": "Neil's pulse rise is not hypoxia; SpO2 is normal."
     },
     {
       "crew_id": "crew-2",
@@ -492,8 +492,8 @@
     }
   ],
   "demo_notes": [
-    "Ayşe's and Mert's pulse are both 80: Ayşe yellow (baseline 64 → +16), Mert green (baseline 67 → +13). Same pulse, different baseline: the data shows why a personal baseline matters. Seed 42 is fixed, the result is the same on every run.",
-    "While Ece's pulse is 130 the system stays quiet and speaks when SpO2 drops: it tells exercise apart.",
-    "Ece's personal alert comes long before the cabin turns red: early warning."
+    "Neil's and John's pulse are both 80: Neil yellow (baseline 64 → +16), John green (baseline 67 → +13). Same pulse, different baseline: the data shows why a personal baseline matters. Seed 42 is fixed, the result is the same on every run.",
+    "While Katherine's pulse is 130 the system stays quiet and speaks when SpO2 drops: it tells exercise apart.",
+    "Katherine's personal alert comes long before the cabin turns red: early warning."
   ]
 }

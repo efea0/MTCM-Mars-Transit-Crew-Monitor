@@ -958,7 +958,7 @@ def test_hypoxia_engine_no_forbidden_heart_alerts() -> None:
     assert ("crew-4", "heart_rate", "caution", "karar-kalp_yuku") not in first
     assert not any(
         k[0] == "crew-3" and k[1] == "heart_rate" for k in first
-    ), "cardiac load is forbidden for Ece"
-    ayse = next((t for k, t in first.items() if k[0] == "crew-1" and k[1] == "heart_rate"), None)
-    assert ayse is not None, "Ayşe must produce kalp_yuku"
-    assert 172 <= ayse <= 215, f"engine warned Ayşe at {ayse} min; window [172, 215]"
+    ), "cardiac load is forbidden for Katherine"
+    neil = next((t for k, t in first.items() if k[0] == "crew-1" and k[1] == "heart_rate"), None)
+    assert neil is not None, "Neil must produce kalp_yuku"
+    assert 172 <= neil <= 215, f"engine warned Neil at {neil} min; window [172, 215]"

@@ -45,7 +45,7 @@
   "crew": [
     {
       "id": "crew-1",
-      "name": "Ayşe",
+      "name": "Neil Armsted",
       "role": "Commander",
       "baseline": {
         "heart_rate": {
@@ -80,7 +80,7 @@
     },
     {
       "id": "crew-2",
-      "name": "Can",
+      "name": "Sally Ryder",
       "role": "Flight Engineer",
       "baseline": {
         "heart_rate": {
@@ -115,7 +115,7 @@
     },
     {
       "id": "crew-3",
-      "name": "Ece",
+      "name": "Katherine Johnston",
       "role": "Mission Specialist",
       "baseline": {
         "heart_rate": {
@@ -150,7 +150,7 @@
     },
     {
       "id": "crew-4",
-      "name": "Mert",
+      "name": "John Glennard",
       "role": "Flight Surgeon",
       "baseline": {
         "heart_rate": {
@@ -270,7 +270,7 @@
       "evidence_metrics": [
         "event_dose"
       ],
-      "why": "Projected event dose for Ayşe is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
+      "why": "Projected event dose for Neil is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
       "recommendation": "Move to the storm shelter; after the event, personal dose record and report to Earth.",
       "engine_metric": "event_dose",
       "engine_rule_id": "karar-radyasyon_etkisi"
@@ -286,7 +286,7 @@
       "evidence_metrics": [
         "event_dose"
       ],
-      "why": "Projected event dose for Can is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
+      "why": "Projected event dose for Sally is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
       "recommendation": "Move to the storm shelter; after the event, personal dose record and report to Earth.",
       "engine_metric": "event_dose",
       "engine_rule_id": "karar-radyasyon_etkisi"
@@ -302,7 +302,7 @@
       "evidence_metrics": [
         "event_dose"
       ],
-      "why": "Projected event dose for Ece is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
+      "why": "Projected event dose for Katherine is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
       "recommendation": "Move to the storm shelter; after the event, personal dose record and report to Earth.",
       "engine_metric": "event_dose",
       "engine_rule_id": "karar-radyasyon_etkisi"
@@ -318,7 +318,7 @@
       "evidence_metrics": [
         "event_dose"
       ],
-      "why": "Projected event dose for Mert is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
+      "why": "Projected event dose for John is 25 mSv/hour × 12 hours = 300 mSv ≥ 200 mSv (80% of the 250 design threshold). The alert is given before the dose is received.",
       "recommendation": "Move to the storm shelter; after the event, personal dose record and report to Earth.",
       "engine_metric": "event_dose",
       "engine_rule_id": "karar-radyasyon_etkisi"
