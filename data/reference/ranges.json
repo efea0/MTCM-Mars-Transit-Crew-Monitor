@@ -7,6 +7,14 @@
     {"id": "ppco2-caution", "metric": "pp_co2", "severity": "caution", "comparator": ">", "threshold": 2.5, "consecutive_required": 3, "source": "NASA OCHMO-TB-004", "status": "kısmen"}
   ],
 
+  "uyku_kurallari": {
+    "not": "Kept apart from kurallar: uyku_suresi is not in the Metric contract enum yet, so the loader would reject it. Moves into kurallar after delivery with the contract and simulator (sleep_hours) change. Requested by Barış, approved by Efe (2026-11-15, freeze exception).",
+    "kurallar": [
+      {"id": "sleep-short-caution", "metric": "uyku_suresi", "severity": "caution", "comparator": "<", "threshold": 6, "consecutive_required": 2, "source": "varsayım", "status": "doğrulanmadı"},
+      {"id": "sleep-short-critical", "metric": "uyku_suresi", "severity": "critical", "comparator": "<", "threshold": 5, "consecutive_required": 2, "source": "varsayım", "status": "doğrulanmadı"}
+    ]
+  },
+
   "meta": {
     "proje": "NASA Space Apps 2026 – MTCM: Mars Transit Crew Monitor",
     "surum": "1.2",
