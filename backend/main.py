@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
@@ -12,11 +13,12 @@ from pathlib import Path
 from typing import Final
 
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, field_validator
 
-from backend.comms import DelayedLink
+from backend.comms import DelayedLink, load_delay_bounds_s
 from backend.models import CONTRACT_VERSION, Scenario, TelemetryFrame
 from backend.rules import RulesEngine, SepContext
 from backend.simulator import SIMULATION_EPOCH, SimulationFinished, Simulator
@@ -24,7 +26,10 @@ from backend.simulator import SIMULATION_EPOCH, SimulationFinished, Simulator
 DEFAULT_SCENARIO_NAME: Final[str] = "nominal"
 DEFAULT_TIME_SCALE: Final[float] = 600.0
 MAX_TIME_SCALE: Final[float] = 6000.0
-MIN_TIME_SCALE: Final[float] = 0.0
+MIN_TIME_SCALE: Final[float] = 0.01
+# HİPOTEZ: uyarı ancak 12 ardışık kare (5 dk adımla 1 görev saati) yokluktan sonra serbest bırakılır;
+# kural motorundaki kısa titreşimler Dünya paneline mesaj yağdırmaz (hypoxia: 31 -> 6 mesaj).
+RELEASE_AFTER_ABSENT_FRAMES: Final[int] = 12
 SUBSCRIBER_QUEUE_MAXSIZE: Final[int] = 100
 KEEPALIVE_INTERVAL_S: Final[float] = 15.0
 SECONDS_PER_MINUTE: Final[float] = 60.0
@@ -36,18 +41,22 @@ SCENARIOS_DIR: Final[Path] = DATA_DIR / "scenarios"
 FRONTEND_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "frontend"
 
 
+def validate_time_scale(scale: float) -> float:
+    if not math.isfinite(scale) or not MIN_TIME_SCALE <= scale <= MAX_TIME_SCALE:
+        raise ValueError(f"time_scale sonlu ve {MIN_TIME_SCALE}-{MAX_TIME_SCALE} aralığında olmalı")
+    return scale
+
+
 def load_default_time_scale(ranges_path: Path = RANGES_PATH) -> float:
     env_scale = os.getenv("MARS_TIME_SCALE")
     if env_scale is not None:
         try:
-            parsed = float(env_scale)
-            if parsed > MIN_TIME_SCALE:
-                return parsed
+            return validate_time_scale(float(env_scale))
         except ValueError:
             pass
     try:
         data = json.loads(ranges_path.read_text(encoding="utf-8"))
-        return float(data["iletisim"]["demo_zaman_carpani"]["deger"])
+        return validate_time_scale(float(data["iletisim"]["demo_zaman_carpani"]["deger"]))
     except (KeyError, OSError, TypeError, ValueError):
         return DEFAULT_TIME_SCALE
 
@@ -67,8 +76,10 @@ class Pipeline:
         self.scenario = Scenario(scenario)
         self.sim = Simulator(self.scenario, scenario_dir=self.scenarios_dir, ranges_path=self.ranges_path)
         self.rules = RulesEngine(self.ranges_path)
-        self.link = DelayedLink()
+        bounds = load_delay_bounds_s(self.ranges_path)
+        self.link = DelayedLink(delay_bounds_s=bounds)
         self._active_keys: set[tuple[str, ...]] = set()
+        self._absent_frames: dict[tuple[str, ...], int] = {}
 
     @property
     def measurement_interval_min(self) -> float:
@@ -82,8 +93,10 @@ class Pipeline:
         self.scenario = Scenario(scenario)
         self.sim = Simulator(self.scenario, scenario_dir=self.scenarios_dir, ranges_path=self.ranges_path)
         self.rules = RulesEngine(self.ranges_path)
-        self.link = DelayedLink()
+        bounds = load_delay_bounds_s(self.ranges_path)
+        self.link = DelayedLink(delay_bounds_s=bounds)
         self._active_keys.clear()
+        self._absent_frames.clear()
 
     def step(self) -> TelemetryFrame:
         frame = self.sim.tick()
@@ -107,11 +120,20 @@ class Pipeline:
             current_keys.add(key)
             if key not in self._active_keys:
                 self.link.send(key, alert.message, frame.mission_elapsed_s)
+            self._absent_frames.pop(key, None)
 
-        for released_key in self._active_keys - current_keys:
-            self.link.release(released_key)
+        current_rules = {key[:2] for key in current_keys}
+        for key in self._active_keys - current_keys:
+            absent = self._absent_frames.get(key, 0) + 1
+            # Severity değişimi ayrı bir bildirimdir; eski seviyeyi hemen serbest bırak.
+            if key[:2] in current_rules or absent >= RELEASE_AFTER_ABSENT_FRAMES:
+                self.link.release(key)
+                self._active_keys.remove(key)
+                self._absent_frames.pop(key, None)
+            else:
+                self._absent_frames[key] = absent
 
-        self._active_keys = current_keys
+        self._active_keys.update(current_keys)
         self.link.update(frame.mission_elapsed_s)
 
         return frame.model_copy(
@@ -147,17 +169,19 @@ class SimulationManager:
         self._unpaused_event: asyncio.Event = asyncio.Event()
         self._unpaused_event.set()
         self._interrupt_event: asyncio.Event = asyncio.Event()
+        self._reset_requested: bool = False
         self._shutdown: bool = False
         self._task: asyncio.Task[None] | None = None
 
     def start(self) -> None:
+        if self._task is not None and not self._task.done():
+            return
         self._shutdown = False
         self._unpaused_event = asyncio.Event()
         if self.running and not self.finished:
             self._unpaused_event.set()
         self._interrupt_event = asyncio.Event()
-        if self._task is None or self._task.done():
-            self._task = asyncio.create_task(self._run_loop())
+        self._task = asyncio.create_task(self._run_loop())
 
     async def stop(self) -> None:
         self._shutdown = True
@@ -183,20 +207,24 @@ class SimulationManager:
 
     def restart(self) -> None:
         self.pipeline.reset(self.pipeline.scenario)
+        self.last_frame = None
         self.finished = False
         self.running = True
+        self._reset_requested = True
         self._unpaused_event.set()
         self._interrupt_event.set()
 
     def set_scenario(self, scenario_name: str) -> None:
         self.pipeline.reset(scenario_name)
+        self.last_frame = None
         self.finished = False
         self.running = True
+        self._reset_requested = True
         self._unpaused_event.set()
         self._interrupt_event.set()
 
     def set_time_scale(self, scale: float) -> None:
-        self.time_scale = scale
+        self.time_scale = validate_time_scale(scale)
         self._interrupt_event.set()
 
     def add_subscriber(self, queue: asyncio.Queue[str]) -> None:
@@ -221,11 +249,13 @@ class SimulationManager:
         self._broadcast(f"event: end\ndata: {payload}\n\n")
 
     async def _run_loop(self) -> None:
+        loop = asyncio.get_running_loop()
         while not self._shutdown:
             await self._unpaused_event.wait()
             if self._shutdown:
                 break
 
+            self._reset_requested = False
             try:
                 frame = self.pipeline.step()
                 self.last_frame = frame
@@ -238,13 +268,27 @@ class SimulationManager:
                 continue
 
             interval_min = self.pipeline.measurement_interval_min
-            delay_s = (interval_min * SECONDS_PER_MINUTE) / self.time_scale
+            total_sim_s = interval_min * SECONDS_PER_MINUTE
+            sim_elapsed = 0.0
 
-            try:
-                await asyncio.wait_for(self._interrupt_event.wait(), timeout=delay_s)
-                self._interrupt_event.clear()
-            except TimeoutError:
-                pass
+            while sim_elapsed < total_sim_s and not self._shutdown:
+                if not self.running or self._reset_requested:
+                    break
+
+                remaining_sim = total_sim_s - sim_elapsed
+                time_scale = self.time_scale
+                delay_s = remaining_sim / time_scale
+                t_start = loop.time()
+
+                try:
+                    await asyncio.wait_for(self._interrupt_event.wait(), timeout=delay_s)
+                    self._interrupt_event.clear()
+                    dt_real = loop.time() - t_start
+                    sim_elapsed += dt_real * time_scale
+                    if self._shutdown or not self.running or self._reset_requested:
+                        break
+                except TimeoutError:
+                    break
 
 
 manager: Final[SimulationManager] = SimulationManager()
@@ -272,7 +316,12 @@ class ControlRequest(BaseModel):
 
 class SpeedRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    time_scale: float = Field(gt=MIN_TIME_SCALE, le=MAX_TIME_SCALE)
+    time_scale: float
+
+    @field_validator("time_scale")
+    @classmethod
+    def validate_scale(cls, value: float) -> float:
+        return validate_time_scale(value)
 
 
 class HealthResponse(BaseModel):
@@ -302,6 +351,20 @@ app: Final[FastAPI] = FastAPI(
     version=CONTRACT_VERSION,
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    # NaN/Infinity girdileri ve ValueError bağlamı JSON'a güvenle yazılabilmeli.
+    errors = [
+        {
+            **error,
+            "input": str(error.get("input")),
+            "ctx": {k: str(v) for k, v in error.get("ctx", {}).items()},
+        }
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 @app.get("/api/health", response_model=HealthResponse)
@@ -344,7 +407,13 @@ async def post_scenario(name: str) -> ScenarioChangeResponse:
             status_code=HTTP_NOT_FOUND,
             detail=f"'{name}' senaryosu bulunamadı.",
         )
-    manager.set_scenario(name)
+    try:
+        manager.set_scenario(name)
+    except (FileNotFoundError, ValueError, OSError) as err:
+        raise HTTPException(
+            status_code=HTTP_NOT_FOUND,
+            detail=f"'{name}' senaryosu yüklenemedi: {err}",
+        ) from err
     return ScenarioChangeResponse(scenario=name, status="started")
 
 
@@ -394,8 +463,6 @@ async def get_stream(request: Request) -> StreamingResponse:
                     yield msg
                 except TimeoutError:
                     yield ": keep-alive\n\n"
-        except (asyncio.CancelledError, GeneratorExit):
-            pass
         finally:
             manager.remove_subscriber(queue)
 
