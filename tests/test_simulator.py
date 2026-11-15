@@ -793,14 +793,6 @@ def test_real_hypoxia_pio2_crossing_times() -> None:
     or not (REAL_DATA / "reference" / "ranges.json").is_file(),
     reason="Gerçek hypercapnia senaryosu veya referans yok",
 )
-@pytest.mark.xfail(
-    reason=(
-        "senaryo pencereleri arıza öncesi giderme=4.0 kg/gün (CO2 1,926'ya düşer) varsayar; "
-        "simülatör regüle (net 0, 2,0'da sabit) ve Barış'ın kararına uyar: "
-        "pencere güncellemesi henüz yok (qa: hypercapnia expected_alerts)"
-    ),
-    strict=False,
-)
 def test_real_hypercapnia_co2_condition_windows() -> None:
     with (REAL_DATA / "scenarios" / "hypercapnia.json").open(encoding="utf-8") as stream:
         spec = json.load(stream)

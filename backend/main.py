@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import math
 import os
@@ -12,7 +13,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Final
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +35,12 @@ SUBSCRIBER_QUEUE_MAXSIZE: Final[int] = 100
 KEEPALIVE_INTERVAL_S: Final[float] = 15.0
 SECONDS_PER_MINUTE: Final[float] = 60.0
 HTTP_NOT_FOUND: Final[int] = 404
+HTTP_UNAUTHORIZED: Final[int] = 401
+DEMO_KEY_ENV: Final[str] = "DEMO_CONTROL_KEY"
+DEMO_KEY_HEADER: Final[str] = "X-Demo-Key"
+# HİPOTEZ: senaryo bitince `end` olayından sonra 30 sn beklenir, ardından nominal senaryo otomatik başlar;
+# ziyaretçi donmuş son kareyle kalmaz. Bu sürede elle restart/senaryo seçimi önceliklidir.
+FINISH_RESTART_DELAY_S: Final[float] = 30.0
 
 DATA_DIR: Final[Path] = Path(__file__).resolve().parent.parent / "data"
 RANGES_PATH: Final[Path] = DATA_DIR / "reference" / "ranges.json"
@@ -162,6 +169,7 @@ class SimulationManager:
             scenarios_dir=self.scenarios_dir,
         )
         self.time_scale: float = load_default_time_scale(self.ranges_path)
+        self.finish_restart_delay_s: float | None = FINISH_RESTART_DELAY_S
         self.running: bool = True
         self.finished: bool = False
         self.last_frame: TelemetryFrame | None = None
@@ -248,6 +256,16 @@ class SimulationManager:
         payload = json.dumps({"scenario": scenario_name})
         self._broadcast(f"event: end\ndata: {payload}\n\n")
 
+    async def _restart_nominal_after_delay(self) -> None:
+        """Bitişten sonra bekler; elle restart/senaryo gelmediyse nominal senaryoyu başlatır."""
+        if self.finish_restart_delay_s is None:
+            return
+        try:
+            await asyncio.wait_for(self._unpaused_event.wait(), timeout=self.finish_restart_delay_s)
+        except TimeoutError:
+            if not self._shutdown:
+                self.set_scenario(DEFAULT_SCENARIO_NAME)
+
     async def _run_loop(self) -> None:
         loop = asyncio.get_running_loop()
         while not self._shutdown:
@@ -265,6 +283,7 @@ class SimulationManager:
                 self.running = False
                 self._unpaused_event.clear()
                 self._broadcast_end(self.pipeline.scenario.value)
+                await self._restart_nominal_after_delay()
                 continue
 
             interval_min = self.pipeline.measurement_interval_min
@@ -301,6 +320,19 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await manager.stop()
+
+
+def require_demo_key(x_demo_key: str | None = Header(default=None)) -> None:
+    """Kontrol uçlarını korur; DEMO_CONTROL_KEY tanımsız veya boşsa uçlar açıktır (yerel geliştirme)."""
+    expected = os.getenv(DEMO_KEY_ENV, "")
+    if not expected:
+        return
+    provided = x_demo_key or ""
+    if not hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
+        raise HTTPException(
+            status_code=HTTP_UNAUTHORIZED,
+            detail=f"Bu uç için geçerli {DEMO_KEY_HEADER} başlığı gerekli.",
+        )
 
 
 class ControlAction(str, Enum):
@@ -398,7 +430,11 @@ async def get_scenarios() -> list[ScenarioInfo]:
     return items
 
 
-@app.post("/api/scenario/{name}", response_model=ScenarioChangeResponse)
+@app.post(
+    "/api/scenario/{name}",
+    response_model=ScenarioChangeResponse,
+    dependencies=[Depends(require_demo_key)],
+)
 async def post_scenario(name: str) -> ScenarioChangeResponse:
     valid_names = {s.value for s in Scenario}
     scenario_path = SCENARIOS_DIR / f"{name}.json"
@@ -417,7 +453,7 @@ async def post_scenario(name: str) -> ScenarioChangeResponse:
     return ScenarioChangeResponse(scenario=name, status="started")
 
 
-@app.post("/api/control")
+@app.post("/api/control", dependencies=[Depends(require_demo_key)])
 async def post_control(req: ControlRequest) -> dict[str, bool]:
     if req.action == ControlAction.pause:
         manager.pause()
@@ -428,7 +464,7 @@ async def post_control(req: ControlRequest) -> dict[str, bool]:
     return {"running": manager.running}
 
 
-@app.post("/api/speed")
+@app.post("/api/speed", dependencies=[Depends(require_demo_key)])
 async def post_speed(req: SpeedRequest) -> dict[str, float]:
     manager.set_time_scale(req.time_scale)
     return {"time_scale": manager.time_scale}

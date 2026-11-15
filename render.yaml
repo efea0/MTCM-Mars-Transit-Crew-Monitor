@@ -14,3 +14,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.10
+      # Kontrol uçları (senaryo, duraklat/başlat, hız) için anahtar; değer Render panelinden girilir, repoya yazılmaz.
+      - key: DEMO_CONTROL_KEY
+        sync: false
