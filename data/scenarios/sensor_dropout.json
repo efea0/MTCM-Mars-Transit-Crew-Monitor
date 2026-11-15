@@ -321,7 +321,7 @@
         "heart_rate"
       ],
       "why": "While Katherine rests, her pulse is more than 15 above her own baseline (58) (rises to +22; 3 consecutive measurements). This alert is not lost even if another astronaut's sensor is down at the same time.",
-      "recommendation": "Eforu azalt, izle.",
+      "recommendation": "Reduce effort, monitor.",
       "engine_metric": "heart_rate",
       "engine_rule_id": "karar-kalp_yuku"
     },

@@ -1,6 +1,6 @@
 {
   "scenario": "nominal",
-  "title": "Normal durum",
+  "title": "Nominal cruise",
   "purpose": "To show there is no false alarm when everything is fine. crew-1's exercise pulse does not count as an alarm.",
   "simulated": true,
   "seed": 42,
