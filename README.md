@@ -18,8 +18,8 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 | Space Apps project page | **[TODO]** |
 
 > **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
-> without traffic and wakes on the first request. While the dashboard is open, it calls `/health` every 4 minutes
-> to keep the service awake.
+> without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
+> keeps traffic flowing, so there is no separate keep-alive call. The health check endpoint is `/api/health`.
 
 ## What it does
 
@@ -80,8 +80,9 @@ backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  ba
 | O₂/CO₂ mass balance and countdowns (`atmosphere.py`) | done, tested |
 | Reference limits and alert texts (`ranges.json`, `messages.json`) | done |
 | DONKI event record (`data/donki/`) | done |
-| Simulator, rules, API, dashboard | **[TODO: update before submission]** |
-| EVA view, Earth link, profile selector | **[TODO]** |
+| Simulator, rules engine, API (SSE), Habitat panel | done, tested |
+| Earth link delay queue (`backend/comms.py`) | done in the backend, tested; no Earth panel in the dashboard yet |
+| EVA view, profile selector | **[TODO]** |
 
 ## Run locally
 
@@ -158,7 +159,8 @@ We used **Claude Code (Anthropic)** for the following:
 
 - writing backend and frontend code from our specification;
 - drafting the alert texts, this README and the AI use declaration;
-- checking source links and values.
+- checking source links and values;
+- producing the 30-second demo video (motion graphics code).
 
 Team members reviewed and tested every change through pull requests. Each team member can explain the code they approved.
 
@@ -174,7 +176,9 @@ Where it is marked:
 - the `meta.si_kullanimi` field in `ranges.json` and `messages.json`;
 - `Co-Authored-By: Claude` lines in commits.
 
-No AI-generated images, video or audio are used **[TODO: confirm before submission]**.
+The Space Apps **demo video is AI-assisted**: its motion graphics are written as code with HyperFrames and scripted with Claude Code,
+and the video carries a visible SI watermark. It uses no NASA logos, flags or mission identifiers. The screen recording in it is the real app.
+No other AI-generated images are used. AI-generated audio: **[TODO: confirm before submission]**.
 
 ## Team
 
