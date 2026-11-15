@@ -356,7 +356,7 @@
         "heart_rate"
       ],
       "why": "While Neil rests, his pulse is 15 above his own baseline (64) (3 consecutive measurements).",
-      "recommendation": "Eforu azalt, izle.",
+      "recommendation": "Reduce effort, monitor.",
       "engine_metric": "heart_rate",
       "engine_rule_id": "karar-kalp_yuku"
     },
@@ -461,7 +461,7 @@
     {
       "crew_id": null,
       "metric": "pp_co2",
-      "why": "CO2 giderme normal."
+      "why": "CO2 removal is normal."
     }
   ],
   "expected_status_end": {
