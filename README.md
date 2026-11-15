@@ -37,8 +37,13 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
   sends the crew to the storm shelter *before* it is received.
 - **Delayed Earth link.** Reports go to Earth through a 3–22 min one-way delay queue (shortened in the demo, and labeled).
   The Earth link panel shows each message and the light delay.
-- **Other closed environments (planned).** `ranges.json` already holds a submarine and an underground refuge chamber
-  profile, each with its own limits and sources. The profile selector on screen is not built yet.
+
+**Planned, not built yet:**
+
+- **EVA view** *(planned, not built yet)*: suit PIO₂ and PICO₂, remaining supply time and, if needed, *"return to the airlock"*.
+- **Environment (profile) selector** *(planned, not built yet)*: the same O₂/CO₂ engine for a submarine and an underground
+  refuge chamber. Their limits and sources are already in `ranges.json`; there is no selector on screen.
+- **Voice interface** *(planned, not built yet)*: push-to-talk commands and spoken alerts. The app has no voice input or output today.
 
 ## Demo walkthrough
 
@@ -58,7 +63,7 @@ The five scenarios run in this order: **nominal → hypoxia → hypercapnia → 
 4. **solar_storm.** The real NASA DONKI event (10 May 2024) is replayed. The system projects the end-of-event dose, and when it will pass 200 mSv (80% of the 250 mSv threshold) it says *"go to the storm shelter"* before the dose is received.
 5. **sensor_dropout.** Sally's heart-rate sensor stops and Sally's card shows **NO DATA**, not Normal. John's SpO₂ sensor repeats an old value (**stale**), which is not counted. An impossible cabin CO₂ value is marked as a sensor fault and does not trigger a CO₂ alarm.
 
-Not in this demo yet: the EVA view and the environment (profile) selector.
+Planned, not built yet (so not in this demo): the EVA view, the environment (profile) selector and the voice interface.
 
 ## How it works
 
@@ -93,7 +98,7 @@ backend/simulator.py  →  backend/atmosphere.py  →  backend/rules.py  →  ba
 | DONKI event record (`data/donki/`) | done |
 | Simulator, rules engine, API (SSE), Habitat panel | done, tested |
 | Earth link delay queue (`backend/comms.py`) and Earth link panel | done, tested |
-| EVA view, profile selector | **[TODO]** |
+| EVA view, profile selector, voice interface | planned, not built yet |
 
 ## Run locally
 
