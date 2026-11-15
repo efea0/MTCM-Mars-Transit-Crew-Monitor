@@ -23,11 +23,11 @@ Record each scenario as its own screen recording at ×600, then cut the windows 
 | Video time | Scenario | Record at (real s) | What is on screen | Caption |
 |---|---|---|---|---|
 | 0–3 s | Title | none | App name and the challenge title. SI watermark on. | "Crew health + cabin air, in one model." |
-| 3–7 s | nominal | 6–9 s | Four crew cards are Normal. Ayşe is exercising: her heart rate rises, but her card stays **Normal**. | "Exercise is not an alarm." |
-| 7–15 s | hypoxia | 60–67 s | O₂ generation has failed and the **O₂ countdown** is running. Ece is exercising: **Watch** at 62–64 s, then **Action** at 63–66 s. Open **Why?** to show SpO₂ below her baseline, plus cabin PIO₂ < 145. | "Per person: Ece's SpO₂ drops 6 below *her* baseline. Act now." |
-| 15–20 s | hypercapnia | 28–31 s, then 56–60 s | Cabin ppCO₂ passes 2.5 (**Watch**). Cut to 56–60 s: the 1-hour average passes 3.0 and Ece turns **Action** (CO₂ effect). | "CO₂ removal at 40%: the cabin, then the person." |
+| 3–7 s | nominal | 6–9 s | Four crew cards are Normal. Neil is exercising: his heart rate rises, but his card stays **Normal**. | "Exercise is not an alarm." |
+| 7–15 s | hypoxia | 60–67 s | O₂ generation has failed and the **O₂ countdown** is running. Katherine is exercising: **Watch** at 62–64 s, then **Action** at 63–66 s. Open **Why?** to show SpO₂ below her baseline, plus cabin PIO₂ < 145. | "Per person: Katherine's SpO₂ drops 6 below *her* baseline. Act now." |
+| 15–20 s | hypercapnia | 28–31 s, then 56–60 s | Cabin ppCO₂ passes 2.5 (**Watch**). Cut to 56–60 s: the 1-hour average passes 3.0 and Katherine turns **Action** (CO₂ effect). | "CO₂ removal at 40%: the cabin, then the person." |
 | 20–25 s | solar_storm | 2–6 s | The solar event starts at 3 s. Every card turns **Action**: "go to the storm shelter" before the dose arrives (projected 300 mSv ≥ 200 mSv). | "Real NASA DONKI event (10 May 2024). Warned *before* the dose." |
-| 25–29 s | sensor_dropout | 4–6 s, then 8–9.5 s | Can's heart-rate sensor goes silent, and his card shows **NO DATA**, not Normal. Cut to Mert: a **stale** SpO₂ reading is not treated as valid. | "Missing data is never normal." |
+| 25–29 s | sensor_dropout | 4–6 s, then 8–9.5 s | Sally's heart-rate sensor goes silent, and Sally's card shows **NO DATA**, not Normal. Cut to John: a **stale** SpO₂ reading is not treated as valid. | "Missing data is never normal." |
 | 29–30 s | End card | none | Repo link and "Simulated data · Decision support, not diagnosis". | none |
 
 The DONKI event name is not shown on the panel yet (see "Open points"), so the 20–25 s caption carries it.
@@ -44,7 +44,7 @@ Before the demo, open the live link once, because the Render service takes about
 | Real s | Do / show | Say |
 |---|---|---|
 | 0 | Start `nominal`. Point at the four crew cards, the cabin O₂/CO₂ and the two countdowns. | "Four astronauts on the way to Mars. Each one is compared to their own baseline." |
-| 6–9 | Ayşe starts exercising and her heart rate rises toward 125. | "Ayşe is exercising. Her heart rate goes up, and the system does not raise an alarm." |
+| 6–9 | Neil starts exercising and his heart rate rises toward 125. | "Neil is exercising. His heart rate goes up, and the system does not raise an alarm." |
 | 18 | The scenario ends. Everyone is still Normal. | "No false alarms." |
 
 ### 2. hypoxia (about 75 s; the scenario lasts 180 s, stop after the Action step)
@@ -53,11 +53,11 @@ Before the demo, open the live link once, because the Render service takes about
 |---|---|---|
 | 0–1 | Start `hypoxia`. O₂ generation fails at 1 s. | "The O₂ generator stops." |
 | 2–15 | The **O₂ countdown** starts. The CO₂ countdown does not move. | "Two separate countdowns: O₂ is running out, CO₂ removal still works." |
-| 17–21 | Ayşe turns **Watch** (cardiac load). Mert has the same heart rate (80) and stays **Normal**. | "Same heart rate, different decision: Ayşe is +16 over her baseline, Mert only +13." |
+| 17–21 | Neil turns **Watch** (cardiac load). John has the same heart rate (80) and stays **Normal**. | "Same heart rate, different decision: Neil is +16 over his baseline, John only +13." |
 | 37–40 | Cabin PIO₂ drops below 145 and the cabin turns **Watch**. | "Cabin PIO₂ is now below normoxia." |
-| 60 | Ece starts exercising (heart rate 130). | "Ece starts exercising. Her high heart rate is not counted as evidence." |
-| 62–64 | Ece turns **Watch** (possible hypoxia). | none |
-| 63–66 | Ece turns **Action**. Click **Why?** | "Her SpO₂ is 6 below her own baseline and cabin PIO₂ is below 145. Advice: stop exercising, switch to backup O₂. This comes long before the cabin alarm turns red." |
+| 60 | Katherine starts exercising (heart rate 130). | "Katherine starts exercising. Her high heart rate is not counted as evidence." |
+| 62–64 | Katherine turns **Watch** (possible hypoxia). | none |
+| 63–66 | Katherine turns **Action**. Click **Why?** | "Her SpO₂ is 6 below her own baseline and cabin PIO₂ is below 145. Advice: stop exercising, switch to backup O₂. This comes long before the cabin alarm turns red." |
 | 70 | Move on. Optional: say "the cabin alarm turns red at 177 s" without waiting for it. | none |
 
 ### 3. hypercapnia (about 60 s; the scenario lasts 67 s)
@@ -66,8 +66,8 @@ Before the demo, open the live link once, because the Render service takes about
 |---|---|---|
 | 0–1 | Start `hypercapnia`. CO₂ removal drops to 40%. | "Now CO₂ removal partly fails." |
 | 28–31 | Cabin ppCO₂ passes 2.5 mmHg and the cabin turns **Watch**. | "First a cabin warning." |
-| 50–53 | Ece's breathing rises (+6 over her baseline) and she turns **Watch** (CO₂ effect). Open **Why?** | "Then only the person who shows symptoms: Ece is breathing faster." |
-| 56–60 | The 1-hour average passes 3.0 mmHg. The cabin and Ece turn **Action**. | "The 1-hour average passes NASA's 3 mmHg limit." |
+| 50–53 | Katherine's breathing rises (+6 over her baseline) and she turns **Watch** (CO₂ effect). Open **Why?** | "Then only the person who shows symptoms: Katherine is breathing faster." |
+| 56–60 | The 1-hour average passes 3.0 mmHg. The cabin and Katherine turn **Action**. | "The 1-hour average passes NASA's 3 mmHg limit." |
 
 ### 4. solar_storm (about 15 s; the scenario lasts 78 s, stop after the shelter step)
 
@@ -82,8 +82,8 @@ Before the demo, open the live link once, because the Render service takes about
 | Real s | Do / show | Say |
 |---|---|---|
 | 0 | Start `sensor_dropout`. | "Last: sensors fail." |
-| 3–6 | Ece turns **Watch** (heart rate +22). At the same time, Can's heart-rate sensor stops and his card shows **NO DATA**, not Normal (4–5.5 s). | "A missing reading is never normal, and one broken sensor does not hide someone else's alert." |
-| 8–9.5 | Mert's SpO₂ sensor repeats an old value (**stale**). | "A stale value is not counted." |
+| 3–6 | Katherine turns **Watch** (heart rate +22). At the same time, Sally's heart-rate sensor stops and Sally's card shows **NO DATA**, not Normal (4–5.5 s). | "A missing reading is never normal, and one broken sensor does not hide someone else's alert." |
+| 8–9.5 | John's SpO₂ sensor repeats an old value (**stale**). | "A stale value is not counted." |
 | 11–12 | The cabin CO₂ sensor reports an impossible value (**sensor fault**). It does not trigger a CO₂ alarm. | "A faulty value is not used against the limit." |
 
 Close: "All data is simulated. This is decision support, not diagnosis."
@@ -94,7 +94,8 @@ Close: "All data is simulated. This is decision support, not diagnosis."
 
 1. **DONKI event on screen.** The frame carries no DONKI event type or time, so `messages.json` → `why_note_event`
    (`{event_type}`, `{event_time}`) cannot be filled. The panel shows the dose, but not *which* real event it is.
+   The backend now serves the record at `/api/sep-event`, but the panel does not show it yet.
    Until this is fixed, the video caption and the presenter carry the DONKI name.
-2. **Not in this demo:** the EVA view, the Earth panel and the profile selector are not built yet.
-   README "Demo walkthrough" steps 5–7 still describe them, so update them or mark them as planned.
+2. **Not in this demo:** the EVA view and the profile selector are not built yet. The Earth link panel exists
+   but is not part of this script.
 3. Time windows can move by one reading (0.5 s) because of the 3-consecutive-reading rule. Record a little longer than each window.

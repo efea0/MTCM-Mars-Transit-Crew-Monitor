@@ -42,7 +42,6 @@ const LABELS = {
 const PRIMARY_METRICS = ["heart_rate", "spo2", "resp_rate", "core_temp"];
 const SECONDARY_METRICS = ["hrv_rmssd", "systolic_bp", "diastolic_bp"];
 const CABIN_METRICS = ["pp_o2", "pp_co2", "cabin_pressure", "cabin_temp", "rel_humidity", "radiation_dose_rate"];
-const UNIT_LABELS = { "nefes/dk": "breaths/min", "µGy/saat": "µGy/h" };
 const CABIN_TREND_METRICS = ["pp_co2", "pp_o2"];
 const DECISION_TONE = { normal: "nominal", watch: "caution", action: "critical", unknown: "unknown" };
 const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
@@ -172,8 +171,7 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   showValue(view.value, usable ? reading.value : null);
   view.root.title = usable ? `${LABELS.metric[view.root.dataset.metric]} · ${formatClock(reading.ts)}` : "";
   view.value.classList.toggle("no-value", !usable);
-  const unit = Object.hasOwn(UNIT_LABELS, reading?.unit) ? UNIT_LABELS[reading.unit] : reading?.unit;
-  view.unit.textContent = usable ? unit : "";
+  view.unit.textContent = usable ? reading.unit : "";
   view.status.textContent = LABELS.status[state] ?? LABELS.status.unknown;
   const delta = usable && numeric(reading.baseline_delta) ? reading.baseline_delta : null;
   view.delta.textContent = delta === null ? "Compared with baseline: —"
