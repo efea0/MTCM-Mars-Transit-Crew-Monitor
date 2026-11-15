@@ -590,7 +590,7 @@ html { scrollbar-gutter: stable; }
 .scenario-button { padding: 4px var(--space-3); }
 #demo-result { font-size: 12px; color: var(--muted); }
 footer { padding-block: var(--space-1); }
-@media (max-width: 1150px) { .demo-note { display: none; } }
+@media (max-width: 1500px) { .demo-note { display: none; } }
 /* Header stays one row: the brand block never shrinks, the badge never wraps. */
 .brand { flex: none; }
 .sim-badge { white-space: nowrap; }
@@ -602,3 +602,10 @@ footer { padding-block: var(--space-1); }
 .badge[data-tone="unknown"] { border-style: dashed; }
 .decision-item[data-tone="critical"], .alert-row[data-tone="critical"], .crew-card[data-tone="critical"] { outline: 2px solid var(--tone); outline-offset: -2px; }
 .decision-item[data-tone="warning"], .alert-row[data-tone="warning"], .crew-card[data-tone="warning"] { outline: 1px solid var(--tone); outline-offset: -1px; }
+
+/* Demo speed presets sit next to the scenario buttons; the pressed one is filled. */
+.speed-group { display: flex; align-items: center; gap: var(--space-2); }
+.speed-label { font-size: 12px; color: var(--muted); }
+.speed-button[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 1px; }
+.speed-button { padding: 4px var(--space-2); }
+.demo-key input { inline-size: 11ch; }

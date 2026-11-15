@@ -9,6 +9,9 @@ import { createBeyondSpace } from "./beyond-space.js";
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
 const CONTROL_URL = "/api/control";
+const SPEED_URL = "/api/speed";
+// Demo-only presets (simulation seconds per real second). The team default is 600; the server owns the real value.
+const SPEED_PRESETS = [150, 300, 600, 1200];
 const HEALTH_URL = "/api/health";
 const HEALTH_CHECK_AFTER_MS = 2000;
 const WAKE_AFTER_MS = 3000;
@@ -679,6 +682,22 @@ function requestRestart() {
 function configureDemo() {
   if (params.get("demo") !== "1") return;
   document.getElementById("demo-panel").hidden = false;
+  const speedButtons = document.getElementById("speed-buttons");
+  for (const scale of SPEED_PRESETS) {
+    const button = el("button", "scenario-button speed-button", `×${scale}`);
+    button.type = "button";
+    button.title = `Run the simulation at ×${scale} (1 s = ${number(scale / 60)} simulated min)`;
+    button.addEventListener("click", async () => {
+      const result = document.getElementById("demo-result");
+      button.disabled = true;
+      result.textContent = "Changing speed…";
+      const outcome = await demoRequest(SPEED_URL, JSON.stringify({ time_scale: scale }), "change speed");
+      result.textContent = outcome.ok ? `Speed set to ×${scale}.` : outcome.message;
+      if (outcome.ok) for (const other of speedButtons.children) other.setAttribute("aria-pressed", String(other === button));
+      button.disabled = false;
+    });
+    speedButtons.append(button);
+  }
   const buttons = document.getElementById("scenario-buttons");
   for (const [scenario, label] of Object.entries(LABELS.scenario)) {
     const button = el("button", "scenario-button", label);
