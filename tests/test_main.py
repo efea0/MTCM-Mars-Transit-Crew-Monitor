@@ -22,8 +22,10 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="starlette
 
 from backend.main import (  # noqa: E402
     CONTRACT_VERSION,
+    DEFAULT_HISTORY_LIMIT,
     DEFAULT_SCENARIO_NAME,
     DEFAULT_TIME_SCALE,
+    HISTORY_MAXLEN,
     MAX_TIME_SCALE,
     MIN_TIME_SCALE,
     RELEASE_AFTER_ABSENT_FRAMES,
@@ -698,3 +700,82 @@ def test_finished_scenario_stays_finished_without_delay(
             await local.stop()
 
     asyncio.run(check())
+
+
+def test_manager_history_buffer_is_bounded() -> None:
+    local = SimulationManager()
+    frame = local.pipeline.step()
+    for _ in range(HISTORY_MAXLEN + 25):
+        local._broadcast_frame(frame)
+    assert len(local.history) == HISTORY_MAXLEN
+
+
+def test_manager_history_cleared_on_scenario_change_and_restart() -> None:
+    local = SimulationManager()
+    local._broadcast_frame(local.pipeline.step())
+    assert len(local.history) == 1
+    local.restart()
+    assert len(local.history) == 0
+    local._broadcast_frame(local.pipeline.step())
+    local.set_scenario("hypoxia")
+    assert len(local.history) == 0
+
+
+def test_api_history_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    local = SimulationManager()
+    monkeypatch.setattr("backend.main.manager", local)
+    with TestClient(app) as test_client:
+        local.pause()
+        local.history.clear()
+        res = test_client.get("/api/history")
+    assert res.status_code == 200
+    assert res.json() == {"scenario": DEFAULT_SCENARIO_NAME, "frames": []}
+
+
+def test_api_history_limit_order_and_format(monkeypatch: pytest.MonkeyPatch) -> None:
+    local = SimulationManager()
+    monkeypatch.setattr("backend.main.manager", local)
+    frames = [local.pipeline.step() for _ in range(10)]
+    for frame in frames:
+        local._broadcast_frame(frame)
+    with TestClient(app) as test_client:
+        local.pause()
+        default = test_client.get("/api/history").json()
+        assert default["scenario"] == DEFAULT_SCENARIO_NAME
+        assert len(default["frames"]) == len(local.history)
+        limited = test_client.get("/api/history", params={"limit": 3}).json()["frames"]
+    assert len(limited) == 3
+    expected = [f.model_dump(mode="json") for f in list(local.history)[-3:]]
+    assert limited == expected
+    elapsed = [f["mission_elapsed_s"] for f in limited]
+    assert elapsed == sorted(elapsed)
+    TelemetryFrame.model_validate(limited[-1])
+
+
+def test_api_history_default_limit_with_full_buffer(monkeypatch: pytest.MonkeyPatch) -> None:
+    local = SimulationManager()
+    monkeypatch.setattr("backend.main.manager", local)
+    frame = local.pipeline.step()
+    for _ in range(HISTORY_MAXLEN):
+        local._broadcast_frame(frame)
+    with TestClient(app) as test_client:
+        local.pause()
+        assert len(test_client.get("/api/history").json()["frames"]) == DEFAULT_HISTORY_LIMIT
+        assert len(test_client.get("/api/history?limit=400").json()["frames"]) == HISTORY_MAXLEN
+
+
+@pytest.mark.parametrize("limit", ["0", "-1", "401", "abc"])
+def test_api_history_rejects_out_of_range_limit(limit: str) -> None:
+    with TestClient(app) as test_client:
+        assert test_client.get("/api/history", params={"limit": limit}).status_code == 422
+
+
+def test_api_history_cleared_after_scenario_change(client: TestClient) -> None:
+    manager.pause()
+    manager._broadcast_frame(manager.pipeline.step())
+    assert client.get("/api/history").json()["frames"]
+    assert client.post("/api/scenario/hypoxia").status_code == 200
+    manager.pause()
+    body = client.get("/api/history").json()
+    assert body["scenario"] == "hypoxia"
+    assert all(f["scenario"] == "hypoxia" for f in body["frames"])
