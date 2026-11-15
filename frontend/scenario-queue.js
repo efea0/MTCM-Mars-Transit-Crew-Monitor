@@ -12,7 +12,7 @@ export function nextScenario(order, current) {
   return order[(index + 1) % order.length];
 }
 
-export function createFinishCard({ root, order, labels, start, seconds = NEXT_SCENARIO_SECONDS }) {
+export function createFinishCard({ root, order, labels, start, restart = null, seconds = NEXT_SCENARIO_SECONDS }) {
   const spinner = root.querySelector(".finish-spinner");
   const title = root.querySelector(".finish-title");
   const detail = root.querySelector(".finish-detail");
@@ -47,14 +47,14 @@ export function createFinishCard({ root, order, labels, start, seconds = NEXT_SC
     window.clearInterval(timer);
     timer = null;
   }
-  async function go(scenario, automatic = false) {
+  async function go(scenario, automatic = false, replaying = false) {
     if (busy) return;
     stopTimer();
     setBusy(true);
     const mine = generation;
     title.textContent = `Starting ${label(scenario)}…`;
     detail.textContent = "Waiting for the first telemetry packet.";
-    const result = await start(scenario);
+    const result = await (replaying && restart ? restart() : start(scenario));
     // The card was hidden or restarted while the request was in flight: this answer is stale.
     if (result.ok || mine !== generation) return;
     // Failure: stay on the card, keep the buttons usable, and do not retry automatically.
@@ -78,7 +78,7 @@ export function createFinishCard({ root, order, labels, start, seconds = NEXT_SC
   }
 
   skip.addEventListener("click", () => go(next));
-  replay.addEventListener("click", () => go(current));
+  replay.addEventListener("click", () => go(current, false, true));
   document.addEventListener("visibilitychange", () => { if (!document.hidden && timer !== null) tick(); });
 
   return {

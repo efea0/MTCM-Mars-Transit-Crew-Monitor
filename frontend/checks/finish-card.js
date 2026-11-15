@@ -65,6 +65,15 @@ await check("A late answer after hide() is ignored", async () => {
   assert(root.dataset.state === "counting" && !root.querySelector(".finish-detail").textContent.includes("late"), "Stale answer leaked");
   card.hide();
 });
+await check("Replay uses the restart endpoint when one is provided", async () => {
+  const calls = [];
+  const card = createFinishCard({ root: (() => { const fresh = root.cloneNode(true); root.replaceWith(fresh); root = fresh; root.hidden = true; return root; })(),
+    order, labels, seconds: 30, start: async scenario => { calls.push(`start:${scenario}`); return { ok: true }; },
+    restart: async () => { calls.push("restart"); return { ok: true }; } });
+  card.show("b"); root.querySelector(".finish-replay").click(); await wait(20); card.hide();
+  card.show("b"); root.querySelector(".finish-skip").click(); await wait(20); card.hide();
+  assert(calls.join() === "restart,start:c", `Calls ${calls.join()}`);
+});
 const failed = results.filter(item => !item.ok);
 document.getElementById("result").textContent = failed.length ? `${failed.length} finish card checks failed` : `${results.length}/${results.length} finish card checks passed`;
 document.getElementById("checks").replaceChildren(...results.map(item => Object.assign(document.createElement("li"), { textContent: `${item.ok ? "PASS" : "FAIL"} · ${item.name}` })));

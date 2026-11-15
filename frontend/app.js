@@ -7,6 +7,7 @@ import { createCrewDetail } from "./crew-detail.js";
 
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
+const CONTROL_URL = "/api/control";
 const HEALTH_URL = "/api/health";
 const HEALTH_CHECK_AFTER_MS = 2000;
 const WAKE_AFTER_MS = 3000;
@@ -581,6 +582,7 @@ const finishCard = createFinishCard({
   order: Object.keys(LABELS.scenario),
   labels: LABELS.scenario,
   start: requestScenario,
+  restart: requestRestart,
 });
 const crewDetail = createCrewDetail({
   session, labels: LABELS, format: number, evidenceList, sourceNode: ruleId => nasaData.sourceNode(ruleId),
@@ -658,28 +660,36 @@ function acceptFrame(incoming) {
   connectingSince = null;
   render();
 }
-async function requestScenario(scenario) {
+async function demoRequest(url, body, subject) {
   try {
     const headers = {};
     const demoKey = document.getElementById("demo-key").value || params.get("key");
     if (demoKey) headers["X-Demo-Key"] = demoKey;
-    const response = await fetch(`${SCENARIO_URL}/${encodeURIComponent(scenario)}`, {
-      method: "POST", headers,
+    if (body) headers["Content-Type"] = "application/json";
+    const response = await fetch(url, {
+      method: "POST", headers, body,
       signal: AbortSignal.timeout(STALE_AFTER_MS), redirect: "error", credentials: "same-origin",
     });
     if (response.status === 401) return { ok: false, status: 401, message: "Demo key is required or incorrect (401). Open the page with ?demo=1 and enter the key." };
     if (!response.ok) {
-      const reason = response.status === 404 ? "Scenario endpoint or scenario not found"
-        : response.status === 405 ? "Scenario endpoint does not allow POST"
+      const reason = response.status === 404 ? "Endpoint or scenario not found"
+        : response.status === 405 ? "Endpoint does not allow POST"
         : response.status >= 500 ? "Server error" : "Request rejected";
-      return { ok: false, message: `Could not start scenario (${response.status}): ${reason}.` };
+      return { ok: false, message: `Could not ${subject} (${response.status}): ${reason}.` };
     }
-    return { ok: true, message: "Scenario requested; waiting for telemetry." };
+    return { ok: true, message: "Requested; waiting for telemetry." };
   } catch (error) {
     return { ok: false, message: error.name === "TimeoutError" || error.name === "AbortError"
-      ? "Could not start scenario: request timed out. The server may be waking up; try again."
-      : "Could not start scenario: network error. Check your connection and try again." };
+      ? `Could not ${subject}: request timed out. The server may be waking up; try again.`
+      : `Could not ${subject}: network error. Check your connection and try again.` };
   }
+}
+function requestScenario(scenario) {
+  return demoRequest(`${SCENARIO_URL}/${encodeURIComponent(scenario)}`, null, "start scenario");
+}
+// Restart replays the current scenario from its first tick; the backend guards it with the same demo key.
+function requestRestart() {
+  return demoRequest(CONTROL_URL, JSON.stringify({ action: "restart" }), "restart scenario");
 }
 function configureDemo() {
   if (params.get("demo") !== "1") return;
