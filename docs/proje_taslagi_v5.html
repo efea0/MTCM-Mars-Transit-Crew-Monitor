@@ -57,7 +57,7 @@
 </table>
 
 <h2>Yaklaşımımız</h2>
-<p>Vital takibi ve radyasyon izleme yapan projeler var. Biz bunlara kabin havasını ekleyip üçünü aynı modelde yorumlamaya çalıştık. Bir astronotun O2 tüketimini nabzından tahmin ediyoruz, bu tüketim kabin O2 ve CO2 dengesine giriyor, kabindeki değişim de tekrar astronotun kararına dönüyor. Sonuç "kabin kötü" gibi genel bir uyarı değil, "Ece egzersizi bıraksın, SpO2'si düşüyor ve kabin PIO2 normoksinin altında" gibi kişiye bağlı bir cümle.</p>
+<p>Vital takibi ve radyasyon izleme yapan projeler var. Biz bunlara kabin havasını ekleyip üçünü aynı modelde yorumlamaya çalıştık. Bir astronotun O2 tüketimini nabzından tahmin ediyoruz, bu tüketim kabin O2 ve CO2 dengesine giriyor, kabindeki değişim de tekrar astronotun kararına dönüyor. Sonuç "kabin kötü" gibi genel bir uyarı değil, "Katherine egzersizi bıraksın, SpO2'si düşüyor ve kabin PIO2 normoksinin altında" gibi kişiye bağlı bir cümle.</p>
 <p>Ortam ve fizyoloji eşiklerini (kabin CO2, PIO2, giysi PICO2, radyasyon limitleri) NASA-STD-3001'den alıyoruz. Kişinin vital sapma eşikleri ise demo parametresi, tıbbi eşik değil. Güneş fırtınası senaryosu gerçek bir NASA DONKI kaydının zamanına ve türüne dayanıyor; doz simülasyon ve ekranda öyle yazıyor. Aynı motorun bir profil seçiciyle denizaltı ve yeraltı kurtarma sığınağında da çalışması hedefleniyor; profil seçici <b>planlanan, şu an yok.</b></p>
 <p>Uzayda kullanılmış sesli asistanlarla karşılaştırınca fark kapsamda. CIMON'un gösterilen sürümü uyandırma sözcüğüyle çalışıp buluttaki Watson'a bağlanıyordu (Space.com), Callisto'da ise Alexa ile telemetri sorgulandı (Military Aerospace). İkisi de genel amaçlı. Bizim sistemimiz sağlık ve havaya odaklı ve sorulmasını beklemeden uyarıyor.</p>
 
@@ -180,10 +180,10 @@
 <p><b>Teslim kuralı:</b> Space Apps proje sayfasındaki demo en fazla 30 saniyelik video ya da en fazla 7 slayttan (başlık dahil) oluşmalı ve İngilizce olmalı. Sınırı aşan proje global değerlendirmeye alınmıyor. Aşağıdaki akış canlı sunum ve uzun demo videosu içindir.</p>
 <p>Olaylar gizli bir demo panelinden elle tetikleniyor. Rastgelelik sabit tohumla (seed) kontrol ediliyor, demo internete ve sese bağlı değil. Simülasyon saati 600 kat hızlı akıyor ve ekranda bu yazıyor. Vitaller 5 görev dakikasında bir ölçülüyor (demoda gerçek 0,5 sn, ×600), bu yüzden art arda 3 ölçümlük bir karar ekranda yaklaşık 1,5 saniyede oluşuyor.</p>
 <ol>
-  <li>Her şey normal. Habitat paneli tanıtılıyor: dört astronot (Ayşe, Can, Ece, Mert), kabin O2 ve CO2, iki ayrı geri sayım.</li>
+  <li>Her şey normal. Habitat paneli tanıtılıyor: dört astronot (Neil, Sally, Katherine, John), kabin O2 ve CO2, iki ayrı geri sayım.</li>
   <li>O2 üretimi duruyor ve kabin PIO2 yavaşça düşüyor. Arızadan önce "sınırsız" gösteren O2 sayacı geri saymaya başlıyor; CO2 giderme çalıştığı için CO2 sayacı değişmiyor.</li>
-  <li>Astronot 3 (Ece) egzersizde. Nabzı 130'a, solunumu 26'ya çıkıyor; sistem bunları alarm ya da hipoksi kanıtı saymıyor. Ece'nin SpO2'si kendi bazından 3 puan düşünce "İzle", 6 puan düşünce "Eylem" oluyor. Kanıt olarak SpO2 ve kabin PIO2 gösteriliyor, öneri "egzersizi durdur, yedek O2'ye geç". Bu kişisel uyarı, kabin uyarısı kırmızıya dönmeden çok önce geliyor. Can ve Mert normal kalıyor.</li>
-  <li>Ayrı bir örnek: Ayşe ile Mert'in nabzı ikisinde de 80. Ayşe kendi bazının +16 üstünde olduğu için "İzle" oluyor (kalp yükü, hipoksi değil); Mert +13'te kaldığı için normal. Aynı nabız, iki farklı karar.</li>
+  <li>Astronot 3 (Katherine) egzersizde. Nabzı 130'a, solunumu 26'ya çıkıyor; sistem bunları alarm ya da hipoksi kanıtı saymıyor. Katherine'in SpO2'si kendi bazından 3 puan düşünce "İzle", 6 puan düşünce "Eylem" oluyor. Kanıt olarak SpO2 ve kabin PIO2 gösteriliyor, öneri "egzersizi durdur, yedek O2'ye geç". Bu kişisel uyarı, kabin uyarısı kırmızıya dönmeden çok önce geliyor. Sally ve John normal kalıyor.</li>
+  <li>Ayrı bir örnek: Neil ile John'un nabzı ikisinde de 80. Neil kendi bazının +16 üstünde olduğu için "İzle" oluyor (kalp yükü, hipoksi değil); John +13'te kaldığı için normal. Aynı nabız, iki farklı karar.</li>
   <li>Güneş fırtınası: DONKI kaydı tetikleniyor. Sistem olay sonu dozunu tahmin ediyor ve 200 mSv'yi aşacağını görünce doz alınmadan önce "fırtına sığınağına geç" uyarısı veriyor.</li>
   <li><b>Planlanan, şu an yok.</b> EVA görünümü: giysi PIO2 ve PICO2, kalan tüp süresi ve gerekirse "hava kilidine dön" önerisi.</li>
   <li>Dünya'ya rapor gidiyor; tek yön gecikme sayacı çalışıyor ve cevap gecikmeyle geliyor.</li>
