@@ -8,10 +8,10 @@
   ],
 
   "uyku_kurallari": {
-    "not": "Kept apart from kurallar: uyku_suresi is not in the Metric contract enum yet, so the loader would reject it. Moves into kurallar after delivery with the contract and simulator (sleep_hours) change. Requested by Barış, approved by Efe (2026-11-15, freeze exception).",
+    "_not": "Kept apart from kurallar: sleep_hours is in the Metric contract enum, but sleep rules are evaluated per completed sleep period rather than 5-minute cabin readings. Requested by Barış, approved by Efe (2026-11-15, freeze exception).",
     "kurallar": [
-      {"id": "sleep-short-caution", "metric": "uyku_suresi", "severity": "caution", "comparator": "<", "threshold": 6, "consecutive_required": 2, "source": "varsayım", "status": "doğrulanmadı"},
-      {"id": "sleep-short-critical", "metric": "uyku_suresi", "severity": "critical", "comparator": "<", "threshold": 5, "consecutive_required": 2, "source": "varsayım", "status": "doğrulanmadı"}
+      {"id": "sleep-short-caution", "metric": "sleep_hours", "severity": "caution", "comparator": "<", "threshold": 6, "consecutive_required": 2, "source": "varsayım", "status": "doğrulanmadı"},
+      {"id": "sleep-short-critical", "metric": "sleep_hours", "severity": "critical", "comparator": "<", "threshold": 5, "consecutive_required": 2, "source": "varsayım", "status": "doğrulanmadı"}
     ]
   },
 
@@ -96,7 +96,7 @@
     "pio2_formulu": {
       "formul": "PIO2 = (PB - 47) × FIO2",
       "aciklama": "PB is total pressure (mmHg), 47 is water vapor pressure at body temperature, FIO2 is the inspired O2 fraction.",
-      "kaynak": "NASA-STD-3001 Vol 2 Rev B Table 1 heading (presentation: NTRS 20220019130)",
+      "kaynak": "NASA-STD-3001 Vol 2 Rev F (and Rev B Table 1 presentation: NTRS 20220019130)",
       "status": "doğrulandı"
     },
     "toplam_basinc_suresiz": {
@@ -176,7 +176,7 @@
     },
     "doz_modeli_notu": {
       "aciklama": "DONKI gives the event time and type, not the dose. Dose on screen = base rate + event effect, shown with a 'simulated' label.",
-      "kaynak": "assumption (NASA DONKI API)",
+      "kaynak": "varsayım (NASA DONKI API)",
       "status": "doğrulanmadı"
     }
   },
@@ -197,7 +197,7 @@
     "nabiz_o2_olcekleme": {
       "aciklama": "A person's O2 use scales linearly with heart rate over baseline (r = heart rate / baseline heart rate): r ≤ 1.0 → 0.49; r ≥ 1.8 → 1.25 kg/day; linear in between. CO2 output scales with the same ratio in the 0.52–1.5 range (the body–air link applies to both gases).",
       "r_min": 1.0, "r_max": 1.8,
-      "kaynak": "assumption (team model)",
+      "kaynak": "varsayım (team model)",
       "status": "doğrulanmadı"
     }
   },
@@ -216,21 +216,21 @@
     "demo_zaman_carpani": {
       "deger": 600,
       "aciklama": "In the demo the atmosphere and dose simulation runs 600× faster (1 s = 10 min). After an O2 failure, reaching 145 mmHg takes about 26 s. The screen says 'Simulation clock ×600'; countdowns are shown in simulation time.",
-      "kaynak": "assumption (team decision)",
+      "kaynak": "varsayım (team decision)",
       "status": "doğrulanmadı"
     },
     "demo_gecikme": {
       "deger": 20, "birim": "saniye",
       "aciklama": "The demo does not wait real minutes; 20 seconds stand for 20 minutes, and the screen says so.",
-      "kaynak": "assumption (team decision)",
+      "kaynak": "varsayım (team decision)",
       "status": "doğrulanmadı"
     }
   },
 
   "vital_karar_parametreleri": {
     "_not": "All are demo parameters, not medical thresholds. A decision is triggered not by one reading but by art_arda_olcum consecutive readings.",
-    "art_arda_olcum": { "deger": 3, "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
-    "olcum_araligi": { "deger": 5, "birim": "mission minutes (0.5 s real time in the demo, ×600)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
+    "art_arda_olcum": { "deger": 3, "kaynak": "varsayım (team decision)", "status": "doğrulanmadı" },
+    "olcum_araligi": { "deger": 5, "birim": "mission minutes (0.5 s real time in the demo, ×600)", "kaynak": "varsayım (team decision)", "status": "doğrulanmadı" },
     "baz_cizgi": {
       "astronotlar": [
         { "id": 1, "nabiz": 64, "spo2": 98, "isi": 36.6, "solunum": 14 },
@@ -239,13 +239,13 @@
         { "id": 4, "nabiz": 67, "spo2": 97, "isi": 36.7, "solunum": 14 }
       ],
       "birimler": { "nabiz": "bpm", "spo2": "%", "isi": "°C", "solunum": "nefes/dk" },
-      "kaynak": "assumption (team decision (fixed seed))",
+      "kaynak": "varsayım (team decision (fixed seed))",
       "status": "doğrulanmadı"
     },
-    "spo2_dusus": { "izle": 3, "eylem": 6, "birim": "% points (from baseline)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
-    "nabiz_artis_dinlenme": { "izle": 15, "eylem": 30, "birim": "bpm (from baseline)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
-    "solunum_artis": { "izle": 4, "eylem": 8, "birim": "breaths/min (from baseline)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
-    "isi_artis": { "izle": 0.5, "eylem": 1.0, "birim": "°C (from baseline)", "kaynak": "assumption (team decision)", "status": "doğrulanmadı" },
+    "spo2_dusus": { "izle": 3, "eylem": 6, "birim": "% points (from baseline)", "kaynak": "varsayım (team decision)", "status": "doğrulanmadı" },
+    "nabiz_artis_dinlenme": { "izle": 15, "eylem": 30, "birim": "bpm (from baseline)", "kaynak": "varsayım (team decision)", "status": "doğrulanmadı" },
+    "solunum_artis": { "izle": 4, "eylem": 8, "birim": "breaths/min (from baseline)", "kaynak": "varsayım (team decision)", "status": "doğrulanmadı" },
+    "isi_artis": { "izle": 0.5, "eylem": 1.0, "birim": "°C (from baseline)", "kaynak": "varsayım (team decision)", "status": "doğrulanmadı" },
     "kararlar": {
       "olasi_hipoksi": {
         "kosul": "spo2_dusus ≥ izle AND cabin PIO2 < 145; if aktivite == 'dinlenme' (resting), also (nabiz_artis ≥ izle OR solunum_artis ≥ izle). During exercise the heart-rate/breathing condition is not required and is not listed as evidence.",
@@ -277,7 +277,7 @@
     "sari_kademe_genel": {
       "oran": 0.8,
       "aciklama": "Yellow at 80% of the official limit. The official boundary is only the limit value.",
-      "kaynak": "assumption (team decision)",
+      "kaynak": "varsayım (team decision)",
       "status": "doğrulanmadı"
     }
   },
@@ -322,7 +322,7 @@
     "o2": "kalan_saat = V × (simdiki_kg_m3 − alt_sinir_kg_m3) ÷ ((N × o2_tuketim − o2_uretim) / 24)",
     "not": "If the denominator is ≤ 0, the remaining time is shown as 'unlimited'. In an O2 failure only o2_uretim drops; the CO2 countdown does not change. Limits are in mmHg and are converted to kg/m3 with the ideal gas law: ρ = p(Pa) × M ÷ (8.314 × T), T = 295 K, M(O2) = 0.032, M(CO2) = 0.044 kg/mol.",
     "ornek_hesap": "Mars transit, O2 arızası (üretim 0, 4 kişi × 0,84 = 3,36 kg/gün): PIO2 149 → 145 mmHg yaklaşık 4,4 saat, → 127 mmHg yaklaşık 22 saat (gerçek zaman). Demoda bu yüzden zaman çarpanı gerekir.",
-    "kaynak": "assumption (team model (mass balance))",
+    "kaynak": "varsayım (team model (mass balance))",
     "status": "doğrulanmadı"
   }
 }
