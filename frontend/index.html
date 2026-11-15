@@ -7,8 +7,8 @@
   <title>Habitat | Mars Transit Crew Monitor</title>
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="style.css">
-  <script>/* Apply the saved theme before first paint so there is no wrong-theme flash. */
-    try { const saved = localStorage.getItem("theme"); if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved; } catch { /* storage unavailable: system preference */ }
+  <script>
+    try { const saved = localStorage.getItem("theme"); if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved; } catch {}
   </script>
   <link rel="icon" href="data:,">
 </head>
@@ -21,21 +21,21 @@
       <span id="simulated" class="sim-badge">SIMULATED DATA</span>
     </div>
     <div class="mission-meta">
-      <div><span class="meta-label">SCENARIO</span><strong id="scenario">Waiting for packet</strong></div>
-      <div><span class="meta-label">MISSION TIME</span><strong id="mission_elapsed_s">— d — h — min</strong></div>
+      <div><span class="meta-label">SCENARIO</span><strong id="scenario">Waiting for packets</strong></div>
+      <div><span class="meta-label">MISSION ELAPSED</span><strong id="mission_elapsed_s">— d — h — min</strong></div>
       <div class="connection-meta" role="status" aria-live="polite">
         <strong id="connection" class="tone-unknown">◌ Reconnecting</strong>
-        <span id="packet-age">No packet yet</span>
+        <span id="packet-age">No packets yet</span>
       </div>
-      <button id="theme-toggle" class="theme-toggle" type="button">◐ Tema</button>
+      <button id="theme-toggle" class="theme-toggle" type="button">◐ Theme</button>
     </div>
   </header>
   <main class="dashboard">
-    <div id="data-notice" class="data-notice" role="status">NO DATA · Waiting for telemetry packet.</div>
+    <div id="data-notice" class="data-notice" role="status">NO DATA · Waiting for telemetry packets.</div>
     <section id="crew" aria-labelledby="crew-title">
       <div class="section-heading">
         <h2 id="crew-title">Crew <span class="muted">/ 04</span></h2>
-        <span id="source-label" class="section-note">Assessed against each person's own baseline</span>
+        <span id="source-label" class="section-note">Assessment against personal baseline</span>
       </div>
       <div id="crew-grid" class="crew-grid"></div>
     </section>
@@ -44,18 +44,18 @@
         <div class="panel-heading"><h2 id="cabin-title">Cabin atmosphere</h2><span id="cabin-status" class="badge tone-unknown">? Unknown</span></div>
         <div id="cabin-readings" class="cabin-readings"></div>
         <div id="cabin-trends" class="cabin-trends"></div>
-        <time id="cabin-time" class="reading-time">Measured: no data</time>
+        <time id="cabin-time" class="reading-time">Reading: no data</time>
         <div class="countdowns">
           <div id="hours_until_o2_limit" class="countdown tone-unknown">
-            <span>O₂ to lower limit</span><strong>NO DATA</strong><small>Waiting for telemetry</small>
+            <span>Time to O₂ limit</span><strong>NO DATA</strong><small>Waiting for telemetry</small>
           </div>
           <div id="hours_until_co2_limit" class="countdown tone-unknown">
-            <span>CO₂ to limit</span><strong>NO DATA</strong><small>Waiting for telemetry</small>
+            <span>Time to CO₂ limit</span><strong>NO DATA</strong><small>Waiting for telemetry</small>
           </div>
         </div>
       </section>
       <section class="panel alerts-panel" aria-labelledby="alerts-title">
-        <div class="panel-heading"><h2 id="alerts-title">Alert feed</h2><span id="alert-count" class="count-label">—</span></div>
+        <div class="panel-heading"><h2 id="alerts-title">Alert stream</h2><span id="alert-count" class="count-label">—</span></div>
         <p id="alerts-notice" class="empty-state">NO DATA · Waiting for telemetry.</p>
         <div id="alerts" class="alert-list" aria-label="Active alerts"></div>
       </section>
@@ -66,14 +66,14 @@
       <ol id="earth-messages" class="earth-list" aria-label="Messages to and from Earth"></ol>
     </section>
     <section id="demo-panel" class="panel demo-panel" aria-labelledby="demo-title" hidden>
-      <div><h2 id="demo-title">Demo control</h2><p>Change scenario</p></div>
+      <div><h2 id="demo-title">Demo controls</h2><p>Change scenario</p><p>The simulation is shared by all viewers; changing the scenario affects everyone.</p></div>
       <label class="demo-key"><span>Demo key</span><input id="demo-key" type="password" autocomplete="off" spellcheck="false"></label>
       <div id="scenario-buttons" class="scenario-buttons"></div>
       <p id="demo-result" role="status" aria-live="polite"></p>
     </section>
   </main>
-  <footer><span>Decision support, not diagnosis. All health data is simulated.</span><span>NASA SPACE APPS 2026 · P1 HABITAT</span></footer>
-  <noscript>JavaScript must be enabled for this panel. NO DATA.</noscript>
+  <footer><span>Decision support only, not a medical diagnosis. All health data is simulated.</span><span>NASA SPACE APPS 2026 · P1 HABITAT</span></footer>
+  <noscript>Enable JavaScript to use the panel. NO DATA.</noscript>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,11 +1,13 @@
-"""Senaryo dosyaları (data/scenarios/*.json) için tutarlılık testleri — sahibi: Barış (qa).
+"""Consistency tests for the scenario files (data/scenarios/*.json) - owner: Barış (qa).
 
-simulator.py ve rules.py yazılmadan önce de çalışır. Denetlenenler:
-1. Biçim: dosya adı = Scenario enum değeri; crew/metric/severity sözleşmeyle uyumlu.
-2. Eşikler, baz çizgiler ve model parametreleri data/reference/ranges.json ile aynı (dosya varsa).
-3. Beklenen karar tablosundaki koşul anları, senaryonun kendi olaylarından bağımsız bir kütle dengesi ve
-   vital modeliyle yeniden hesaplanır. Biri bir sayıyı değiştirip tabloyu güncellemezse test kırılır.
-4. Senaryo kendi içinde çelişmez: yasak bir uyarıyı tetikleyecek hedef değer, kanıt-kural uyumu.
+They also run before simulator.py and rules.py exist. What they check:
+1. Format: file name = Scenario enum value; crew/metric/severity match the contract.
+2. Thresholds, baselines and model parameters equal data/reference/ranges.json (if the file exists).
+3. The condition moments in the expected decision table are recomputed with a mass balance and vital
+   model that are independent of the scenario's own events. If someone changes a number without
+   updating the table, the test breaks.
+4. The scenario does not contradict itself: target values that would trigger a forbidden alert, and
+   evidence-rule consistency.
 """
 
 from __future__ import annotations
@@ -28,11 +30,11 @@ SCENARIO_FILES = sorted(SCENARIO_DIR.glob("*.json"))
 REQUIRED_SCENARIOS = {"nominal", "hypoxia", "hypercapnia", "solar_storm", "sensor_dropout"}
 
 CREW_METRICS = set(m.CrewVitals.model_fields)
-CABIN_METRICS = {  # yalnızca Reading alanları; status ve geri sayım alanları ölçüm değildir
+CABIN_METRICS = {
     name for name, field in m.CabinAtmosphere.model_fields.items() if field.annotation is m.Reading
 }
 SEVERITIES = {s.value for s in m.Severity}
-CREW_ALERT_EXTRA_METRICS = {"event_dose"}  # kişi bazlı karar metriği (sözleşme 0.2.0 Metric.event_dose)
+CREW_ALERT_EXTRA_METRICS = {"event_dose"}
 STATUSES = {s.value for s in m.Status}
 
 GAS_CONSTANT = 8.314
@@ -68,11 +70,7 @@ def baseline(s: Scenario, crew_id: str, metric: str) -> float:
     return next(c for c in s["crew"] if c["id"] == crew_id)["baseline"][metric]["mean"]
 
 
-# ---------------------------------------------------------------- bağımsız model
-
-
 def vital(s: Scenario, crew_id: str, metric: str, t: float) -> float:
-    """Olaylardaki doğrusal rampalarla vital değeri (gürültüsüz)."""
     value = baseline(s, crew_id, metric)
     for e in sorted(s["events"], key=lambda e: e["t_min"]):
         if e.get("crew_id") != crew_id or metric not in e.get("targets", {}) or e["t_min"] > t:
@@ -99,9 +97,6 @@ def metabolic_kg_day(s: Scenario, t: float) -> tuple[float, float]:
 
 
 def cabin_series(s: Scenario) -> list[tuple[float, float, float]]:
-    """(t, PIO2 mmHg, ppCO2 mmHg). Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme
-    üretimi karşılar, kabin değerleri sabit kalır. Arızalı gaz arıza anından itibaren akar (O2 üretimi durur
-    ya da CO2 giderme kapasitesi düşer); diğer gaz regüle kalır. Tükenen gaz sıfırda tutulur."""
     md = s["model"]
     total = md["total_pressure_mmHg"]
 
@@ -129,12 +124,10 @@ def cabin_series(s: Scenario) -> list[tuple[float, float, float]]:
 
 
 def assert_condition_time(alert: dict[str, Any], computed: float | None) -> None:
-    assert computed is not None, f"{alert['rule_id']}: koşul hiç sağlanmadı"
+    assert computed is not None, f"{alert['rule_id']}: condition was never met"
     assert computed == pytest.approx(alert["t_condition"], abs=TOLERANCE_MIN), alert["rule_id"]
     assert alert["t_earliest"] <= computed <= alert["t_latest"], alert["rule_id"]
 
-
-# ---------------------------------------------------------------- motor uyumu ve süre sınırı
 
 MAX_DURATION_MIN = 1800
 
@@ -146,7 +139,6 @@ def test_scenarios_fit_in_max_duration() -> None:
 
 @pytest.mark.parametrize("name", ["hypoxia", "hypercapnia"])
 def test_cabin_series_matches_atmosphere_engine(name: str) -> None:
-    """Bağımsız kütle dengesi, regüle yaşam destekle çalışan backend/atmosphere.py ile aynı seriyi verir."""
     from dataclasses import replace
 
     from backend.atmosphere import CabinState, load_profile, metabolic_rates, step
@@ -170,7 +162,6 @@ def test_cabin_series_matches_atmosphere_engine(name: str) -> None:
         )
         used = [metabolic_rates(h, b, profile.ranges.metabolism) for h, b in rates]
         o2_failed = o2_fail is not None and t >= o2_fail
-        # Regüle gaz: üretim tüketimi, giderme üretimi karşılar (net 0); arızalı gaz profilden akar.
         active = replace(
             profile,
             o2_supply_kg_per_day=profile.o2_supply_kg_per_day if o2_failed else sum(u[0] for u in used),
@@ -185,9 +176,6 @@ def test_cabin_series_matches_atmosphere_engine(name: str) -> None:
         ).state
 
 
-# ---------------------------------------------------------------- tüm senaryolar
-
-
 def test_required_scenarios_exist() -> None:
     assert {p.stem for p in SCENARIO_FILES} >= REQUIRED_SCENARIOS
 
@@ -195,7 +183,7 @@ def test_required_scenarios_exist() -> None:
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
 def test_scenario_format(path: Path) -> None:
     s = json.loads(path.read_text(encoding="utf-8"))
-    assert s["scenario"] == path.stem, "dosya adı ile scenario alanı aynı olmalı (AGENTS.md §5)"
+    assert s["scenario"] == path.stem, "file name and scenario field must match (AGENTS.md §5)"
     assert s["scenario"] in {sc.value for sc in m.Scenario}
     assert s["simulated"] is True and s["seed"] == 42
     assert s["thresholds_from"] == "data/reference/ranges.json"
@@ -244,7 +232,6 @@ ENGINE_TIERS = {"nominal", "caution", "critical", "unknown"}
 
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
 def test_tiers_match_engine(path: Path) -> None:
-    """#14 motoru warning üretmez: limit aşımı critical, eksik veri unknown."""
     s = json.loads(path.read_text(encoding="utf-8"))
     assert {a["severity"] for a in s["expected_alerts"]} <= ENGINE_TIERS - {"nominal", "unknown"}
     assert set(s["expected_status_end"].values()) <= ENGINE_TIERS
@@ -253,12 +240,6 @@ def test_tiers_match_engine(path: Path) -> None:
 
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
 def test_resting_targets_of_forbidden_metrics_stay_below_rest_rules(path: Path) -> None:
-    """Dinlenen kişinin yasak listesindeki vitali dinlenme eşiğini (ranges.json izle farkı) geçmemeli.
-
-    Örnek: egzersiz sonrası crew-3'ün nabzı bazın +15 üstüne çıkarsa kalp yükü uyarısı üretilir; oysa
-    crew-3 heart_rate yasak. Dosya kendi içinde çelişmiş olur. Senaryoda o metrikle uyarı üreten kural
-    yoksa (ör. hypoxia'da solunum yalnızca hipoksi kanıtı) sapma tek başına uyarı üretmez.
-    """
     s = json.loads(path.read_text(encoding="utf-8"))
     forbidden = {(f["crew_id"], f["metric"]) for f in s.get("forbidden_alerts", [])}
     rule_metrics = {r["metric"] for r in s["proposed_rules"].values() if isinstance(r, dict)}
@@ -283,13 +264,10 @@ def test_crew_rules_using_cabin_evidence_declare_cabin_condition(path: Path) -> 
             assert "also_requires" in s["proposed_rules"][a["rule_id"]], a["rule_id"]
 
 
-# ---------------------------------------------------------------- ranges.json tek kaynak
-
-
 @pytest.fixture(scope="module")
 def ranges() -> dict[str, Any]:
     if not RANGES_PATH.exists():
-        pytest.skip("data/reference/ranges.json henüz develop'ta yok (PR #16)")
+        pytest.skip("data/reference/ranges.json is not on develop yet (PR #16)")
     return json.loads(RANGES_PATH.read_text(encoding="utf-8"))
 
 
@@ -330,9 +308,6 @@ def test_initial_pio2_is_inside_normoxia() -> None:
     assert s["cabin_initial"]["cabin_pressure"]["unit"] == "mmHg"
 
 
-# ---------------------------------------------------------------- nominal
-
-
 def test_nominal_has_no_alerts_even_with_exercise() -> None:
     s = load("nominal")
     assert s["expected_alerts"] == [] and s["no_alerts_at_all"] is True
@@ -340,9 +315,6 @@ def test_nominal_has_no_alerts_even_with_exercise() -> None:
     exercise = next(e for e in s["events"] if e.get("activity") == "exercise")
     forbidden = {(f["crew_id"], f["metric"]) for f in s["forbidden_alerts"]}
     assert {(exercise["crew_id"], "heart_rate"), (exercise["crew_id"], "resp_rate")} <= forbidden
-
-
-# ---------------------------------------------------------------- hypoxia
 
 
 @pytest.fixture(scope="module")
@@ -375,7 +347,6 @@ def test_hypoxia_crew3_exercising_when_spo2_drops(
     for alert, key in ((caution, "spo2_drop_caution"), (warning, "spo2_drop_warning")):
         t = first_time(hypoxia, lambda t, k=key: base - vital(hypoxia, "crew-3", "spo2", t) >= th[k] - 1e-9)
         assert_condition_time(alert, t)
-        # kabin koşulu da o anda sağlanıyor
         pio2_now = next(p for tt, p, _ in hypoxia_cabin if tt >= alert["t_condition"])
         assert pio2_now < th["pio2_normoxia_min"]
 
@@ -390,8 +361,10 @@ def test_hypoxia_crew3_exercising_when_spo2_drops(
         if e.get("crew_id") == "crew-3" and e.get("activity") == "resting" and e["t_min"] > exercise_start
     )
     for alert in (caution, warning):
-        assert exercise_start <= alert["t_condition"] < exercise_end, "karar anında crew-3 egzersizde olmalı"
-    assert warning["t_latest"] < by_rule(hypoxia, "cabin_pio2_low_critical")["t_earliest"], "erken uyarı"
+        assert (
+            exercise_start <= alert["t_condition"] < exercise_end
+        ), "crew-3 must be exercising at decision time"
+    assert warning["t_latest"] < by_rule(hypoxia, "cabin_pio2_low_critical")["t_earliest"], "early warning"
 
 
 def test_hypoxia_exercise_heart_rate_is_not_evidence(hypoxia: Scenario) -> None:
@@ -406,12 +379,11 @@ def test_hypoxia_exercise_heart_rate_is_not_evidence(hypoxia: Scenario) -> None:
 
 
 def test_hypoxia_personal_heart_rate_deviation(hypoxia: Scenario) -> None:
-    """Aynı nabız, farklı karar: crew-1 ve crew-4 ikisi de 80; crew-1 İzle (+16), crew-4 normal (+13)."""
     th = hypoxia["thresholds"]
     ramps = {e["crew_id"]: e for e in hypoxia["events"] if e.get("crew_id") in {"crew-1", "crew-4"}}
     final1 = ramps["crew-1"]["targets"]["heart_rate"]
     final4 = ramps["crew-4"]["targets"]["heart_rate"]
-    assert final1 == final4, "hedefler eşit olmalı; fark yalnızca baz çizgisinden gelir"
+    assert final1 == final4, "targets must be equal; the difference comes only from the baseline"
     assert final1 - baseline(hypoxia, "crew-1", "heart_rate") >= th["hr_rise_caution"]
     assert final4 - baseline(hypoxia, "crew-4", "heart_rate") < th["hr_rise_caution"]
 
@@ -433,11 +405,6 @@ def final_activity(s: Scenario, crew_id: str) -> str:
 
 
 def test_hypoxia_end_status_follows_rules(hypoxia: Scenario) -> None:
-    """Bitiş durumu, son vitallerden kurallarla yeniden hesaplanır.
-
-    Hipoksi: SpO2 düşüşü ≥ izle VE kabin PIO2 < 145; dinlenen kişide ek olarak nabız veya solunum
-    artışı ≥ izle. Eylem: SpO2 düşüşü ≥ eylem. Kalp yükü: dinlenirken nabız artışı ≥ izle / eylem.
-    """
     th = hypoxia["thresholds"]
     end = hypoxia["duration_min"]
     pio2_end = cabin_series(hypoxia)[-1][1]
@@ -464,10 +431,7 @@ def test_hypoxia_end_status_follows_rules(hypoxia: Scenario) -> None:
         computed = max(levels, key=order.index)
         assert (
             hypoxia["expected_status_end"][cid] == computed
-        ), f"{cid}: düşüş {drop}, nabız {hr}, solunum {rr}"
-
-
-# ---------------------------------------------------------------- hypercapnia
+        ), f"{cid}: drop {drop}, pulse {hr}, respiration {rr}"
 
 
 def test_hypercapnia_alert_times() -> None:
@@ -489,7 +453,7 @@ def test_hypercapnia_alert_times() -> None:
     symptom = next(e for e in s["events"] if e.get("crew_id") == "crew-3")
     assert symptom["activity"] == "resting"
     co2_at_symptom = next(c for t, _, c in series if t >= symptom["t_min"])
-    assert co2_at_symptom >= 2.8, "belirti NASA baş ağrısı aralığında başlamalı"
+    assert co2_at_symptom >= 2.8, "symptom must start in the NASA headache range"
 
     base_rr = baseline(s, "crew-3", "resp_rate")
     t_rr = first_time(
@@ -500,11 +464,7 @@ def test_hypercapnia_alert_times() -> None:
     assert {a["crew_id"] for a in s["expected_alerts"] if a["crew_id"]} == {"crew-3"}
 
 
-# ---------------------------------------------------------------- solar_storm
-
-
 def test_solar_storm_events_carry_numeric_dose_fields() -> None:
-    """Simülatör not metnini ayrıştırmaz: doz hızı ve sığınak çarpanı sayısal alanlardan okunur."""
     s = load("solar_storm")
     v = s["dose_assumptions"]
     onset = next(e for e in s["events"] if e["type"] == "sep_onset")
@@ -525,12 +485,12 @@ def test_solar_storm_warns_before_dose_and_totals() -> None:
     projected = rate * v["event_duration_min"]
     assert (
         projected >= th["yellow_fraction"] * th["spe_design_mSv"]
-    ), "projeksiyon onset'te uyarıyı tetiklemeli"
+    ), "projection must trigger the alert at onset"
     warning = by_rule(s, "event_dose_projection_critical")
     assert warning["t_condition"] == ev["sep_onset"]
     assert ev["shelter"] >= warning["t_condition"] and ev["shelter"] <= warning["t_latest"]
     dose_at_warning = rate * (warning["t_condition"] - ev["sep_onset"])
-    assert dose_at_warning < 0.1 * th["spe_design_mSv"], "uyarı doz alınmadan önce gelmeli"
+    assert dose_at_warning < 0.1 * th["spe_design_mSv"], "alert must come before the dose is received"
 
     total = rate * (ev["shelter"] - ev["sep_onset"]) + rate * v["shelter_factor"] * (
         ev["sep_end"] - ev["shelter"]
@@ -547,7 +507,7 @@ def test_solar_storm_matches_saved_donki_event() -> None:
     s = load("solar_storm")
     saved_path = ROOT / "data" / "donki" / "sep_event.json"
     if not saved_path.exists():
-        pytest.skip("data/donki/sep_event.json bu dalda yok (PR #17 birleşince gelir)")
+        pytest.skip("data/donki/sep_event.json is not on this branch (arrives when PR #17 merges)")
     selected = json.loads(saved_path.read_text(encoding="utf-8"))["selected"]
     assert s["donki"]["sepID"] == selected["sepID"]
     assert s["donki"]["event_time"] == selected["eventTime"]
@@ -555,17 +515,13 @@ def test_solar_storm_matches_saved_donki_event() -> None:
     assert s["donki"]["linked_events_count"] == len(selected["linkedEvents"])
     names = [i["displayName"] for i in selected["instruments"]]
     assert s["donki"]["instrument"] in names
-    assert not s["donki"]["instrument"].startswith("MODEL:"), "senaryo ölçülmüş olaya dayanmalı"
+    assert not s["donki"]["instrument"].startswith("MODEL:"), "scenario must be based on a measured event"
 
-
-# ---------------------------------------------------------------- davranış testleri
-# AI kullanım beyanına girecek davranışlar: art arda ölçüm, egzersiz, bilinmeyen etkinlik, eksik veri.
 
 REQUIRED_CONSECUTIVE = 3
 
 
 def first_fire_index(flags: list[bool], n: int) -> int | None:
-    """Referans kural: koşul n ölçüm art arda doğruysa uyarı n. ölçümde çıkar."""
     run = 0
     for i, flag in enumerate(flags):
         run = run + 1 if flag else 0
@@ -576,18 +532,16 @@ def first_fire_index(flags: list[bool], n: int) -> int | None:
 
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
 def test_alerts_need_three_consecutive_measurements(path: Path) -> None:
-    """Her beklenen uyarının kuralı 3 art arda ölçüm ister ve uyarı penceresi bunu kapsar."""
     s = json.loads(path.read_text(encoding="utf-8"))
     interval = s["model"]["measurement_interval_min"]
     for a in s["expected_alerts"]:
         rule = s["proposed_rules"][a["rule_id"]]
         assert rule["consecutive_required"] == REQUIRED_CONSECUTIVE, a["rule_id"]
         fires = a["t_condition"] + (REQUIRED_CONSECUTIVE - 1) * interval
-        assert fires <= a["t_latest"], f"{a['rule_id']}: 3. ölçüm pencere dışında"
+        assert fires <= a["t_latest"], f"{a['rule_id']}: 3rd measurement is outside the window"
 
 
 def test_single_blip_does_not_fire_but_sustained_condition_does() -> None:
-    """Hypoxia kabin PIO2'si ölçüm aralığıyla örneklenir: kısa sıçrama uyarı çıkarmaz."""
     s = load("hypoxia")
     interval = s["model"]["measurement_interval_min"]
     low = s["thresholds"]["pio2_normoxia_min"]
@@ -602,7 +556,6 @@ def test_single_blip_does_not_fire_but_sustained_condition_does() -> None:
 
 
 def exercise_intervals(s: Scenario, crew_id: str) -> list[tuple[float, float]]:
-    """Kişinin egzersizde olduğu [başlangıç, bitiş) aralıkları (olay sırasına göre)."""
     events = sorted(
         (e for e in s["events"] if e.get("crew_id") == crew_id and "activity" in e),
         key=lambda e: e["t_min"],
@@ -621,7 +574,6 @@ def exercise_intervals(s: Scenario, crew_id: str) -> list[tuple[float, float]]:
 
 
 def resting_rise_flags(s: Scenario, crew_id: str, activity_of: Callable[[float], str]) -> list[bool]:
-    """Referans kural: yalnızca etkinlik 'resting' ise nabız - baz >= eşik koşul sayılır."""
     th = s["thresholds"]["hr_rise_caution"]
     base = baseline(s, crew_id, "heart_rate")
     return [
@@ -631,10 +583,9 @@ def resting_rise_flags(s: Scenario, crew_id: str, activity_of: Callable[[float],
 
 
 def test_exercise_heart_rate_never_raises_heart_load_alert() -> None:
-    """crew-3 egzersizdeyken nabız yükselir ama kalp yükü koşulu hiç sağlanmaz; alarm ve kanıt dışı."""
     s = load("hypoxia")
     spans = exercise_intervals(s, "crew-3")
-    assert spans, "senaryoda crew-3 egzersiz yapmalı"
+    assert spans, "crew-3 must exercise in the scenario"
     base = baseline(s, "crew-3", "heart_rate")
     th = s["thresholds"]["hr_rise_caution"]
 
@@ -643,18 +594,17 @@ def test_exercise_heart_rate_never_raises_heart_load_alert() -> None:
 
     start, end = (int(x) for x in spans[0])
     peak = max(vital(s, "crew-3", "heart_rate", t) for t in range(start, end))
-    assert peak - base >= th, "egzersiz nabzı eşiği aşmalı ki istisna anlamlı olsun"
+    assert peak - base >= th, "exercise pulse must exceed the threshold so the exception is meaningful"
     flags = resting_rise_flags(s, "crew-3", activity_of)
     assert not any(any(flags[int(a) : int(b)]) for a, b in spans)
     assert not any(a["crew_id"] == "crew-3" and a["metric"] == "heart_rate" for a in s["expected_alerts"])
 
 
 def test_unknown_activity_never_counts_heart_rate_as_evidence() -> None:
-    """Etkinlik unknown iken 'dinleniyor' varsayılmaz: crew-1'in gerçek +16'lık artışı bile kanıt sayılmaz."""
     s = load("hypoxia")
     known = resting_rise_flags(s, "crew-1", lambda t: "resting")
     unknown = resting_rise_flags(s, "crew-1", lambda t: "unknown")
-    assert first_fire_index(known, REQUIRED_CONSECUTIVE) is not None, "dinlenirken uyarı çıkmalı"
+    assert first_fire_index(known, REQUIRED_CONSECUTIVE) is not None, "an alert must appear while resting"
     assert not any(unknown)
     assert first_fire_index(unknown, REQUIRED_CONSECUTIVE) is None
 
@@ -665,12 +615,11 @@ def test_resting_heart_rate_rules_require_resting_and_skip_exercise(path: Path) 
     for rule_id, rule in s["proposed_rules"].items():
         if not isinstance(rule, dict) or not rule_id.startswith("crew_hr_rest_"):
             continue
-        assert rule["condition"].startswith("aktivite = dinlenme"), rule_id
+        assert rule["condition"].startswith("activity = resting"), rule_id
         assert "exercise" in rule["skip_when"], rule_id
 
 
 def test_missing_data_is_unknown_never_nominal() -> None:
-    """Gerçek motor (backend.atmosphere): eksik ölçüm unknown olur; bilinen tehlike ise gizlenmez."""
     from backend.atmosphere import CabinState, load_profile, step
 
     s = load("hypoxia")
@@ -697,7 +646,7 @@ def vitals_all_missing() -> m.CrewVitals:
     return m.CrewVitals(**{f: missing for f in m.CrewVitals.model_fields})
 
 
-@pytest.mark.skipif(not hasattr(m, "CrewDecision"), reason="CrewDecision sözleşmeye #26 ile gelir")
+@pytest.mark.skipif(not hasattr(m, "CrewDecision"), reason="CrewDecision arrives in the contract with #26")
 def test_contract_rejects_normal_decision_when_all_vitals_missing() -> None:
     with pytest.raises(ValueError):
         m.CrewMember(
@@ -710,7 +659,7 @@ def test_contract_rejects_normal_decision_when_all_vitals_missing() -> None:
 
 
 @pytest.mark.skipif(
-    "baseline_delta" not in m.Reading.model_fields, reason="baseline_delta sözleşmeye #26 ile gelir"
+    "baseline_delta" not in m.Reading.model_fields, reason="baseline_delta arrives in the contract with #26"
 )
 def test_contract_rejects_baseline_delta_on_cabin_readings() -> None:
     from datetime import UTC, datetime
@@ -721,9 +670,6 @@ def test_contract_rejects_baseline_delta_on_cabin_readings() -> None:
     fields["pp_co2"] = m.Reading(value=1.0, unit="x", ts=ts, baseline_delta=0.5)
     with pytest.raises(ValueError):
         m.CabinAtmosphere(**fields)
-
-
-# ---------------------------------------------------------------- sensor_dropout
 
 
 @pytest.fixture(scope="module")
@@ -738,7 +684,9 @@ def quality_events(s: Scenario) -> list[dict[str, Any]]:
 def test_sensor_dropout_events_are_well_formed(dropout: Scenario) -> None:
     qualities = {q.value for q in m.Quality} - {m.Quality.ok.value}
     events = quality_events(dropout)
-    assert {e["quality"] for e in events} == qualities, "missing, stale ve sensor_fault üçü de denenmeli"
+    assert {
+        e["quality"] for e in events
+    } == qualities, "missing, stale and sensor_fault must all be exercised"
     for e in events:
         assert 0 <= e["t_min"] < e["until_min"] <= dropout["duration_min"], e
         allowed = CABIN_METRICS if e["crew_id"] is None else CREW_METRICS
@@ -761,7 +709,6 @@ def test_sensor_dropout_status_table_matches_events(dropout: Scenario) -> None:
 
 
 def test_sensor_dropout_expectations_are_valid_contract_readings(dropout: Scenario) -> None:
-    """Beklenen durumlar sözleşme modeliyle kurulabilmeli; 'nominal' ise sözleşmece de reddedilmeli."""
     ts = datetime(2026, 1, 1, tzinfo=UTC)
     for d in dropout["expected_data_status"]:
         fields = {"value": d["value"], "unit": "x", "ts": ts, "quality": d["quality"]}
@@ -775,29 +722,28 @@ def missing_alerts(s: Scenario) -> list[dict[str, Any]]:
 
 
 def test_sensor_dropout_no_data_alert_times(dropout: Scenario) -> None:
-    """3. art arda geçersiz ölçümde 'veri yok' uyarısı: t_from + (consecutive − 1) × ölçüm aralığı."""
     n = dropout["thresholds"]["consecutive"]
     step = dropout["model"]["measurement_interval_min"]
     alerts = {(a["crew_id"], a["metric"]): a for a in missing_alerts(dropout)}
     statuses = {(d["crew_id"], d["metric"]): d for d in dropout["expected_data_status"]}
-    assert alerts.keys() == statuses.keys(), "her bozuk sensör için tam bir 'veri yok' uyarısı"
+    assert alerts.keys() == statuses.keys(), "exactly one 'no data' alert for each faulty sensor"
     for key, alert in alerts.items():
         d = statuses[key]
         computed = d["t_from"] + (n - 1) * step
         assert computed == pytest.approx(alert["t_condition"], abs=TOLERANCE_MIN), key
         assert alert["t_earliest"] <= computed <= alert["t_latest"] <= dropout["duration_min"], key
-        assert computed < d["t_until"], "uyarı kopma bitmeden çıkmalı"
-        assert alert["severity"] == "caution", "eksik veri limit aşımı değildir"
+        assert computed < d["t_until"], "the alert must appear before the dropout ends"
+        assert alert["severity"] == "caution", "missing data is not a limit exceedance"
         assert alert["rule_id"] == f"missing-{d['metric']}"
         assert alert["evidence_metrics"] == [d["metric"]]
 
 
 def test_sensor_dropout_fault_value_would_trip_the_limit_if_evaluated(dropout: Scenario) -> None:
     fault = next(e for e in quality_events(dropout) if e["quality"] == "sensor_fault")
-    assert fault["reported_value"] > dropout["thresholds"]["ppco2_red_1h"], "test anlamını yitirir"
-    assert fault["reported_value"] > 4 * dropout["cabin_initial"]["pp_co2"]["value"], "imkânsız sıçrama"
+    assert fault["reported_value"] > dropout["thresholds"]["ppco2_red_1h"], "the test would lose its meaning"
+    assert fault["reported_value"] > 4 * dropout["cabin_initial"]["pp_co2"]["value"], "impossible jump"
     d = next(d for d in dropout["expected_data_status"] if d["crew_id"] is None)
-    assert d["value"] is None, "sensor_fault değeri kural motoruna girmez"
+    assert d["value"] is None, "the sensor_fault value must not enter the rules engine"
     assert {"nominal", "critical"} <= set(d["forbidden_status"])
     cabin = next(f for f in dropout["forbidden_rules"] if f["crew_id"] is None and f["metric"] == "pp_co2")
     assert {"cabin_pp_co2_critical"} <= set(cabin["rule_ids"])
@@ -815,7 +761,6 @@ def test_sensor_dropout_forbidden_rules_do_not_overlap_expected(dropout: Scenari
 
 
 def test_sensor_dropout_crew3_target_has_margin_over_sensor_noise(dropout: Scenario) -> None:
-    """Gürültü (sd) eşiği aşan hedefi kırpmasın: hedef sapma eşik + 2 sd'den büyük olmalı."""
     th = dropout["thresholds"]
     crew3 = next(c for c in dropout["crew"] if c["id"] == "crew-3")["baseline"]["heart_rate"]
     target = next(
@@ -827,7 +772,6 @@ def test_sensor_dropout_crew3_target_has_margin_over_sensor_noise(dropout: Scena
 
 
 def test_sensor_dropout_does_not_hide_another_persons_alert(dropout: Scenario) -> None:
-    """crew-3'ün gerçek nabız sapması, crew-2'nin sensörü kopukken oluşur ve uyarıya dönüşür."""
     th = dropout["thresholds"]
     base = baseline(dropout, "crew-3", "heart_rate")
     t = first_time(
@@ -837,7 +781,7 @@ def test_sensor_dropout_does_not_hide_another_persons_alert(dropout: Scenario) -
     assert_condition_time(alert, t)
     assert final_activity(dropout, "crew-3") == "resting"
     gap = next(e for e in quality_events(dropout) if e["crew_id"] == "crew-2")
-    assert gap["t_min"] <= alert["t_condition"] < gap["until_min"], "uyarı kopma sırasında doğmalı"
+    assert gap["t_min"] <= alert["t_condition"] < gap["until_min"], "the alert must arise during the dropout"
     assert alert["t_latest"] > gap["t_min"]
     assert dropout["expected_status_end"]["crew-3"] == "caution"
     assert ("crew-3", "heart_rate") not in {(f["crew_id"], f["metric"]) for f in dropout["forbidden_alerts"]}
@@ -846,12 +790,11 @@ def test_sensor_dropout_does_not_hide_another_persons_alert(dropout: Scenario) -
 def test_sensor_dropout_end_status_after_recovery(dropout: Scenario) -> None:
     end = dropout["expected_status_end"]
     recovered = {d["crew_id"] or "cabin" for d in dropout["expected_data_status"]}
-    assert all(end[who] == "nominal" for who in recovered), "veri gelince Normal'e dönmeli"
+    assert all(end[who] == "nominal" for who in recovered), "must return to Normal when data comes back"
     assert set(end.values()) <= {"nominal", "caution"} and "unknown" not in end.values()
 
 
 def test_sensor_dropout_cabin_stays_nominal_without_the_fault(dropout: Scenario) -> None:
-    """Kabin gerçekte sağlıklı: yalnızca sensör bozuk. Bu yüzden critical ya da caution beklenmez."""
     th = dropout["thresholds"]
     series = cabin_series(dropout)
     assert all(th["pio2_normoxia_min"] <= pio2 <= th["pio2_normoxia_max"] for _, pio2, _ in series)
@@ -861,17 +804,11 @@ def test_sensor_dropout_cabin_stays_nominal_without_the_fault(dropout: Scenario)
 
 NOISE_SD_FACTOR = 2.0
 
-# Bilinçli demo istisnası: hypoxia'da Ayşe ve Mert ikisi de 80 bpm (aynı nabız, farklı baz çizgisi
-# → farklı karar). Marj kuralı burada kasıtlı kırılır; seed 42 sabit olduğu için gerçek motor
-# davranışı test_hypoxia_engine_no_forbidden_heart_alerts ile doğrulanır.
 MARGIN_DEMO_EXCEPTIONS = {("hypoxia", "crew-1", "heart_rate"), ("hypoxia", "crew-4", "heart_rate")}
 
 
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
 def test_targets_keep_two_sd_margin_from_thresholds(path: Path) -> None:
-    """Simülatör gürültüsü (sd) hedefi eşiğin öbür yanına geçirmemeli (seed 42 sabit ama motor eşiği tek
-    ölçümde aşabilir): uyarı beklenen kişide hedef eşiğin en az 2 sd üstünde, uyarı beklenmeyen
-    dinlenen kişide nabız hedefi eşiğin en az 2 sd altında olmalı."""
     s = json.loads(path.read_text(encoding="utf-8"))
     th = s["thresholds"]
     sd = {c["id"]: {k: v["sd"] for k, v in c["baseline"].items()} for c in s["crew"]}
@@ -893,8 +830,6 @@ def test_targets_keep_two_sd_margin_from_thresholds(path: Path) -> None:
                 assert delta <= th[key] - margin, (s["scenario"], crew_id, metric, delta)
 
 
-# ------------------------------------------------------------ motor eşleşmesi (#35 simülatör, #43 kurallar)
-
 KNOWN_ENGINE_RULE_IDS = {
     "karar-olasi_hipoksi",
     "karar-olasi_co2_etkisi",
@@ -911,7 +846,6 @@ KNOWN_ENGINE_RULE_IDS = {
 
 @pytest.mark.parametrize("path", SCENARIO_FILES, ids=lambda p: p.stem)
 def test_expected_alerts_name_their_engine_counterpart(path: Path) -> None:
-    """Her beklenen uyarı, motorun kullandığı metrik ve kural adını da taşır; kendi rule_id adları kalır."""
     s = json.loads(path.read_text(encoding="utf-8"))
     for a in s["expected_alerts"]:
         assert a["engine_metric"] in m.Metric.__members__, a["rule_id"]
@@ -920,7 +854,6 @@ def test_expected_alerts_name_their_engine_counterpart(path: Path) -> None:
 
 
 def test_solar_storm_radiation_is_a_per_crew_decision() -> None:
-    """Radyasyon kişi bazlı karar (ranges.json): crew-1..4 için event_dose, kabin radyasyon uyarısı yok."""
     s = load("solar_storm")
     alerts = s["expected_alerts"]
     assert {a["crew_id"] for a in alerts} == {c["id"] for c in s["crew"]}
@@ -938,13 +871,11 @@ def test_solar_storm_radiation_is_a_per_crew_decision() -> None:
 try:
     from backend.rules import RulesEngine, SepContext
     from backend.simulator import SimulationFinished, Simulator
-except ImportError:  # #35 / #43 develop'a girene kadar
+except ImportError:
     RulesEngine = None
 
 
 def engine_run(name: str) -> tuple[dict[tuple[Any, str, str, str], float], Any]:
-    """Simülatör + kural motoru (SEP bağlamı backend/main.Pipeline gibi): ilk görünme
-    dakikaları ve son kare."""
     simulator, engine = Simulator(m.Scenario(name)), RulesEngine()
     first: dict[tuple[Any, str, str, str], float] = {}
     last = None
@@ -974,24 +905,23 @@ def engine_first_alerts(name: str) -> dict[tuple[Any, str, str, str], float]:
     return engine_run(name)[0]
 
 
-@pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
-@pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
+@pytest.mark.skipif(RulesEngine is None, reason="simulator and rules engine are not on develop (#35, #43)")
+@pytest.mark.skipif(RulesEngine is None, reason="simulator and rules engine are not on develop (#35, #43)")
 @pytest.mark.parametrize("name", ["hypoxia", "hypercapnia", "solar_storm", "sensor_dropout"])
 def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
-    """Gerçek motorun ilk uyarı dakikası, beklenen pencerenin [t_earliest, t_latest] içinde kalır."""
     s = load(name)
     first = engine_first_alerts(name)
     for a in s["expected_alerts"]:
         key = (a["crew_id"], a["engine_metric"], a["severity"], a["engine_rule_id"])
-        assert key in first, f"{name}: motor {key} üretmedi"
+        assert key in first, f"{name}: engine did not produce {key}"
         window = (a["t_earliest"], a["t_latest"])
         assert window[0] <= first[key] <= window[1], (name, a["rule_id"], first[key])
     forbidden = {(f["crew_id"], f["metric"]) for f in s["forbidden_alerts"]}
     produced = {(k[0], k[1]) for k in first}
-    assert not forbidden & produced, f"{name}: yasak uyarı üretildi: {forbidden & produced}"
+    assert not forbidden & produced, f"{name}: forbidden alert produced: {forbidden & produced}"
 
 
-@pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
+@pytest.mark.skipif(RulesEngine is None, reason="simulator and rules engine are not on develop (#35, #43)")
 @pytest.mark.parametrize(
     "name",
     [
@@ -1005,17 +935,16 @@ def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
             marks=pytest.mark.xfail(
                 strict=True,
                 reason=(
-                    "Bilinen motor sapması (Aydın): (1) crew-3 PIO2 < 127 iken olasi_hipoksi "
-                    "critical oluyor; ranges.json eylem koşulunda PIO2 terimi yok, yalnızca SpO2 "
-                    "düşüşü var. (2) crew-1 kalp_yuku son ölçümde titriyor (nabız gürültüsü), "
-                    "bitiş durumu son kareye bağlı."
+                    "Known engine deviation (Aydın): (1) while crew-3 PIO2 < 127, olasi_hipoksi "
+                    "becomes critical; the ranges.json action condition has no PIO2 term, only the SpO2 "
+                    "drop. (2) crew-1 kalp_yuku flickers at the last measurement (pulse noise), "
+                    "so the end state depends on the last frame."
                 ),
             ),
         ),
     ],
 )
 def test_engine_end_status_matches_expected(name: str) -> None:
-    """Gerçek hattın son karesindeki kişi ve kabin durumu, senaryonun beklenen bitiş durumu ile aynı."""
     s = load(name)
     _, last = engine_run(name)
     got = {c.id: getattr(c.status, "value", c.status) for c in last.crew}
@@ -1023,13 +952,13 @@ def test_engine_end_status_matches_expected(name: str) -> None:
     assert got == s["expected_status_end"]
 
 
-@pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
+@pytest.mark.skipif(RulesEngine is None, reason="simulator and rules engine are not on develop (#35, #43)")
 def test_hypoxia_engine_no_forbidden_heart_alerts() -> None:
-    """Gerçek motor (seed 42): Mert (crew-4) ve Ece (crew-3) için kalp_yuku asla üretmez;
-    Ayşe'nin (crew-1) ilk kalp_yuku penceresi [172, 215] içinde kalır."""
     first = engine_first_alerts("hypoxia")
     assert ("crew-4", "heart_rate", "caution", "karar-kalp_yuku") not in first
-    assert not any(k[0] == "crew-3" and k[1] == "heart_rate" for k in first), "Ece'ye kalp yükü yasak"
-    ayse = next((t for k, t in first.items() if k[0] == "crew-1" and k[1] == "heart_rate"), None)
-    assert ayse is not None, "Ayşe'nin kalp_yuku üretmesi gerekir"
-    assert 172 <= ayse <= 215, f"motor Ayşe'yi {ayse} dk'da uyardı; pencere [172, 215]"
+    assert not any(
+        k[0] == "crew-3" and k[1] == "heart_rate" for k in first
+    ), "cardiac load is forbidden for Katherine"
+    neil = next((t for k, t in first.items() if k[0] == "crew-1" and k[1] == "heart_rate"), None)
+    assert neil is not None, "Neil must produce kalp_yuku"
+    assert 172 <= neil <= 215, f"engine warned Neil at {neil} min; window [172, 215]"
