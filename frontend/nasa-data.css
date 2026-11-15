@@ -54,7 +54,7 @@
 .nasa-linked-events ol { padding-left: var(--space-5); display: grid; gap: var(--space-3); }
 .nasa-linked-events li time, .nasa-linked-events li code { display: block; font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
 .decisions-heading:has(.nasa-storm-banner) { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: var(--space-3); }
-.nasa-storm-banner { visibility: hidden; min-width: 0; height: 26px; padding: 0 var(--space-2); border: 1px solid var(--border-strong); background: var(--surface-raised); border-radius: var(--radius-sm); color: var(--accent-ink); font: 11px var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.nasa-storm-banner { visibility: hidden; min-width: 0; height: 24px; padding: 0 var(--space-2); border: 1px solid var(--border-strong); background: var(--surface-raised); border-radius: var(--radius-sm); color: var(--accent-ink); font: 11px var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .nasa-storm-banner.nasa-storm-active { visibility: visible; }
 @media (max-width: 1300px) { .topbar { flex-wrap: wrap; } .mission-meta { flex-wrap: wrap; } }
 @media (max-width: 700px) {
