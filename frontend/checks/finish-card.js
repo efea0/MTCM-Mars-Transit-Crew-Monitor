@@ -74,6 +74,16 @@ await check("Replay uses the restart endpoint when one is provided", async () =>
   card.show("b"); root.querySelector(".finish-skip").click(); await wait(20); card.hide();
   assert(calls.join() === "restart,start:c", `Calls ${calls.join()}`);
 });
+await check("Without control rights the card is passive, hides its buttons and never starts anything", async () => {
+  const calls = [];
+  const card = createFinishCard({ root: (() => { const fresh = root.cloneNode(true); root.replaceWith(fresh); root = fresh; root.hidden = true; return root; })(),
+    order, labels, seconds: 1, canControl: () => false, start: async scenario => { calls.push(scenario); return { ok: true }; } });
+  card.show("a"); await wait(1500);
+  assert(root.dataset.state === "passive" && calls.length === 0, `State ${root.dataset.state}, calls ${calls.length}`);
+  assert(getComputedStyle(root.querySelector(".finish-actions")).display === "none", "Buttons still visible");
+  assert(root.querySelector(".finish-detail").textContent.includes("demo key"), "Missing explanation");
+  card.hide();
+});
 const failed = results.filter(item => !item.ok);
 document.getElementById("result").textContent = failed.length ? `${failed.length} finish card checks failed` : `${results.length}/${results.length} finish card checks passed`;
 document.getElementById("checks").replaceChildren(...results.map(item => Object.assign(document.createElement("li"), { textContent: `${item.ok ? "PASS" : "FAIL"} · ${item.name}` })));
