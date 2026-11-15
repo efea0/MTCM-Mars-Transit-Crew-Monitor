@@ -5,7 +5,7 @@
     "startDate": "2024-05-01",
     "endDate": "2024-05-31"
   },
-  "note": "DONKI olay zamanı ve türü verir, doz vermez. Doz simüle edilir.",
+  "note": "DONKI provides event time and type, not dose. Dose is simulated.",
   "selected": {
     "sepID": "2024-05-10T13:35:00-SEP-001",
     "eventTime": "2024-05-10T13:35Z",
