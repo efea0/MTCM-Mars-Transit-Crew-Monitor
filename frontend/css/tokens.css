@@ -1,61 +1,41 @@
 @charset "UTF-8";
-/* Merkezi tasarım tokenları. Bileşenler (style.css) HEX, RGB ya da piksel değerlerini doğrudan yazmaz.
-   Koyu tema varsayılandır; açık tema iki yerden gelir: sistem tercihi (prefers-color-scheme) ve elle
-   seçim ([data-theme="light"]). İki açık tema bloğu birebir aynı olmalıdır; tests/test_frontend_contrast.py
-   bunu ve aşağıdaki renk çiftlerinin WCAG 2.x AA kontrastını denetler.
-
-   Durum renkleri Okabe-Ito paletinde yaygın yayımlanan değerlerdir (--ok, --caution, --critical, --unknown).
-   Metin ve ince çizgi olarak her zaman "-ink" değişkeni kullanılır: ham renkler iki temada da küçük metinde
-   4,5:1'i geçemediği için okunabilir tonlar ayrı tutulur. Ham renk yalnızca dolgu ve parlama içindir. */
-
+/* NASA brand blue #0032A0 and red #E4002B come from the official insignia color guide.
+   Brand colors are used without NASA logos. Text inks/tints are adapted for WCAG AA.
+   Green, amber and gray retain the distinct Normal, Watch and Unknown semantics. */
 :root {
   color-scheme: dark;
-
-  /* Zemin ve yüzeyler */
-  --bg: #0b1220;
-  --surface: #111a2b;
-  --surface-raised: #162238;
-  --surface-hover: #1b2a44;
-  --border: #2b3a55;
-  --border-strong: #3d5075;
-
-  /* Metin */
-  --text: #e8edf5;
-  --muted: #a9b5c8;
-
-  /* Ana vurgu: etkileşimli öğeler. Dolgu #0072B2, bağlantı ve odak için okunabilir ton ayrı. */
-  --accent: #0072b2;
+  --bg: #0b0d12;
+  --surface: #14171f;
+  --surface-raised: #1c212b;
+  --surface-hover: #252d3a;
+  --border: #3a4557;
+  --border-strong: #5f7088;
+  --text: #f7f9fc;
+  --muted: #b4bfce;
+  --accent: #0032a0;
   --on-accent: #ffffff;
-  --accent-ink: #56b4e9;
-  --focus: #56b4e9;
-
-  /* Durum: ham renk (dolgu, parlama) */
+  --accent-ink: #9bbeff;
+  --focus: #9bbeff;
   --ok: #009e73;
   --caution: #e69f00;
-  --warning: #dc7800;
-  --critical: #d55e00;
+  --warning: #ffb454;
+  --critical: #e4002b;
   --unknown: #667085;
-  /* Durum: okunabilir ton (metin, çizgi, ikon) */
-  --ok-ink: #1faa84;
-  --caution-ink: #e69f00;
-  --warning-ink: #de7f0d;
-  --critical-ink: #dc792b;
-  --unknown-ink: #8c94a4;
-  /* Durum: rozet zemini (kart yüzeyi üzerinde %14 ham renk) */
-  --ok-tint: #133340;
-  --caution-tint: #333430;
-  --warning-tint: #322e30;
-  --critical-tint: #312a30;
-  --unknown-tint: #212d43;
-  /* Dolgulu rozetlerde (İzle, Eylem) metin rengi */
-  --on-status: #0b1220;
-
-  /* Grafik ve efektler */
-  --chart-baseline: #56b4e9;
-  --grid-line: rgb(120 150 200 / 5%);
-  --glow-strength: 24%;
-
-  /* Boşluk */
+  --ok-ink: #45d9a3;
+  --caution-ink: #ffd166;
+  --warning-ink: #ffb454;
+  --critical-ink: #ff8797;
+  --unknown-ink: #b7bfcc;
+  --ok-tint: #112d26;
+  --caution-tint: #332911;
+  --warning-tint: #342817;
+  --critical-tint: #341c24;
+  --unknown-tint: #282c35;
+  --on-status: #0b0d12;
+  --on-critical: #ffffff;
+  --chart-baseline: #9bbeff;
+  --grid-line: rgb(0 50 160 / 4%);
+  --glow-strength: 0%;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -64,8 +44,6 @@
   --space-6: 24px;
   --space-7: 32px;
   --space-8: 48px;
-
-  /* Şekil ve yazı tipi */
   --radius: 6px;
   --radius-sm: 4px;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -75,61 +53,61 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
-    --bg: #f3f5f9;
+    --bg: #f4f6fa;
     --surface: #ffffff;
-    --surface-raised: #f7f9fc;
-    --surface-hover: #eaeef5;
-    --border: #c4cddb;
-    --border-strong: #8d9bb3;
-    --text: #111827;
-    --muted: #4a5568;
-    --accent: #0072b2;
+    --surface-raised: #f5f7fb;
+    --surface-hover: #e8edf5;
+    --border: #c0cad8;
+    --border-strong: #8091a7;
+    --text: #121820;
+    --muted: #455469;
+    --accent: #0032a0;
     --on-accent: #ffffff;
-    --accent-ink: #006aa6;
-    --focus: #0072b2;
-    --ok-ink: #007656;
-    --caution-ink: #8f6300;
-    --warning-ink: #9e5600;
-    --critical-ink: #aa4b00;
-    --unknown-ink: #5e677a;
-    --ok-tint: #d4ece9;
-    --caution-tint: #f5ecd9;
-    --warning-tint: #f3e7d9;
-    --critical-tint: #f2e3d9;
-    --unknown-tint: #e3e6eb;
-    --on-status: #111827;
-    --chart-baseline: #0072b2;
-    --grid-line: rgb(30 50 90 / 6%);
-    --glow-strength: 18%;
+    --accent-ink: #0032a0;
+    --focus: #0032a0;
+    --ok-ink: #006b4e;
+    --caution-ink: #7b5400;
+    --warning-ink: #8a4700;
+    --critical-ink: #b00026;
+    --unknown-ink: #505b6c;
+    --ok-tint: #dfefe9;
+    --caution-tint: #fff0cc;
+    --warning-tint: #ffe8cc;
+    --critical-tint: #fce5ea;
+    --unknown-tint: #e7ebf0;
+    --on-status: #121820;
+    --chart-baseline: #0032a0;
+    --grid-line: rgb(0 50 160 / 4%);
+    --glow-strength: 0%;
   }
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f3f5f9;
+  --bg: #f4f6fa;
   --surface: #ffffff;
-  --surface-raised: #f7f9fc;
-  --surface-hover: #eaeef5;
-  --border: #c4cddb;
-  --border-strong: #8d9bb3;
-  --text: #111827;
-  --muted: #4a5568;
-  --accent: #0072b2;
+  --surface-raised: #f5f7fb;
+  --surface-hover: #e8edf5;
+  --border: #c0cad8;
+  --border-strong: #8091a7;
+  --text: #121820;
+  --muted: #455469;
+  --accent: #0032a0;
   --on-accent: #ffffff;
-  --accent-ink: #006aa6;
-  --focus: #0072b2;
-  --ok-ink: #007656;
-  --caution-ink: #8f6300;
-  --warning-ink: #9e5600;
-  --critical-ink: #aa4b00;
-  --unknown-ink: #5e677a;
-  --ok-tint: #d4ece9;
-  --caution-tint: #f5ecd9;
-  --warning-tint: #f3e7d9;
-  --critical-tint: #f2e3d9;
-  --unknown-tint: #e3e6eb;
-  --on-status: #111827;
-  --chart-baseline: #0072b2;
-  --grid-line: rgb(30 50 90 / 6%);
-  --glow-strength: 18%;
+  --accent-ink: #0032a0;
+  --focus: #0032a0;
+  --ok-ink: #006b4e;
+  --caution-ink: #7b5400;
+  --warning-ink: #8a4700;
+  --critical-ink: #b00026;
+  --unknown-ink: #505b6c;
+  --ok-tint: #dfefe9;
+  --caution-tint: #fff0cc;
+  --warning-tint: #ffe8cc;
+  --critical-tint: #fce5ea;
+  --unknown-tint: #e7ebf0;
+  --on-status: #121820;
+  --chart-baseline: #0032a0;
+  --grid-line: rgb(0 50 160 / 4%);
+  --glow-strength: 0%;
 }
