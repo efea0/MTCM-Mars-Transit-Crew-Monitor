@@ -14,13 +14,15 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 | What | Link |
 |---|---|
 | Live demo | <https://mars-transit-crew-monitor.onrender.com> (Render free tier; first load may take a moment) |
-| Project demo (≤ 30 s video or ≤ 7 slides) | [Watch 30 s Demo Video on YouTube](https://youtu.be/JIceT53aJFk) |
+| Project demo (≤ 30 s video or ≤ 7 slides) | [Watch 30 s Demo Video on YouTube](https://youtu.be/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP) |
 | Space Apps project page | <https://www.spaceappschallenge.org/2026/find-a-team/los_-_galacticos/?tab=details> |
 | Source code | <https://github.com/efea0/space-apps-2026-health-monitoring> |
 
 ### 30-Second Project Demo
 
-[![Mars Transit Crew Monitor — 30s Demo Video](https://img.youtube.com/vi/JIceT53aJFk/maxresdefault.jpg)](https://www.youtube.com/watch?v=JIceT53aJFk)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+[Watch 30 s Demo Video on YouTube](https://youtu.be/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP)
 
 > **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
 > without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
