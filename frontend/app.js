@@ -44,9 +44,6 @@ const LABELS = {
 const PRIMARY_METRICS = ["heart_rate", "spo2", "resp_rate", "core_temp"];
 const SECONDARY_METRICS = ["hrv_rmssd", "systolic_bp", "diastolic_bp"];
 const CABIN_METRICS = ["pp_o2", "pp_co2", "cabin_pressure", "cabin_temp", "rel_humidity", "radiation_dose_rate"];
-const CREW_NAMES = {
-  Ayşe: "Neil Armsted", Can: "Sally Ryder", Ece: "Katherine Johnston", Mert: "John Glennard",
-};
 const CABIN_TREND_METRICS = ["pp_co2", "pp_o2"];
 const DECISION_TONE = { normal: "nominal", watch: "caution", action: "critical", unknown: "unknown" };
 const SEVERITY_ORDER = { critical: 3, warning: 2, caution: 1 };
@@ -88,9 +85,6 @@ function el(tag, className = "", text = "") {
 }
 function tone(node, value) {
   node.dataset.tone = Object.hasOwn(LABELS.status, value) ? value : "unknown";
-}
-function crewText(value) {
-  return typeof value === "string" ? value.replace(/\b(?:Ayşe|Can|Ece|Mert)\b/g, name => CREW_NAMES[name]) : value;
 }
 function numeric(value) { return typeof value === "number" && Number.isFinite(value); }
 function number(value) { return numeric(value) ? numberFormat.format(value) : "—"; }
@@ -174,6 +168,7 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   setText(view.delta, delta === null ? "Baseline: no data"
     : `Δ ${delta < 0 ? "−" : "+"}${readingFormat.format(Math.abs(delta))} ${reading.unit}`);
   view.delta.title = delta === null ? "Personal baseline unavailable" : `${view.delta.textContent} compared with personal baseline`;
+
   const quality = stale ? "stale" : reading?.quality ?? "missing";
   view.state.dataset.quality = quality;
   view.quality.hidden = quality === "ok";
@@ -304,7 +299,7 @@ function evidenceList(why, list = el("ul", "evidence-list")) {
     }
     const [values, note, time] = row.children;
     setText(values, `${item.metric} · ${item.value === null ? "no data" : number(item.value)} ${item.comparator} ${item.threshold === null ? "—" : number(item.threshold)}`);
-    setText(note, crewText(item.note));
+    setText(note, item.note);
     setText(time, item.ts);
     time.dateTime = item.ts;
   });
@@ -317,6 +312,7 @@ function crewEvidence(view, member, alerts, stale) {
     if (view.evidence.firstElementChild?.className !== "empty-state") view.evidence.replaceChildren(el("p", "empty-state"));
     setText(view.evidence.firstElementChild, message);
     return;
+
   }
   if (view.evidence.firstElementChild?.className === "empty-state") view.evidence.firstElementChild.remove();
   const active = new Set(alerts.map(alert => alert.id));
@@ -337,7 +333,7 @@ function crewEvidence(view, member, alerts, stale) {
     }
     tone(block.badge, alert.severity);
     setText(block.badge, LABELS.status[alert.severity]);
-    setText(block.message, crewText(alert.message));
+    setText(block.message, alert.message);
     setText(block.meta, `${alert.consecutive_count} consecutive readings`);
     evidenceList(alert.why, block.why);
     if (view.evidence.children[index] !== block.root) view.evidence.insertBefore(block.root, view.evidence.children[index] ?? null);
@@ -350,16 +346,17 @@ function updateCrew(stale) {
     const decision = stale ? "unknown" : member?.decision ?? "unknown";
     tone(view.root, DECISION_TONE[decision]);
     tone(view.decision, DECISION_TONE[decision]);
-    view.name.textContent = crewText(member?.name) ?? `Crew ${index + 1}`;
+    view.name.textContent = member?.name ?? `Crew ${index + 1}`;
     view.details.disabled = !member;
     view.details.setAttribute("aria-label", `View details for ${member?.name ?? `Crew ${index + 1}`}`);
+
     view.role.textContent = member?.role ?? "Waiting for role";
     view.decision.textContent = stale ? "? NO DATA" : LABELS.decision[decision] ?? LABELS.decision.unknown;
     view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}`;
     const deviating = !stale && decision === "normal"
       && Object.values(member?.vitals ?? {}).some(reading => reading?.status && reading.status !== "nominal");
     view.deviation.hidden = !deviating;
-    view.why.setAttribute("aria-label", `${crewText(member?.name) ?? `Crew ${index + 1}`}: Why?`);
+    view.why.setAttribute("aria-label", `${member?.name ?? `Crew ${index + 1}`}: Why?`);
     const stamped = !stale && member?.vitals?.heart_rate?.ts;
     view.stamp.textContent = stamped ? `Reading ${formatClock(stamped)} · SIMULATED` : "Reading: no data";
     if (stamped) view.stamp.dateTime = stamped; else view.stamp.removeAttribute("datetime");
@@ -465,9 +462,10 @@ function updateAlerts(stale) {
     }
     tone(view.root, alert.severity);
     view.root.classList.toggle("new-alert", !reducedMotion.matches && performance.now() - (freshAlertIds.get(alert.id) ?? -Infinity) < ALERT_HIGHLIGHT_MS);
-    view.owner.textContent = alert.crew_id === null ? "Cabin" : crewText(frame.crew.find(member => member.id === alert.crew_id)?.name) ?? alert.crew_id;
+    view.owner.textContent = alert.crew_id === null ? "Cabin" : frame.crew.find(member => member.id === alert.crew_id)?.name ?? alert.crew_id;
+
     view.severity.textContent = LABELS.status[alert.severity];
-    view.message.textContent = crewText(alert.message);
+    view.message.textContent = alert.message;
     view.meta.textContent = `${alert.consecutive_count} consecutive readings · Last: ${formatClock(alert.last_seen)}`;
     const key = JSON.stringify(alert.why);
     if (key !== view.key) {
@@ -552,7 +550,6 @@ const decisionBand = createDecisionBand({
   list: document.getElementById("decision-list"),
   note: document.getElementById("decisions-note"),
   helpers: {
-    crewText,
     formatClock,
     decisionTone: decision => DECISION_TONE[decision] ?? DECISION_TONE.unknown,
     decisionLabel: decision => LABELS.decision[decision] ?? LABELS.decision.unknown,

@@ -31,11 +31,11 @@ export function createDecisionBand({ list, note, helpers }) {
     const decision = member.decision ?? "unknown";
     return {
       key: `crew:${member.id}`,
-      owner: helpers.crewText(member.name) ?? member.id,
+      owner: member.name ?? member.id,
       tone: alert ? alert.severity : helpers.decisionTone(decision),
       badge: helpers.decisionLabel(decision),
       message: alert
-        ? helpers.crewText(alert.message)
+        ? alert.message
         : decision === "unknown"
           ? "Insufficient data to decide; missing readings are not treated as normal."
           : `Decision: ${helpers.decisionLabel(decision)}. Open Why? on the crew card for evidence.`,
@@ -50,7 +50,7 @@ export function createDecisionBand({ list, note, helpers }) {
       owner: "Cabin",
       tone: alert.severity,
       badge: helpers.statusLabel(alert.severity),
-      message: helpers.crewText(alert.message),
+      message: alert.message,
       meta: `${alert.consecutive_count} consecutive readings · Last ${helpers.formatClock(alert.last_seen)}`,
       notes: notesOf(alert),
     };
