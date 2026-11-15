@@ -936,48 +936,47 @@ def test_solar_storm_radiation_is_a_per_crew_decision() -> None:
 
 
 try:
-    from backend.rules import RulesEngine
+    from backend.rules import RulesEngine, SepContext
     from backend.simulator import SimulationFinished, Simulator
 except ImportError:  # #35 / #43 develop'a girene kadar
     RulesEngine = None
 
 
-def engine_first_alerts(name: str) -> dict[tuple[Any, str, str, str], float]:
-    """Simülatör + kural motoru: (crew_id, metric, severity, rule_id) -> ilk görünme dakikası."""
+def engine_run(name: str) -> tuple[dict[tuple[Any, str, str, str], float], Any]:
+    """Simülatör + kural motoru (SEP bağlamı backend/main.Pipeline gibi): ilk görünme
+    dakikaları ve son kare."""
     simulator, engine = Simulator(m.Scenario(name)), RulesEngine()
     first: dict[tuple[Any, str, str, str], float] = {}
+    last = None
     while True:
         try:
             frame = simulator.tick()
         except SimulationFinished:
-            return first
-        output = engine.evaluate(frame)
+            return first, last
+        sep = simulator.sep_state
+        sep_context = (
+            SepContext(
+                sep_active=True,
+                event_dose_rate_msv_per_h=sep.event_dose_rate_msv_per_h,
+                remaining_event_h=sep.remaining_event_h,
+            )
+            if sep.active
+            else None
+        )
+        output = engine.evaluate(frame, sep=sep_context)
+        last = output
         for alert in output.alerts:
             key = (alert.crew_id, str(alert.metric), str(alert.severity), alert.rule_id)
             first.setdefault(key, output.mission_elapsed_s / 60)
 
 
+def engine_first_alerts(name: str) -> dict[tuple[Any, str, str, str], float]:
+    return engine_run(name)[0]
+
+
 @pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
-@pytest.mark.parametrize(
-    "name",
-    [
-        "hypoxia",
-        pytest.param(
-            "hypercapnia",
-            marks=pytest.mark.xfail(
-                strict=False,
-                reason="Motor (Aydın): Ece'nin CO2 kararı kabin 1 saatlik limitten sonra kırmızı olacak.",
-            ),
-        ),
-        pytest.param(
-            "solar_storm",
-            marks=pytest.mark.xfail(
-                strict=False,
-                reason="Motor (Aydın): kişi bazlı karar-radyasyon_etkisi henüz üretilmiyor.",
-            ),
-        ),
-    ],
-)
+@pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
+@pytest.mark.parametrize("name", ["hypoxia", "hypercapnia", "solar_storm", "sensor_dropout"])
 def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
     """Gerçek motorun ilk uyarı dakikası, beklenen pencerenin [t_earliest, t_latest] içinde kalır."""
     s = load(name)
@@ -985,10 +984,43 @@ def test_engine_alerts_fall_inside_expected_windows(name: str) -> None:
     for a in s["expected_alerts"]:
         key = (a["crew_id"], a["engine_metric"], a["severity"], a["engine_rule_id"])
         assert key in first, f"{name}: motor {key} üretmedi"
-        assert a["t_earliest"] <= first[key] <= a["t_latest"], (name, a["rule_id"], first[key])
+        window = (a["t_earliest"], a["t_latest"])
+        assert window[0] <= first[key] <= window[1], (name, a["rule_id"], first[key])
     forbidden = {(f["crew_id"], f["metric"]) for f in s["forbidden_alerts"]}
     produced = {(k[0], k[1]) for k in first}
     assert not forbidden & produced, f"{name}: yasak uyarı üretildi: {forbidden & produced}"
+
+
+@pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("nominal", id="nominal"),
+        pytest.param("hypercapnia", id="hypercapnia"),
+        pytest.param("solar_storm", id="solar_storm"),
+        pytest.param("sensor_dropout", id="sensor_dropout"),
+        pytest.param(
+            "hypoxia",
+            id="hypoxia",
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason=(
+                    "Bilinen motor sapması (Aydın): (1) crew-3 PIO2 < 127 iken olasi_hipoksi "
+                    "critical oluyor; ranges.json eylem koşulunda PIO2 terimi yok, yalnızca SpO2 "
+                    "düşüşü var. (2) crew-1 kalp_yuku son ölçümde titriyor (nabız gürültüsü), "
+                    "bitiş durumu son kareye bağlı."
+                ),
+            ),
+        ),
+    ],
+)
+def test_engine_end_status_matches_expected(name: str) -> None:
+    """Gerçek hattın son karesindeki kişi ve kabin durumu, senaryonun beklenen bitiş durumu ile aynı."""
+    s = load(name)
+    _, last = engine_run(name)
+    got = {c.id: getattr(c.status, "value", c.status) for c in last.crew}
+    got["cabin"] = getattr(last.cabin.status, "value", last.cabin.status)
+    assert got == s["expected_status_end"]
 
 
 @pytest.mark.skipif(RulesEngine is None, reason="simülatör ve kural motoru develop'ta yok (#35, #43)")
