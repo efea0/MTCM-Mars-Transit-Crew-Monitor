@@ -104,6 +104,8 @@ h1 { font-size: 25px; letter-spacing: -.04em; font-weight: 650; }
 .demo-panel { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .demo-panel h2 { font-size: 14px; }
 .demo-panel p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.demo-key { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.demo-key input { border: 1px solid #4a6079; background: #14212f; color: #d4e1ef; padding: 7px 10px; border-radius: 4px; font-size: 12px; }
 .scenario-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 .scenario-button { border: 1px solid #4a6079; color: #d4e1ef; background: #1d3046; padding: 8px 12px; border-radius: 4px; font-size: 12px; }
 .scenario-button:hover { background: #2d4964; }
