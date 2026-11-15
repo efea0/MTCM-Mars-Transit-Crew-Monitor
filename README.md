@@ -20,13 +20,11 @@ Earth is up to 22 minutes away one way, so the crew cannot wait for an answer.
 
 ### 30-Second Project Demo
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[![Watch 30 s Demo Video on YouTube](https://img.youtube.com/vi/5M8-BdbDQKI/hqdefault.jpg)](https://youtu.be/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP)
 
 [Watch 30 s Demo Video on YouTube](https://youtu.be/5M8-BdbDQKI?si=-AQ-NJC-BS6XMDZP)
 
-> **The live demo takes about 1 minute to open the first time.** The free Render service sleeps after 15 minutes
-> without traffic and wakes on the first request. While the dashboard is open, its live SSE stream (`/api/stream`)
-> keeps traffic flowing, so there is no separate keep-alive call. The health check endpoint is `/api/health`.
+> **Note:** The free Render tier sleeps after 15 minutes without traffic. `.github/workflows/keepalive.yml` pings `/api/health` periodically from `main`, though GitHub Actions cron runs may be delayed; if the service is asleep, the first load takes about 1 minute.
 
 ## What it does
 
