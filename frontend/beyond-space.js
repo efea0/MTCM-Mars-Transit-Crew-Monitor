@@ -30,7 +30,8 @@ const SOURCES = [
 ];
 const STORY = [
   "People already live and work in sealed, air-limited places on Earth, such as submarines and underground refuge chambers. The same questions apply there: how long is the air safe, who needs to act, and what should they do?",
-  "The astronaut monitor answers them with a cabin air budget (O₂ and CO₂ mass balance) and decisions read against each person's own baseline. Only the profile changes: volume, crew size, equipment capacity and limits.",
+  "On the Mars transit vehicle, the astronaut monitor answers them with a cabin air budget (O₂ and CO₂ mass balance) and decisions read against each person's own baseline. The design is meant to carry over to other environments by changing only the profile: volume, crew size, equipment capacity and limits.",
+  "Underground exploration, such as caving, was part of the inspiration. Caves are not modeled here: they are not sealed environments and we have no sourced limits for them. Limits are prepared for the two sealed environments in the table below.",
 ];
 
 function node(tag, className = "", text = "") {
