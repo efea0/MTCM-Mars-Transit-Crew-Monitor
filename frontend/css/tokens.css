@@ -1,7 +1,6 @@
 @charset "UTF-8";
-/* NASA brand blue #0032A0 and red #E4002B come from the official insignia color guide.
-   Brand colors are used without NASA logos. Text inks/tints are adapted for WCAG AA.
-   Green, amber and gray retain the distinct Normal, Watch and Unknown semantics. */
+/* Independent Habitat palette. Teal is the product accent; alert colors retain semantic meaning.
+   Text inks and tinted surfaces are selected for WCAG AA contrast in both themes. */
 :root {
   color-scheme: dark;
   --bg: #0b0d12;
@@ -12,19 +11,19 @@
   --border-strong: #5f7088;
   --text: #f7f9fc;
   --muted: #b4bfce;
-  --accent: #0032a0;
+  --accent: #146471;
   --on-accent: #ffffff;
-  --accent-ink: #9bbeff;
-  --focus: #9bbeff;
+  --accent-ink: #83d0d4;
+  --focus: #83d0d4;
   --ok: #009e73;
   --caution: #e69f00;
   --warning: #ffb454;
-  --critical: #e4002b;
+  --critical: #b4233e;
   --unknown: #667085;
   --ok-ink: #45d9a3;
   --caution-ink: #ffd166;
   --warning-ink: #ffb454;
-  --critical-ink: #ff8797;
+  --critical-ink: #ff98aa;
   --unknown-ink: #b7bfcc;
   --ok-tint: #112d26;
   --caution-tint: #332911;
@@ -33,8 +32,8 @@
   --unknown-tint: #282c35;
   --on-status: #0b0d12;
   --on-critical: #ffffff;
-  --chart-baseline: #9bbeff;
-  --grid-line: rgb(0 50 160 / 4%);
+  --chart-baseline: #83d0d4;
+  --grid-line: rgb(20 100 113 / 4%);
   --glow-strength: 0%;
   --space-1: 4px;
   --space-2: 8px;
@@ -61,14 +60,14 @@
     --border-strong: #8091a7;
     --text: #121820;
     --muted: #455469;
-    --accent: #0032a0;
+    --accent: #146471;
     --on-accent: #ffffff;
-    --accent-ink: #0032a0;
-    --focus: #0032a0;
+    --accent-ink: #145e66;
+    --focus: #145e66;
     --ok-ink: #006b4e;
     --caution-ink: #7b5400;
     --warning-ink: #8a4700;
-    --critical-ink: #b00026;
+    --critical-ink: #9f1832;
     --unknown-ink: #505b6c;
     --ok-tint: #dfefe9;
     --caution-tint: #fff0cc;
@@ -76,8 +75,8 @@
     --critical-tint: #fce5ea;
     --unknown-tint: #e7ebf0;
     --on-status: #121820;
-    --chart-baseline: #0032a0;
-    --grid-line: rgb(0 50 160 / 4%);
+    --chart-baseline: #146471;
+    --grid-line: rgb(20 100 113 / 4%);
     --glow-strength: 0%;
   }
 }
@@ -92,14 +91,14 @@
   --border-strong: #8091a7;
   --text: #121820;
   --muted: #455469;
-  --accent: #0032a0;
+  --accent: #146471;
   --on-accent: #ffffff;
-  --accent-ink: #0032a0;
-  --focus: #0032a0;
+  --accent-ink: #145e66;
+  --focus: #145e66;
   --ok-ink: #006b4e;
   --caution-ink: #7b5400;
   --warning-ink: #8a4700;
-  --critical-ink: #b00026;
+  --critical-ink: #9f1832;
   --unknown-ink: #505b6c;
   --ok-tint: #dfefe9;
   --caution-tint: #fff0cc;
@@ -107,7 +106,7 @@
   --critical-tint: #fce5ea;
   --unknown-tint: #e7ebf0;
   --on-status: #121820;
-  --chart-baseline: #0032a0;
-  --grid-line: rgb(0 50 160 / 4%);
+  --chart-baseline: #146471;
+  --grid-line: rgb(20 100 113 / 4%);
   --glow-strength: 0%;
 }

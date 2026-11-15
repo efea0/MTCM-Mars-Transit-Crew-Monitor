@@ -499,3 +499,19 @@ html { scrollbar-gutter: stable; }
   .crew-card .reading.secondary { --reading-number-size: 15px; --reading-unit-size: 9px; }
   .cabin-readings .reading { --reading-number-size: 15px; --reading-unit-size: 10px; }
 }
+
+
+/* Independent Habitat wordmark; no agency logo or insignia. */
+.habitat-mark { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; border: 1px solid var(--on-accent); border-radius: var(--radius-sm); color: var(--on-accent); font: 600 24px var(--font-mono); }
+/* Tactile button treatment inspired by 21st.dev Hero Button; native CSS, no runtime package. */
+.mission-meta .nasa-trigger, .nasa-dialog .nasa-button { transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.mission-meta .nasa-trigger:hover, .nasa-dialog .nasa-button:hover { box-shadow: inset 0 -2px 0 currentColor; }
+.mission-meta .nasa-trigger:active, .nasa-dialog .nasa-button:active { box-shadow: inset 0 2px 0 currentColor; }
+.nasa-dialog .nasa-nav .nasa-button { min-height: 40px; border-radius: var(--radius-sm); }
+/* React Bits Staggered Menu inspired section-entry cue, limited to dialog opening. */
+.nasa-dialog[open] .nasa-nav .nasa-button { animation: habitat-menu-reveal 160ms ease-out both; }
+.nasa-dialog[open] .nasa-nav .nasa-button:nth-child(2) { animation-delay: 35ms; }
+@keyframes habitat-menu-reveal { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .mission-meta .nasa-trigger, .nasa-dialog .nasa-button { transition: none; animation: none !important; transform: none; }
+}
