@@ -165,7 +165,7 @@ function updateReading(view, reading, stale, unknownDecision = false) {
   showValue(view.value, usable ? reading.value : null);
   view.root.title = usable ? `${LABELS.metric[view.root.dataset.metric]} · ${formatClock(reading.ts)}` : "";
   view.value.classList.toggle("no-value", !usable);
-  const unit = UNIT_LABELS[reading?.unit] ?? reading?.unit;
+  const unit = Object.hasOwn(UNIT_LABELS, reading?.unit) ? UNIT_LABELS[reading.unit] : reading?.unit;
   view.unit.textContent = usable ? unit : "";
   view.status.textContent = LABELS.status[state] ?? LABELS.status.unknown;
   const delta = usable && numeric(reading.baseline_delta) ? reading.baseline_delta : null;

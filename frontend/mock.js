@@ -12,9 +12,9 @@ const MOCK_BASELINES = [
   { heart_rate: 67, spo2: 98, resp_rate: 15, core_temp: 36.7, hrv_rmssd: 46, systolic_bp: 121, diastolic_bp: 79 },
 ];
 const MOCK_UNITS = {
-  heart_rate: "bpm", spo2: "%", resp_rate: "breaths/min", core_temp: "°C", hrv_rmssd: "ms",
+  heart_rate: "bpm", spo2: "%", resp_rate: "nefes/dk", core_temp: "°C", hrv_rmssd: "ms",
   systolic_bp: "mmHg", diastolic_bp: "mmHg", pp_o2: "mmHg", pp_co2: "mmHg",
-  cabin_pressure: "mmHg", cabin_temp: "°C", rel_humidity: "%", radiation_dose_rate: "µGy/h",
+  cabin_pressure: "mmHg", cabin_temp: "°C", rel_humidity: "%", radiation_dose_rate: "µGy/saat",
 };
 const MOCK_CREW = [
   { name: "Ayşe", role: "Commander" }, { name: "Can", role: "Flight Engineer" },
