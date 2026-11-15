@@ -8,8 +8,8 @@
 .nasa-button, .nasa-rule-link { border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-raised); color: var(--text); padding: var(--space-2) var(--space-3); cursor: pointer; font: 600 12px var(--font-sans); }
 .nasa-button:hover, .nasa-rule-link:hover { border-color: var(--accent-ink); background: var(--surface-hover); }
 .nasa-button:focus-visible, .nasa-rule-link:focus-visible, .nasa-table-wrap:focus-visible, .nasa-dialog a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
-.nasa-trigger { background: var(--accent); border-color: var(--on-accent); color: var(--on-accent); min-width: 168px; white-space: nowrap; }
-.nasa-trigger:hover { background: var(--accent); border-color: var(--on-accent); text-decoration: underline; }
+.nasa-trigger { background: var(--topbar-accent); border-color: var(--on-accent); color: var(--on-accent); min-width: 168px; white-space: nowrap; }
+.nasa-trigger:hover { background: var(--topbar-accent); border-color: var(--on-accent); text-decoration: underline; }
 .nasa-disclaimer { padding: var(--space-3) var(--space-5); line-height: 1.55; color: var(--muted); border-bottom: 1px solid var(--border); }
 .nasa-nav { display: flex; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-3) var(--space-5); }
 .nasa-content { padding: 0 var(--space-5) var(--space-5); }
