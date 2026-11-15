@@ -50,6 +50,8 @@ AREAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "infra": (
         (
             ".github/",
+            ".githooks/",
+            ".claude/settings.json",
             "tools/",
             "AGENTS.md",
             "CLAUDE.md",
@@ -62,10 +64,27 @@ AREAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     ),
 }
 
+# Kişi -> çalışabileceği alanlar. Yerelde .agent-role dosyasından okunur (CI'de yok).
+ROLE_AREAS: dict[str, tuple[str, ...]] = {
+    "aydin": ("backend", "frontend", "contract", "infra"),
+    "baris": ("qa", "comms", "frontend"),
+    "enis": ("reference", "delivery"),
+}
+ROLE_FILE = ".agent-role"
+
 BRANCH_RE = re.compile(
     rf"^(?P<type>{'|'.join(TYPES)})/(?P<area>{'|'.join(AREAS)})/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)$"
 )
 TITLE_RE = re.compile(rf"^(?P<type>{'|'.join(TYPES)})\((?P<area>{'|'.join(AREAS)})\): \S.{{2,}}$")
+
+
+def clean_git_env() -> dict[str, str]:
+    """GIT_ ile başlayan ortam değişkenleri (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE...) hariç ortam.
+
+    Git kancaları bu değişkenleri ana repoya mutlak yolla ayarlar; alt süreç bunları devralırsa
+    farklı bir depoda (ya da geçici test deposunda) değil gerçek repoda çalışır.
+    """
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
 
 
 def _match(path: str, rule: str) -> bool:
@@ -108,10 +127,64 @@ def changed_files(base_ref: str, head_ref: str = "HEAD") -> list[str]:
         text=True,
         encoding="utf-8",
         check=False,
+        env=clean_git_env(),
     )
     if res.returncode != 0:
         raise RuntimeError(res.stderr.strip() or f"git diff çıkış kodu {res.returncode}")
     return [p for p in res.stdout.split("\0") if p]
+
+
+def _merge_head() -> str | None:
+    """Süren bir birleştirme (git merge) varsa MERGE_HEAD, yoksa None."""
+    res = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        env=clean_git_env(),
+    )
+    return res.stdout.strip() or None if res.returncode == 0 else None
+
+
+def staged_files() -> list[str]:
+    """Commit'e hazırlanmış (git add) dosyalar.
+
+    Birleştirme commit'inde HEAD'e göre fark, birleştirilen taraftan (örn. develop) gelen herkesin
+    dosyalarını da kapsar. Bu yüzden MERGE_HEAD'e göre bakılır: yalnızca bu branch'in kendi farkı sayılır.
+    """
+    against = _merge_head()
+    res = subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.quotePath=false",
+            "diff",
+            "--cached",
+            "--name-only",
+            "--no-renames",
+            "-z",
+            *([against] if against else []),
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        env=clean_git_env(),
+    )
+    if res.returncode != 0:
+        raise RuntimeError(res.stderr.strip() or f"git diff çıkış kodu {res.returncode}")
+    return [p for p in res.stdout.split("\0") if p]
+
+
+def read_role(path: str = ROLE_FILE) -> str | None:
+    """.agent-role dosyasındaki ilk kelime (aydin | baris | enis); dosya yoksa None."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            words = fh.read().split()
+    except FileNotFoundError:
+        return None
+    return words[0].lower() if words else None
 
 
 def check(
@@ -121,8 +194,12 @@ def check(
     base_ref: str,
     head_ref: str = "HEAD",
     same_repo: bool = True,
+    role: str | None = None,
+    staged: bool = False,
 ) -> list[str]:
     errors: list[str] = []
+    if role is not None and role not in ROLE_AREAS:
+        return [f"Geçersiz rol '{role}' ({ROLE_FILE}). Seçenekler: {', '.join(ROLE_AREAS)}"]
 
     if not same_repo:
         return ["Fork'tan gelen PR kabul edilmez; branch'i ana repoda aç."]
@@ -141,6 +218,10 @@ def check(
             "Örnek: feat/backend/spo2-rules"
         ]
     btype, area, slug = m["type"], m["area"], m["slug"]
+    if role is not None and area not in ROLE_AREAS[role]:
+        errors.append(
+            f"'{area}' alanı '{role}' rolüne ait değil. Senin alanların: {', '.join(ROLE_AREAS[role])}"
+        )
     if len(slug) > SLUG_MAX:
         errors.append(f"Kısa açıklama en fazla {SLUG_MAX} karakter olmalı ({len(slug)}).")
     if os.environ.get("FEATURE_FREEZE", "").lower() == "true" and btype in FROZEN_TYPES:
@@ -156,7 +237,7 @@ def check(
             )
 
     try:
-        files = changed_files(base_ref, head_ref)
+        files = staged_files() if staged else changed_files(base_ref, head_ref)
     except RuntimeError as exc:
         return errors + [f"git diff başarısız: {exc}"]
     outside = [p for p in files if not in_area(area, p)]
@@ -176,11 +257,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--title", default=None)
     p.add_argument("--head-repo", default=None, help="PR'ın geldiği repo (owner/name)")
     p.add_argument("--repo", default=None, help="Ana repo (owner/name)")
+    p.add_argument("--staged", action="store_true", help="Yalnızca commit'e hazırlanan dosyaları denetle")
+    p.add_argument("--role", default=None, help=f"aydin|baris|enis (varsayılan: {ROLE_FILE} dosyası)")
     a = p.parse_args(argv)
 
     same_repo = a.head_repo is None or a.repo is None or a.head_repo == a.repo
     errors = check(
-        a.branch, a.base, a.title, a.base_ref or f"origin/{a.base}", a.head_ref, same_repo=same_repo
+        a.branch,
+        a.base,
+        a.title,
+        a.base_ref or f"origin/{a.base}",
+        a.head_ref,
+        same_repo=same_repo,
+        role=a.role or read_role(),
+        staged=a.staged,
     )
     for e in errors:
         print(f"HATA: {e}", file=sys.stderr)

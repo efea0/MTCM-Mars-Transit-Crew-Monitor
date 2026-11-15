@@ -1,0 +1,16 @@
+# Render Blueprint: Mars Transit Crew Monitor (tek web servisi: FastAPI + SSE + statik frontend).
+# Yerel geliştirme 127.0.0.1:8000 ile kalır; barındırma için Render PORT'unu ve 0.0.0.0 adresini kullanırız.
+# Ortak tek simülasyon: bu servise bağlanan herkes aynı akışı görür (senaryo seçimi herkesi etkiler).
+services:
+  - type: web
+    name: mars-transit-crew-monitor
+    runtime: python
+    plan: free
+    branch: main
+    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10

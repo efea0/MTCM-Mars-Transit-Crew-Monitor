@@ -1,0 +1,330 @@
+{
+  "scenario": "nominal",
+  "title": "Normal durum",
+  "purpose": "Her şey yolundayken yanlış alarm olmadığını göstermek. crew-1'in egzersiz nabzı alarm sayılmaz.",
+  "simulated": true,
+  "seed": 42,
+  "time_unit": "mission_min",
+  "duration_min": 180,
+  "thresholds_from": "data/reference/ranges.json",
+  "ranges_refs": {
+    "pio2_normoxia_min": "kabin.pio2_normoksi_hedef.min",
+    "pio2_normoxia_max": "kabin.pio2_normoksi_hedef.max",
+    "pio2_red": "kabin.pio2_hafif_hipoksi_alt.deger",
+    "ppco2_red_1h": "kabin.ppco2_limit_1saat_ort.deger",
+    "ppco2_yellow": "kabin.ppco2_sari_esik.deger",
+    "spo2_drop_caution": "vital_karar_parametreleri.spo2_dusus.izle",
+    "spo2_drop_warning": "vital_karar_parametreleri.spo2_dusus.eylem",
+    "hr_rise_caution": "vital_karar_parametreleri.nabiz_artis_dinlenme.izle",
+    "hr_rise_warning": "vital_karar_parametreleri.nabiz_artis_dinlenme.eylem",
+    "rr_rise_caution": "vital_karar_parametreleri.solunum_artis.izle",
+    "rr_rise_warning": "vital_karar_parametreleri.solunum_artis.eylem",
+    "consecutive": "vital_karar_parametreleri.art_arda_olcum.deger",
+    "spe_design_mSv": "radyasyon.spe_tasarim_esigi.deger",
+    "career_limit_mSv": "radyasyon.kariyer_limiti.deger",
+    "yellow_fraction": "vital_karar_parametreleri.sari_kademe_genel.oran"
+  },
+  "thresholds": {
+    "pio2_normoxia_min": 145,
+    "pio2_normoxia_max": 155,
+    "pio2_red": 127,
+    "ppco2_red_1h": 3.0,
+    "ppco2_yellow": 2.5,
+    "spo2_drop_caution": 3,
+    "spo2_drop_warning": 6,
+    "hr_rise_caution": 15,
+    "hr_rise_warning": 30,
+    "rr_rise_caution": 4,
+    "rr_rise_warning": 8,
+    "consecutive": 3,
+    "spe_design_mSv": 250,
+    "career_limit_mSv": 600,
+    "yellow_fraction": 0.8
+  },
+  "baseline_note": "mean değerleri ranges.json vital_karar_parametreleri.baz_cizgi'den. sd yalnızca simülatör gürültüsü (varsayım; karar kuralı sd kullanmaz, sabit fark kullanır). hrv_rmssd ve kan basıncı ranges.json'da yok (varsayım).",
+  "crew": [
+    {
+      "id": "crew-1",
+      "name": "Ayşe",
+      "role": "Commander",
+      "baseline": {
+        "heart_rate": {
+          "mean": 64,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 48,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.6,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 114,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 74,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-2",
+      "name": "Can",
+      "role": "Flight Engineer",
+      "baseline": {
+        "heart_rate": {
+          "mean": 70,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 55,
+          "sd": 9
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 15,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.8,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 118,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 76,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-3",
+      "name": "Ece",
+      "role": "Mission Specialist",
+      "baseline": {
+        "heart_rate": {
+          "mean": 58,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 42,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 13,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.5,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 112,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 72,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-4",
+      "name": "Mert",
+      "role": "Flight Surgeon",
+      "baseline": {
+        "heart_rate": {
+          "mean": 67,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 38,
+          "sd": 7
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 120,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 78,
+          "sd": 5
+        }
+      }
+    }
+  ],
+  "cabin_initial_pio2_mmHg": 149.0,
+  "cabin_initial": {
+    "pp_o2": {
+      "value": 158.8,
+      "unit": "mmHg",
+      "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
+    },
+    "pp_co2": {
+      "value": 2.0,
+      "unit": "mmHg"
+    },
+    "cabin_pressure": {
+      "value": 760,
+      "unit": "mmHg"
+    },
+    "cabin_temp": {
+      "value": 22.0,
+      "unit": "°C"
+    },
+    "rel_humidity": {
+      "value": 45,
+      "unit": "%"
+    },
+    "radiation_dose_rate": {
+      "value": 20,
+      "unit": "µGy/saat",
+      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+    }
+  },
+  "model": {
+    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "volume_m3": 75,
+    "crew_count": 4,
+    "total_pressure_mmHg": 760,
+    "temperature_K": 295,
+    "co2_removal_kg_day": 4.0,
+    "o2_generation_kg_day": 3.4,
+    "r_min": 1.0,
+    "r_max": 1.8,
+    "o2_min": 0.49,
+    "o2_max": 1.25,
+    "co2_min": 0.52,
+    "co2_max": 1.5,
+    "measurement_interval_min": 5,
+    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası."
+  },
+  "proposed_rules": {
+    "crew_hr_rest_rise_caution": {
+      "condition": "aktivite = dinlenme VE nabız − baz ≥ 15",
+      "consecutive_required": 3,
+      "source": "ranges.json kalp_yuku (varsayım)",
+      "metric": "heart_rate",
+      "skip_when": [
+        "exercise"
+      ]
+    },
+    "crew_hr_rest_rise_critical": {
+      "condition": "aktivite = dinlenme VE nabız − baz ≥ 30",
+      "consecutive_required": 3,
+      "source": "ranges.json kalp_yuku (varsayım)",
+      "metric": "heart_rate",
+      "skip_when": [
+        "exercise"
+      ]
+    }
+  },
+  "events": [
+    {
+      "t_min": 60,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "exercise",
+      "targets": {
+        "heart_rate": 125,
+        "resp_rate": 24
+      },
+      "ramp_min": 5,
+      "note": "Ayşe egzersiz yapıyor; nabız ve solunum yükselmesi beklenen bir durum, alarm değil."
+    },
+    {
+      "t_min": 90,
+      "type": "activity",
+      "crew_id": "crew-1",
+      "activity": "resting",
+      "targets": {
+        "heart_rate": 64,
+        "resp_rate": 14
+      },
+      "ramp_min": 10,
+      "note": "Egzersiz biter, değerler baza döner."
+    }
+  ],
+  "expected_alerts": [],
+  "forbidden_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "heart_rate",
+      "why": "Egzersiz nabzı kalp yükü sayılmaz."
+    },
+    {
+      "crew_id": "crew-1",
+      "metric": "resp_rate",
+      "why": "Egzersiz solunumu alarm sayılmaz."
+    },
+    {
+      "crew_id": "crew-2",
+      "metric": "heart_rate",
+      "why": "Uyarı yok."
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "heart_rate",
+      "why": "Uyarı yok."
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "heart_rate",
+      "why": "Uyarı yok."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "why": "Regüle, sabit."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "why": "Regüle, sabit."
+    },
+    {
+      "crew_id": null,
+      "metric": "radiation_dose_rate",
+      "why": "Yalnızca taban GCR."
+    }
+  ],
+  "expected_status_end": {
+    "crew-1": "nominal",
+    "crew-2": "nominal",
+    "crew-3": "nominal",
+    "crew-4": "nominal",
+    "cabin": "nominal"
+  },
+  "no_alerts_at_all": true
+}

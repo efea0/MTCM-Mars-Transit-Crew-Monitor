@@ -1,0 +1,386 @@
+{
+  "scenario": "solar_storm",
+  "title": "Güneş fırtınası (SEP)",
+  "purpose": "Gerçek DONKI kaydının zamanıyla SEP başlar. Sistem olay sonu tahmini dozu hesaplar ve dozu ALMADAN ÖNCE sığınak uyarısı verir (ranges.json radyasyon_etkisi).",
+  "simulated": true,
+  "seed": 42,
+  "time_unit": "mission_min",
+  "duration_min": 780,
+  "thresholds_from": "data/reference/ranges.json",
+  "ranges_refs": {
+    "pio2_normoxia_min": "kabin.pio2_normoksi_hedef.min",
+    "pio2_normoxia_max": "kabin.pio2_normoksi_hedef.max",
+    "pio2_red": "kabin.pio2_hafif_hipoksi_alt.deger",
+    "ppco2_red_1h": "kabin.ppco2_limit_1saat_ort.deger",
+    "ppco2_yellow": "kabin.ppco2_sari_esik.deger",
+    "spo2_drop_caution": "vital_karar_parametreleri.spo2_dusus.izle",
+    "spo2_drop_warning": "vital_karar_parametreleri.spo2_dusus.eylem",
+    "hr_rise_caution": "vital_karar_parametreleri.nabiz_artis_dinlenme.izle",
+    "hr_rise_warning": "vital_karar_parametreleri.nabiz_artis_dinlenme.eylem",
+    "rr_rise_caution": "vital_karar_parametreleri.solunum_artis.izle",
+    "rr_rise_warning": "vital_karar_parametreleri.solunum_artis.eylem",
+    "consecutive": "vital_karar_parametreleri.art_arda_olcum.deger",
+    "spe_design_mSv": "radyasyon.spe_tasarim_esigi.deger",
+    "career_limit_mSv": "radyasyon.kariyer_limiti.deger",
+    "yellow_fraction": "vital_karar_parametreleri.sari_kademe_genel.oran"
+  },
+  "thresholds": {
+    "pio2_normoxia_min": 145,
+    "pio2_normoxia_max": 155,
+    "pio2_red": 127,
+    "ppco2_red_1h": 3.0,
+    "ppco2_yellow": 2.5,
+    "spo2_drop_caution": 3,
+    "spo2_drop_warning": 6,
+    "hr_rise_caution": 15,
+    "hr_rise_warning": 30,
+    "rr_rise_caution": 4,
+    "rr_rise_warning": 8,
+    "consecutive": 3,
+    "spe_design_mSv": 250,
+    "career_limit_mSv": 600,
+    "yellow_fraction": 0.8
+  },
+  "baseline_note": "mean değerleri ranges.json vital_karar_parametreleri.baz_cizgi'den. sd yalnızca simülatör gürültüsü (varsayım; karar kuralı sd kullanmaz, sabit fark kullanır). hrv_rmssd ve kan basıncı ranges.json'da yok (varsayım).",
+  "crew": [
+    {
+      "id": "crew-1",
+      "name": "Ayşe",
+      "role": "Commander",
+      "baseline": {
+        "heart_rate": {
+          "mean": 64,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 48,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.6,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 114,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 74,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-2",
+      "name": "Can",
+      "role": "Flight Engineer",
+      "baseline": {
+        "heart_rate": {
+          "mean": 70,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 55,
+          "sd": 9
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 15,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.8,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 118,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 76,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-3",
+      "name": "Ece",
+      "role": "Mission Specialist",
+      "baseline": {
+        "heart_rate": {
+          "mean": 58,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 42,
+          "sd": 8
+        },
+        "spo2": {
+          "mean": 98,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 13,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.5,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 112,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 72,
+          "sd": 5
+        }
+      }
+    },
+    {
+      "id": "crew-4",
+      "name": "Mert",
+      "role": "Flight Surgeon",
+      "baseline": {
+        "heart_rate": {
+          "mean": 67,
+          "sd": 2.0
+        },
+        "hrv_rmssd": {
+          "mean": 38,
+          "sd": 7
+        },
+        "spo2": {
+          "mean": 97,
+          "sd": 0.4
+        },
+        "resp_rate": {
+          "mean": 14,
+          "sd": 1.0
+        },
+        "core_temp": {
+          "mean": 36.7,
+          "sd": 0.1
+        },
+        "systolic_bp": {
+          "mean": 120,
+          "sd": 6
+        },
+        "diastolic_bp": {
+          "mean": 78,
+          "sd": 5
+        }
+      }
+    }
+  ],
+  "cabin_initial_pio2_mmHg": 149.0,
+  "cabin_initial": {
+    "pp_o2": {
+      "value": 158.8,
+      "unit": "mmHg",
+      "note": "PIO2 149 mmHg (normoksi 145–155 ortası) karşılığı: 149 × 760/713 mmHg"
+    },
+    "pp_co2": {
+      "value": 2.0,
+      "unit": "mmHg"
+    },
+    "cabin_pressure": {
+      "value": 760,
+      "unit": "mmHg"
+    },
+    "cabin_temp": {
+      "value": 22.0,
+      "unit": "°C"
+    },
+    "rel_humidity": {
+      "value": 45,
+      "unit": "%"
+    },
+    "radiation_dose_rate": {
+      "value": 20,
+      "unit": "µGy/saat",
+      "note": "MSL RAD transit ≈ 0,48 mGy/gün (≈1,8 mSv/gün)"
+    }
+  },
+  "model": {
+    "note": "ranges.json (PR #16 v1.1) değerleri. Yaşam destek arızadan önce regüle (net 0): üretim tüketimi, giderme üretimi karşılar, kabin değerleri sabit kalır; yalnızca arızalı gaz akar. Hacim 75 m³. Zamanlar #14 atmosphere motoruyla aynı modelde (regüle profil) hizalıdır; tests/test_scenarios.py kabin serisini motorla karşılaştırır.",
+    "volume_m3": 75,
+    "crew_count": 4,
+    "total_pressure_mmHg": 760,
+    "temperature_K": 295,
+    "co2_removal_kg_day": 4.0,
+    "o2_generation_kg_day": 3.4,
+    "r_min": 1.0,
+    "r_max": 1.8,
+    "o2_min": 0.49,
+    "o2_max": 1.25,
+    "co2_min": 0.52,
+    "co2_max": 1.5,
+    "measurement_interval_min": 5,
+    "measurement_note": "Ölçüm aralığı 5 görev dakikası (demo: gerçek 0,5 sn, zaman çarpanı 600); 3 art arda ölçüm = 15 görev dakikası."
+  },
+  "proposed_rules": {
+    "event_dose_projection_critical": {
+      "condition": "SEP sürüyor VE (olay dozu + doz hızı × kalan süre) ≥ 0.8 × 250 mSv (kişi bazlı)",
+      "consecutive_required": 3,
+      "source": "ranges.json radyasyon_etkisi; [V1 4031] (doğrulandı), %80 kademe (varsayım)",
+      "metric": "event_dose"
+    }
+  },
+  "events": [
+    {
+      "t_min": 30,
+      "type": "sep_onset",
+      "ref": "2024-05-10T13:35:00-SEP-001",
+      "dose_rate_uGy_h": 16667,
+      "note": "DONKI kaydı tetiklenir; doz hızı ≈16 667 µGy/saat (25 mSv/saat efektif, varsayım). Tahmini olay süresi 12 saat."
+    },
+    {
+      "t_min": 45,
+      "type": "shelter",
+      "dose_rate_multiplier": 0.25,
+      "note": "Uyarı üzerine mürettebat sığınağa geçer; olay doz hızı × 0,25."
+    },
+    {
+      "t_min": 750,
+      "type": "sep_end",
+      "note": "Olay biter, doz hızı tabana döner."
+    }
+  ],
+  "expected_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "event_dose",
+      "severity": "critical",
+      "rule_id": "event_dose_projection_critical",
+      "t_condition": 30,
+      "t_earliest": 30,
+      "t_latest": 45,
+      "evidence_metrics": [
+        "event_dose"
+      ],
+      "why": "Ayşe için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
+      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "engine_metric": "event_dose",
+      "engine_rule_id": "karar-radyasyon_etkisi"
+    },
+    {
+      "crew_id": "crew-2",
+      "metric": "event_dose",
+      "severity": "critical",
+      "rule_id": "event_dose_projection_critical",
+      "t_condition": 30,
+      "t_earliest": 30,
+      "t_latest": 45,
+      "evidence_metrics": [
+        "event_dose"
+      ],
+      "why": "Can için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
+      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "engine_metric": "event_dose",
+      "engine_rule_id": "karar-radyasyon_etkisi"
+    },
+    {
+      "crew_id": "crew-3",
+      "metric": "event_dose",
+      "severity": "critical",
+      "rule_id": "event_dose_projection_critical",
+      "t_condition": 30,
+      "t_earliest": 30,
+      "t_latest": 45,
+      "evidence_metrics": [
+        "event_dose"
+      ],
+      "why": "Ece için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
+      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "engine_metric": "event_dose",
+      "engine_rule_id": "karar-radyasyon_etkisi"
+    },
+    {
+      "crew_id": "crew-4",
+      "metric": "event_dose",
+      "severity": "critical",
+      "rule_id": "event_dose_projection_critical",
+      "t_condition": 30,
+      "t_earliest": 30,
+      "t_latest": 45,
+      "evidence_metrics": [
+        "event_dose"
+      ],
+      "why": "Mert için tahmini olay dozu 25 mSv/saat × 12 saat = 300 mSv ≥ 200 mSv (250 tasarım eşiğinin %80'i). Uyarı doz alınmadan önce verilir.",
+      "recommendation": "Fırtına sığınağına geç; olay sonrası kişi bazlı doz kaydı ve Dünya'ya rapor.",
+      "engine_metric": "event_dose",
+      "engine_rule_id": "karar-radyasyon_etkisi"
+    }
+  ],
+  "forbidden_alerts": [
+    {
+      "crew_id": "crew-1",
+      "metric": "spo2",
+      "why": "Hava tarafı normal."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_co2",
+      "why": "Hava tarafı normal."
+    },
+    {
+      "crew_id": null,
+      "metric": "pp_o2",
+      "why": "Hava tarafı normal."
+    }
+  ],
+  "expected_status_end": {
+    "crew-1": "nominal",
+    "crew-2": "nominal",
+    "crew-3": "nominal",
+    "crew-4": "nominal",
+    "cabin": "nominal"
+  },
+  "donki": {
+    "file": "data/donki/sep_event.json",
+    "sepID": "2024-05-10T13:35:00-SEP-001",
+    "event_time": "2024-05-10T13:35Z",
+    "instrument": "GOES-P: SEISS >10 MeV",
+    "linked_flare": "2024-05-10T06:27:00-FLR-001",
+    "linked_events_count": 14,
+    "notification": "20240510-AL-004 (2024-05-10T13:46Z)",
+    "note": "DONKI yalnızca zamanı ve bağlantıları verir. Doz büyüklüğü demo seçimidir; ekranda 'doz (simüle)'."
+  },
+  "dose_assumptions": {
+    "event_effective_dose_mSv_per_h": 25,
+    "quality_factor": 1.5,
+    "event_absorbed_dose_rate_uGy_per_h": 16667,
+    "shelter_factor": 0.25,
+    "event_duration_min": 720,
+    "mission_day": 142,
+    "gcr_mSv_per_day": 1.8,
+    "prior_career_dose_mSv": {
+      "crew-1": 10,
+      "crew-2": 20,
+      "crew-3": 15,
+      "crew-4": 40
+    },
+    "source": "varsayım — demo parametresi"
+  },
+  "expected_dose": {
+    "event_total_mSv": 79.7,
+    "max_career_fraction": 0.627,
+    "note": "15 dk korumasız + 705 dk sığınakta. Uyarı dozdan önce geldiği için toplam ≈80 mSv; 250'nin çok altında."
+  },
+  "contract_gaps": [
+    "ThresholdRule'da projeksiyon (tahmini doz) yok; kural motorunda (#43) özel mantık olarak işlenir."
+  ],
+  "status_note": "Olay t=750'de biter; kabin ve kişi durumları nominal'e döner. Radyasyon kararı ranges.json radyasyon_etkisi gereği kişi bazlıdır (event_dose); ayrı bir kabin radyasyon uyarısı beklenmez."
+}

@@ -3,12 +3,64 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mars Transit Crew Monitor</title>
+  <meta name="color-scheme" content="dark">
+  <title>Habitat | Mars Transit Crew Monitor</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:,">
 </head>
 <body>
-  <!-- sahibi: Aydın (frontend). Chart.js yerel: vendor/chart.umd.min.js (CDN yok) -->
-  <p class="sim-badge">SİMÜLE VERİ</p>
-  <script src="app.js"></script>
+  <a class="skip-link" href="#crew">Mürettebata geç</a>
+  <header class="topbar">
+    <div class="brand">
+      <span class="orbit" aria-hidden="true">✦</span>
+      <div><p class="eyebrow">MARS TRANSIT / HABİTAT</p><h1>Crew Monitor</h1></div>
+      <span id="simulated" class="sim-badge">SİMÜLE VERİ</span>
+    </div>
+    <div class="mission-meta">
+      <div><span class="meta-label">SENARYO</span><strong id="scenario">Paket bekleniyor</strong></div>
+      <div><span class="meta-label">GÖREV SÜRESİ</span><strong id="mission_elapsed_s">— g — sa — dk</strong></div>
+      <div class="connection-meta" role="status" aria-live="polite">
+        <strong id="connection" class="tone-unknown">◌ Yeniden bağlanıyor</strong>
+        <span id="packet-age">Henüz paket yok</span>
+      </div>
+    </div>
+  </header>
+  <main class="dashboard">
+    <div id="data-notice" class="data-notice" role="status">VERİ YOK · Telemetri paketi bekleniyor.</div>
+    <section id="crew" aria-labelledby="crew-title">
+      <div class="section-heading">
+        <h2 id="crew-title">Mürettebat <span class="muted">/ 04</span></h2>
+        <span id="source-label" class="section-note">Kişisel baz çizgiye göre değerlendirme</span>
+      </div>
+      <div id="crew-grid" class="crew-grid"></div>
+    </section>
+    <div class="lower-grid">
+      <section class="panel cabin-panel" aria-labelledby="cabin-title">
+        <div class="panel-heading"><h2 id="cabin-title">Kabin atmosferi</h2><span id="cabin-status" class="badge tone-unknown">? Bilinmiyor</span></div>
+        <div id="cabin-readings" class="cabin-readings"></div>
+        <div class="countdowns">
+          <div id="hours_until_o2_limit" class="countdown tone-unknown">
+            <span>O₂ limitine kalan</span><strong>VERİ YOK</strong><small>Telemetri bekleniyor</small>
+          </div>
+          <div id="hours_until_co2_limit" class="countdown tone-unknown">
+            <span>CO₂ limitine kalan</span><strong>VERİ YOK</strong><small>Telemetri bekleniyor</small>
+          </div>
+        </div>
+      </section>
+      <section class="panel alerts-panel" aria-labelledby="alerts-title">
+        <div class="panel-heading"><h2 id="alerts-title">Uyarı akışı</h2><span id="alert-count" class="count-label">—</span></div>
+        <p id="alerts-notice" class="empty-state">VERİ YOK · Telemetri bekleniyor.</p>
+        <div id="alerts" class="alert-list" aria-label="Aktif uyarılar"></div>
+      </section>
+    </div>
+    <section id="demo-panel" class="panel demo-panel" aria-labelledby="demo-title" hidden>
+      <div><h2 id="demo-title">Demo kontrolü</h2><p>Senaryo değişikliği</p></div>
+      <div id="scenario-buttons" class="scenario-buttons"></div>
+      <p id="demo-result" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <footer><span>Karar desteğidir, tıbbi tanı değildir. Tüm sağlık verileri simülasyondur.</span><span>NASA SPACE APPS 2026 · P1 HABİTAT</span></footer>
+  <noscript>Panel için JavaScript etkin olmalıdır. VERİ YOK.</noscript>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

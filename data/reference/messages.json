@@ -1,0 +1,286 @@
+{
+  "meta": {
+    "surum": "1.1",
+    "hazirlayan": "Enis",
+    "si_kullanimi": "Metin taslakları SI (Claude Code) ile yazıldı, ekip kontrol etti. Sayılar ranges.json ve belirtilen kaynaklardan gelir. Ayrıntı: docs/AI_USE_DECLARATION.md",
+    "tarih": "2026-11-14",
+    "si_beyani": "Metin taslakları Claude Code (Anthropic) ile yazıldı, ekip gözden geçirdi. Ayrıntı: docs/AI_USE_DECLARATION.md.",
+    "amac": "Ekranda görünen tüm metinler: uyarı mesajı, 'Neden?' kanıt notu, öneri, EVA ve Dünya paneli. rules.py / comms.py / frontend metni buradan okur; uyarı metni koda sabit yazılmaz.",
+    "bicim": "Python str.format şablonları. Her {yer_tutucu} 'placeholders' bölümünde açıklanır. Eşik sayıları metne yazılmaz; ranges.json'dan doldurulur, böylece ekran ile motor hiçbir zaman çelişmez.",
+    "sozlesme": "docs/contract.json 0.2.0 (PR #26). Seviye anahtarları Severity değerleridir (caution | warning | critical). Alert.message = alert_message_format; Alert.why[].note = why_note; mürettebat id'si crew-1..crew-4; etkinlik CrewMember.activity (resting | exercise | sleep | unknown).",
+    "sozlesme_notlari": [
+      "Sözleşmede ayrı 'recommendation' alanı yok; öneri alert_message_format ile mesajın sonuna eklenir. Ayrı alan istenirse contract PR'ı gerekir (Aydın).",
+      "Sözleşme 0.2.0 (PR #26): pp_o2 ve cabin_pressure mmHg; Metric listesinde pio2 ve event_dose var. Metinler mmHg kullanır.",
+      "warning seviyesi için ayrı uyarı metni (message / recommendation) yok; rules.py warning üretirse critical metinleri kullanılır. global.status_names.warning yalnızca durum etiketidir."
+    ],
+    "dayanak": "data/reference/ranges.json 1.2 (2026-11-14 19:30 donduruldu; NASA-STD-3001 Vol 2 Rev F kaynak denetimi aynı gün)"
+  },
+
+  "placeholders": {
+    "name": "Astronotun ekran adı (CrewMember.name)",
+    "n_consecutive": "ThresholdRule.consecutive_required / ranges.vital_karar_parametreleri.art_arda_olcum (3)",
+    "hr / hr_base / hr_rise": "heart_rate şimdiki değer, kişisel baz çizgi, baz çizgiden artış (bpm)",
+    "spo2 / spo2_base / spo2_drop": "spo2 şimdiki değer, baz çizgi, düşüş (puan)",
+    "rr / rr_rise": "resp_rate şimdiki değer, baz çizgiden artış (nefes/dk)",
+    "temp / temp_base / temp_rise": "core_temp şimdiki değer, baz çizgi, artış (°C)",
+    "watch_thr / action_thr": "Tetiklenen vitalin 'izle' / 'eylem' değeri (ranges.json)",
+    "pio2": "Kabin PIO2 (mmHg)",
+    "pio2_target_min / pio2_target_max": "ranges.kabin.pio2_normoksi_hedef (145 / 155)",
+    "pio2_mild_min": "ranges.kabin.pio2_hafif_hipoksi_alt (127)",
+    "pio2_abs_min": "ranges.kabin.pio2_mutlak_alt (122)",
+    "ppco2": "Kabin pp_co2 (mmHg)",
+    "co2_yellow": "ranges.kabin.ppco2_sari_esik (2.5)",
+    "co2_limit": "Aktif profilin CO2 limiti, mmHg (Mars: 3.0)",
+    "co2_headache_min / co2_headache_max": "ranges.kabin.co2_belirti_bas_agrisi min / max (2.8 / 4.5)",
+    "co2_fatigue_min": "ranges.kabin.co2_belirti_yorgunluk_bulanti.min (4.5)",
+    "pio2_formula": "ranges.kabin.pio2_formulu.formul",
+    "pressure / pressure_min / pressure_max": "Kabin toplam basıncı ve ranges.kabin.toplam_basinc_suresiz (mmHg)",
+    "o2_hours / co2_hours": "Geri sayım, simülasyon saati (null = sınırsız)",
+    "multiplier": "ranges.iletisim.demo_zaman_carpani (600)",
+    "sensor": "heart rate | SpO2 | respiration | temperature",
+    "cum_mSv / event_mSv / projected_mSv": "Kümülatif, olay ve olay sonu tahmini doz (simüle, mSv)",
+    "career_limit / spe_threshold / yellow_ratio": "ranges.radyasyon kariyer_limiti (600), spe_tasarim_esigi (250), sari_kademe_genel.oran (0.8)",
+    "event_type / event_time": "data/donki/sep_event.json (DONKI)",
+    "message / recommendation": "alert_message_format içinde seçilen seviye metinleri",
+    "pico2 / hours_allowed / hours_used / hours / minutes": "EVA giysi değerleri (P2); hours_allowed ranges.giysi.pico2_limitleri kademesinden",
+    "pico2_red_min": "ranges.giysi.pico2_limitleri son kademe pico2_min (15)",
+    "delay_min / delay_max": "ranges.iletisim.mars_tek_yon_gecikme min / max (3 / 22 dk)",
+    "demo_seconds / seconds_left": "ranges.iletisim.demo_gecikme (20 sn) ve varışa kalan saniye",
+    "sim_time": "Simülasyon saati",
+    "decision_title / severity": "Raporlanan uyarının başlığı ve seviyesi",
+    "d1 / d2 / d3 / d4": "Astronot başına olay dozu (mSv, simüle)",
+    "profile_name / profile_source / co2_limit_text": "Aktif profil adı, limit kaynağı, limit metni (örn. '1.0% (7.6 mmHg)')"
+  },
+
+  "global": {
+    "banner_simulated": "SIMULATED DATA",
+    "banner_disclaimer": "Decision support, not diagnosis",
+    "clock_label": "Simulation clock ×{multiplier}",
+    "alert_message_format": "{message}. {recommendation}",
+    "status_names": {
+      "nominal": "Normal",
+      "caution": "Watch",
+      "warning": "Warning",
+      "critical": "Action",
+      "unknown": "NO DATA"
+    },
+    "quality_names": {
+      "ok": "OK",
+      "stale": "Stale reading",
+      "missing": "NO DATA",
+      "sensor_fault": "Sensor fault"
+    },
+    "no_data_message": "{name}: no data from {sensor} sensor",
+    "no_data_note": "No valid {sensor} reading for {n_consecutive} consecutive readings. Missing data is never treated as normal. Check sensor placement.",
+    "unlimited": "unlimited",
+    "countdown_o2": "O₂ to lower limit: {o2_hours} h (sim time)",
+    "countdown_co2": "CO₂ to limit: {co2_hours} h (sim time)",
+    "countdown_unlimited_note": "Removal/production capacity is higher than crew use, so the level is not moving toward the limit.",
+    "why_button": "Why?",
+    "source_status": {
+      "doğrulandı": "verified",
+      "kısmen": "verified source, team interpretation",
+      "doğrulanmadı": "assumption (demo parameter, not a medical threshold)"
+    },
+    "exercise_note": "{name} is exercising: a higher heart rate is expected and is not counted as cardiac load."
+  },
+
+  "health_decisions": {
+    "olasi_hipoksi": {
+      "metric": "spo2",
+      "title": "Possible hypoxia sign",
+      "message": {
+        "caution": "{name}: possible hypoxia sign – monitor",
+        "critical": "{name}: possible hypoxia sign – act now"
+      },
+      "_not": "ranges.json #21 egzersiz istisnası. CrewMember.activity: resting veya sleep ise why_note_rest, exercise ise why_note_exercise, unknown ise why_note_unknown. Egzersizde ve etkinlik bilinmezken nabız/solunum artışı kanıt olarak yazılmaz (bilinmiyorsa 'dinleniyor' varsayılmaz).",
+      "why_note_rest": "SpO₂ {spo2}% is {spo2_drop} points below {name}'s baseline {spo2_base}%, with HR +{hr_rise} bpm and/or breathing +{rr_rise}/min, for {n_consecutive} consecutive readings. Cabin PIO₂ {pio2} mmHg is below the {pio2_target_min}–{pio2_target_max} mmHg normoxia target. Body and cabin point the same way.",
+      "why_note_exercise": "SpO₂ {spo2}% is {spo2_drop} points below {name}'s baseline {spo2_base}% for {n_consecutive} consecutive readings, while cabin PIO₂ {pio2} mmHg is below the {pio2_target_min}–{pio2_target_max} mmHg normoxia target. {name} is exercising, so O₂ use is highest and symptoms appear first in this crew member. Heart rate and breathing rise during exercise are expected and are not used as evidence.",
+      "why_note_unknown": "SpO₂ {spo2}% is {spo2_drop} points below {name}'s baseline {spo2_base}% for {n_consecutive} consecutive readings, while cabin PIO₂ {pio2} mmHg is below the {pio2_target_min}–{pio2_target_max} mmHg normoxia target. {name}'s activity is unknown, so heart rate and breathing are not used as evidence.",
+      "recommendation": {
+        "caution": "Reduce activity, check the O₂ source and cabin PIO₂, prepare backup O₂",
+        "critical": "Stop exercise now, check the O₂ source and cabin PIO₂, switch to backup O₂"
+      },
+      "sources": [
+        { "ref": "NASA-STD-3001 Vol 2 Rev F, [V2 6003], Table 6.2-1 (normoxia range)", "status": "doğrulandı" },
+        { "ref": "varsayım: vital deviation thresholds (ranges.json)", "status": "doğrulanmadı" }
+      ]
+    },
+
+    "olasi_co2_etkisi": {
+      "metric": "resp_rate",
+      "title": "Possible CO₂ effect",
+      "message": {
+        "caution": "{name}: possible CO₂ effect – monitor",
+        "critical": "{name}: possible CO₂ effect – act now"
+      },
+      "why_note": "Cabin ppCO₂ {ppco2} mmHg is above the {co2_yellow} mmHg watch level (limit {co2_limit} mmHg), and {name}'s breathing is {rr}/min (+{rr_rise} over baseline) for {n_consecutive} consecutive readings. NASA reports headaches at {co2_headache_min}–{co2_headache_max} mmHg; fatigue, lethargy and nausea above {co2_fatigue_min} mmHg.",
+      "recommendation": {
+        "caution": "Reduce effort, increase CO₂ removal, monitor until ppCO₂ is below {co2_limit} mmHg",
+        "critical": "Stop exercise, increase CO₂ removal, monitor until ppCO₂ is below {co2_limit} mmHg"
+      },
+      "sources": [
+        { "ref": "NASA OCHMO-TB-004 (CO₂ symptom ranges)", "status": "doğrulandı" },
+        { "ref": "NASA-STD-3001 Vol 2, [V2 6004] (cabin limit, 1-h average)", "status": "doğrulandı" },
+        { "ref": "varsayım: vital deviation thresholds (ranges.json)", "status": "doğrulanmadı" }
+      ]
+    },
+
+    "isi_sapmasi": {
+      "metric": "core_temp",
+      "title": "Temperature deviation",
+      "message": {
+        "caution": "{name}: temperature above baseline – monitor",
+        "critical": "{name}: persistent temperature rise – report"
+      },
+      "why_note": "Temperature {temp} °C is +{temp_rise} °C above {name}'s baseline {temp_base} °C for {n_consecutive} consecutive readings (watch +{watch_thr} °C, action +{action_thr} °C). Several causes are possible (e.g. infection or heat stress); the system does not diagnose.",
+      "recommendation": {
+        "caution": "Monitor, rest and take an extra measurement",
+        "critical": "Rest, report to Earth and request extra measurements to tell infection from heat stress (not a diagnosis)"
+      },
+      "sources": [
+        { "ref": "varsayım: temperature deviation thresholds (ranges.json)", "status": "doğrulanmadı" }
+      ]
+    },
+
+    "kalp_yuku": {
+      "metric": "heart_rate",
+      "title": "Cardiac load",
+      "message": {
+        "caution": "{name}: resting heart rate elevated – monitor",
+        "critical": "{name}: resting heart rate high – reduce load"
+      },
+      "why_note": "{name} is at rest, but heart rate {hr} bpm is +{hr_rise} over baseline {hr_base} bpm for {n_consecutive} consecutive readings (watch +{watch_thr}, action +{action_thr}). This rule only runs at rest; a higher heart rate during exercise is expected and is not flagged.",
+      "recommendation": {
+        "caution": "Reduce effort and monitor",
+        "critical": "Reduce effort, monitor and report to Earth"
+      },
+      "sources": [
+        { "ref": "varsayım: resting heart-rate thresholds (ranges.json)", "status": "doğrulanmadı" }
+      ]
+    },
+
+    "radyasyon_etkisi": {
+      "metric": "event_dose",
+      "metric_career": "radiation_dose_rate",
+      "_metric_not": "Olay kaynaklı uyarıda Alert.metric = event_dose (sözleşme 0.2.0, PR #26). Kariyer dozu için ayrı Metric yok; kariyer kaynaklı uyarıda metric_career kullanılır.",
+      "title": "Radiation exposure",
+      "message": {
+        "caution": "{name}: projected solar storm dose approaching threshold",
+        "critical": "{name}: go to storm shelter now"
+      },
+      "why_note_event": "Solar particle event ({event_type}, {event_time}, NASA DONKI). {name}'s projected dose by event end is {projected_mSv} mSv (event dose so far {event_mSv} mSv), reaching {yellow_ratio}×{spe_threshold} mSv. The warning comes before the dose is received. Dose is simulated.",
+      "why_note_career": "{name}'s cumulative dose {cum_mSv} mSv is at or above {yellow_ratio}× the {career_limit} mSv career limit. Dose is simulated.",
+      "threshold_label": "{spe_threshold} mSv: NASA design requirement, used here as an alert threshold (not an astronaut limit)",
+      "career_label": "{career_limit} mSv: NASA career limit for each astronaut",
+      "recommendation": {
+        "caution": "Prepare to move to the storm shelter and follow the dose bar",
+        "critical": "Move to the storm shelter now; after the event, log each person's dose and report to Earth"
+      },
+      "sources": [
+        { "ref": "NASA-STD-3001 Vol 1, [V1 4030] (600 mSv career limit)", "status": "doğrulandı" },
+        { "ref": "NASA-STD-3001 Vol 1, [V1 4031] (250 mSv SPE design requirement)", "status": "doğrulandı" },
+        { "ref": "NASA DONKI (event time and type; not dose)", "status": "doğrulandı" },
+        { "ref": "varsayım: dose model, 1.8 mSv/day base (MSL RAD, Zeitlin et al. 2013) + simulated event", "status": "doğrulanmadı" },
+        { "ref": "varsayım: 80% yellow tier", "status": "doğrulanmadı" }
+      ]
+    }
+  },
+
+  "cabin_alerts": {
+    "_not": "Anahtarlar ranges.json 'kurallar' listesindeki rule id'leridir. Listede olmayanlar (basınç, O2 arızası) rules.py kendi id'siyle kullanır.",
+    "ppco2-caution": {
+      "message": "Cabin CO₂ rising: {ppco2} mmHg",
+      "why_note": "ppCO₂ is above {co2_yellow} mmHg for {n_consecutive} consecutive readings. NASA keeps the 7-day average below {co2_yellow} mmHg to hold headache risk under 1%. Limit is {co2_limit} mmHg (1-hour average).",
+      "recommendation": "Check CO₂ removal and avoid heavy exercise",
+      "sources": [ { "ref": "NASA OCHMO-TB-004", "status": "kısmen" } ]
+    },
+    "ppco2-limit": {
+      "message": "Cabin CO₂ above limit: {ppco2} mmHg",
+      "why_note": "ppCO₂ is above the {co2_limit} mmHg cabin limit for {n_consecutive} consecutive readings.",
+      "recommendation": "Increase CO₂ removal now and stop exercise until ppCO₂ is below {co2_limit} mmHg",
+      "sources": [ { "ref": "NASA-STD-3001 Vol 2, [V2 6004]; OCHMO-TB-004", "status": "doğrulandı" } ]
+    },
+    "pio2-normoxia-low": {
+      "message": "Cabin O₂ below normoxia: PIO₂ {pio2} mmHg",
+      "why_note": "PIO₂ is below the {pio2_target_min}–{pio2_target_max} mmHg normoxia target for {n_consecutive} consecutive readings. {pio2_formula}.",
+      "recommendation": "Check O₂ generation and prepare backup O₂",
+      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev F, [V2 6003], Table 6.2-1", "status": "doğrulandı" } ]
+    },
+    "pio2-hypoxia-low": {
+      "message": "Cabin O₂ below mild-hypoxia limit: PIO₂ {pio2} mmHg",
+      "why_note": "PIO₂ is below {pio2_mild_min} mmHg (mild hypoxia lower limit, 1-hour average). It must never go below {pio2_abs_min} mmHg.",
+      "recommendation": "Switch to backup O₂ now and stop exercise for all crew",
+      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev F, Table 6.2-1 and footnote", "status": "doğrulandı" } ]
+    },
+    "pio2-normoxia-high": {
+      "message": "Cabin O₂ above normoxia: PIO₂ {pio2} mmHg",
+      "why_note": "PIO₂ is above the {pio2_target_max} mmHg normoxia target for {n_consecutive} consecutive readings.",
+      "recommendation": "Check O₂ generation settings",
+      "sources": [ { "ref": "NASA-STD-3001 Vol 2 Rev F, [V2 6003], Table 6.2-1", "status": "doğrulandı" } ]
+    },
+    "pressure-out-of-range": {
+      "message": "Total pressure out of range: {pressure} mmHg",
+      "why_note": "Continuous exposure requires {pressure_min} < pressure ≤ {pressure_max} mmHg.",
+      "recommendation": "Check for leaks and the pressure control system",
+      "sources": [ { "ref": "NASA-STD-3001 Vol 2, [V2 6006]", "status": "kısmen" } ]
+    },
+    "o2-generation-failure": {
+      "message": "O₂ generation failure",
+      "why_note": "O₂ production is 0. Only the O₂ countdown speeds up; CO₂ removal is unaffected, so the CO₂ countdown does not change.",
+      "recommendation": "Switch to backup O₂ and reduce crew activity to lower O₂ use",
+      "sources": [ { "ref": "varsayım: team mass-balance model (ranges.kalan_sure_formulu)", "status": "doğrulanmadı" } ]
+    }
+  },
+
+  "eva_suit": {
+    "_not": "P2. Giysi PICO2 için Tablo 11.3-1 kullanılır, 3 mmHg kabin limiti DEĞİL.",
+    "pico2_ok": "Suit CO₂ {pico2} mmHg: no time limit.",
+    "pico2_timed": "Suit CO₂ {pico2} mmHg: max {hours_allowed} h per day at this level ({hours_used} h used).",
+    "pico2_red": "Suit CO₂ above {pico2_red_min} mmHg: return to airlock now.",
+    "suit_time_max": "Total time in suit: {hours} h.",
+    "_not_suit_time": "Rev E'deki 'giyside en çok 14 saat' cümlesi Rev F'te yok; ekranda NASA limiti olarak gösterilmez (ranges.json: kısmen).",
+    "return_airlock": "Return to the airlock. {minutes} min of suit supply left (sim time).",
+    "sources": [
+      { "ref": "NASA-STD-3001 Vol 2 Rev F, [V2 11039], Table 11.3-1", "status": "doğrulandı" },
+      { "ref": "NASA-STD-3001 Vol 2 Rev F, Section 11.3 (suit CO₂ time limits)", "status": "doğrulandı" }
+    ]
+  },
+
+  "comms": {
+    "_not": "Dünya paneli (P3). CommsMessage.sender değerleri crew | mission_control | system. 'statuses' adları öneridir; Barış'ın comms.py şartnamesindeki adlar geçerlidir.",
+    "panel_title": "Earth link",
+    "sender_names": { "crew": "Crew", "mission_control": "Mission Control", "system": "System" },
+    "delay_label": "One-way delay: {minutes} min (demo: {demo_seconds} s represents {minutes} min)",
+    "delay_info": "Mars–Earth one-way delay is {delay_min}–{delay_max} min, and a round trip takes twice as long. The crew cannot wait for an answer in an emergency, so the system recommends action first and reports second.",
+    "countdown": "Arrives in {seconds_left} s",
+    "statuses": {
+      "queued": "Queued",
+      "in_transit": "In transit",
+      "delivered": "Delivered",
+      "replied": "Reply received"
+    },
+    "outgoing_templates": {
+      "health_report": "HEALTH REPORT {sim_time} – {name}: {decision_title} ({severity}). Action taken: {recommendation}",
+      "cabin_report": "CABIN REPORT {sim_time} – {message}. Countdown O₂ {o2_hours} h / CO₂ {co2_hours} h.",
+      "radiation_report": "RADIATION REPORT {sim_time} – Crew in storm shelter. Event dose (simulated): crew-1 {d1} / crew-2 {d2} / crew-3 {d3} / crew-4 {d4} mSv.",
+      "status_ok": "STATUS {sim_time} – All crew Normal. No active alerts."
+    },
+    "incoming_replies": {
+      "health_report": "Report received for {name}. Agree with action. Keep monitoring and send vitals every 10 min.",
+      "cabin_report": "Cabin report received. Continue on backup system; repair procedure follows.",
+      "radiation_report": "Dose log received. Stay in shelter until event end; we will confirm all-clear.",
+      "status_ok": "Copy. Nominal."
+    },
+    "reply_note": "Replies are pre-written demo messages, not real Mission Control."
+  },
+
+  "profiles": {
+    "selector_label": "Environment",
+    "limit_line": "{profile_name}: CO₂ limit {co2_limit_text} – source: {profile_source}",
+    "mars_transit_note": "NASA-STD-3001 limits.",
+    "denizalti_note": "0.8% CO₂ is a 2018 study recommendation for 90-day exposure, not an official Navy limit. Crew metabolic rates are astronaut averages (assumption).",
+    "yeralti_siginagi_note": "US coal mine refuge chamber (30 CFR 7.506). CO and methane are not modeled.",
+    "pitch_line": "The system built to protect astronauts works the same way in submarines and underground refuge chambers."
+  }
+}
