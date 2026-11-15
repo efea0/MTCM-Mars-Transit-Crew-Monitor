@@ -1,3 +1,4 @@
+import { createNasaData } from "./nasa-data.js";
 import { setText, svgRenderer, chartRange, resetChartRange } from "./ui.js";
 import { createDecisionBand } from "./decisions.js";
 import { createSession, validFrame } from "./session.js";
@@ -51,6 +52,7 @@ const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }
 const readingFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const params = new URLSearchParams(window.location.search);
 const mockMode = params.get("mock") === "1";
+const nasaData = createNasaData({ trigger: document.getElementById("nasa-trigger"), banner: document.getElementById("nasa-storm-banner"), mock: mockMode });
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
 const crewViews = new Map();
@@ -327,9 +329,14 @@ function crewEvidence(view, member, alerts, stale) {
       const message = el("p", "alert-message");
       const meta = el("p", "alert-meta");
       const why = evidenceList([]);
-      root.append(badge, message, meta, why);
-      block = { root, badge, message, meta, why };
+      const source = nasaData.sourceNode(alert.rule_id);
+      root.append(badge, message, meta, why, source);
+      block = { root, badge, message, meta, why, source, ruleId: alert.rule_id };
       view.evidenceBlocks.set(alert.id, block);
+    }
+    if (block.ruleId !== alert.rule_id) {
+      const source = nasaData.sourceNode(alert.rule_id);
+      block.source.replaceWith(source); block.source = source; block.ruleId = alert.rule_id;
     }
     tone(block.badge, alert.severity);
     setText(block.badge, LABELS.status[alert.severity]);
@@ -467,10 +474,15 @@ function updateAlerts(stale) {
     view.severity.textContent = LABELS.status[alert.severity];
     view.message.textContent = alert.message;
     view.meta.textContent = `${alert.consecutive_count} consecutive readings · Last: ${formatClock(alert.last_seen)}`;
-    const key = JSON.stringify(alert.why);
+    const key = JSON.stringify([alert.rule_id, alert.why]);
     if (key !== view.key) {
       if (!view.body.firstElementChild) view.body.append(evidenceList([]));
       evidenceList(alert.why, view.body.firstElementChild); view.key = key;
+      const oldSource = view.body.querySelector(".nasa-rule-source");
+      if (!oldSource || oldSource.dataset.nasaRule !== alert.rule_id) {
+        const source = nasaData.sourceNode(alert.rule_id);
+        if (oldSource) oldSource.replaceWith(source); else view.body.append(source);
+      }
     }
     if (container.children[index] !== view.root) container.insertBefore(view.root, container.children[index] ?? null);
   });
@@ -543,6 +555,7 @@ function render() {
   updateCrew(stale); updateCabin(stale); updateAlerts(stale); updateEarth(stale);
   decisionBand.update(frame, stale);
   crewDetail.update(stale);
+  nasaData.update(frame);
   wasStale = stale;
   updateClock();
 }
@@ -558,7 +571,7 @@ const decisionBand = createDecisionBand({
   },
 });
 const crewDetail = createCrewDetail({
-  session, labels: LABELS, format: number, evidenceList,
+  session, labels: LABELS, format: number, evidenceList, sourceNode: ruleId => nasaData.sourceNode(ruleId),
   decisionTone: decision => DECISION_TONE[decision] ?? "unknown",
 });
 function updateClock() {

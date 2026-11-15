@@ -78,7 +78,7 @@ export function drawDetailChart(svg, series, events, format) {
   paint.finish();
 }
 
-export function createCrewDetail({ session, labels, format, evidenceList, decisionTone }) {
+export function createCrewDetail({ session, labels, format, evidenceList, decisionTone, sourceNode = () => null }) {
   const dialog = document.getElementById("crew-detail");
   const title = document.getElementById("detail-title");
   const subtitle = document.getElementById("detail-subtitle");
@@ -94,7 +94,9 @@ export function createCrewDetail({ session, labels, format, evidenceList, decisi
   const evidenceLabel = element("p", "detail-kicker");
   const evidenceMessage = element("p", "detail-alert-message");
   const evidenceRows = evidenceList([]);
-  evidence.append(evidenceLabel, evidenceMessage, evidenceRows);
+  const evidenceSource = element("div", "detail-source");
+  let sourceRule = null;
+  evidence.append(evidenceLabel, evidenceMessage, evidenceRows, evidenceSource);
   let seriesKey = null;
   let crewId = null;
   let revision = -1;
@@ -164,11 +166,18 @@ export function createCrewDetail({ session, labels, format, evidenceList, decisi
       evidenceMessage.hidden = false;
       evidenceRows.hidden = false;
       evidenceList(lastAlert.why, evidenceRows);
+      evidenceSource.hidden = false;
+      if (sourceRule !== lastAlert.rule_id) {
+        sourceRule = lastAlert.rule_id;
+        const source = sourceNode(sourceRule);
+        evidenceSource.replaceChildren(...(source ? [source] : []));
+      }
     } else {
       setText(evidenceLabel, member?.decision === "unknown" || unavailable
         ? "Insufficient data for a current decision. No recorded alert for this person." : "No recorded alerts for this person.");
       evidenceMessage.hidden = true;
       evidenceRows.hidden = true;
+      evidenceSource.hidden = true;
     }
     const recent = events.slice(-8).reverse();
     const keys = new Set(recent.map(event => `${event.kind}:${event.time}:${event.label}`));
