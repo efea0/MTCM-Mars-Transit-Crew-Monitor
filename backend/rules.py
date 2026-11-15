@@ -40,6 +40,7 @@ from backend.models import (
     Quality,
     Reading,
     Severity,
+    SleepSummary,
     Status,
     TelemetryFrame,
     ThresholdRule,
@@ -123,6 +124,10 @@ class RulesEngine:
         self._clear_counts: dict[str, int] = {}
         self._alert_first_seen: dict[str, datetime] = {}
         self._active_alerts: dict[str, Alert] = {}
+        # Sleep rule state per crew member: last seen period, consecutive short-period counts, first sighting.
+        self._sleep_last_period: dict[str, int] = {}
+        self._sleep_counts: dict[str, dict[str, int]] = {}
+        self._sleep_first_seen: dict[str, datetime] = {}
 
     def _load_reference_data(self) -> None:
         with open(self.ranges_path, encoding="utf-8") as f:
@@ -285,9 +290,38 @@ class RulesEngine:
             ),
         ]
         self.vital_rules = tuple(vital_rules_list)
+        self._load_sleep_rules(data)
         self.rules = tuple(self.cabin_rules) + tuple(self.vital_rules)
 
+    def _load_sleep_rules(self, data: dict[str, Any]) -> None:
+        """Read the optional uyku_kurallari section (HYPOTHESIS thresholds, counted in sleep periods).
+
+        Absent section = sleep rule off, so older reference files keep working.
+        """
+        self.sleep_thresholds: dict[Severity, float] | None = None
+        self.sleep_periods_required = 0
+        rows = data.get("uyku_kurallari", {}).get("kurallar")
+        if not rows:
+            return
+        by_id = {row["id"]: row for row in rows}
+        caution, critical = by_id["sleep-short-caution"], by_id["sleep-short-critical"]
+        self.sleep_thresholds = {
+            Severity.caution: float(caution["threshold"]),
+            Severity.critical: float(critical["threshold"]),
+        }
+        self.sleep_periods_required = int(caution["consecutive_required"])
+        if not 0 < self.sleep_thresholds[Severity.critical] <= self.sleep_thresholds[Severity.caution]:
+            raise ValueError("ranges: sleep critical threshold must not exceed the caution threshold")
+        if (
+            self.sleep_periods_required != int(critical["consecutive_required"])
+            or self.sleep_periods_required < 1
+        ):
+            raise ValueError("ranges: both sleep rules need the same consecutive_required (>= 1)")
+
     def reset(self) -> None:
+        self._sleep_last_period.clear()
+        self._sleep_counts.clear()
+        self._sleep_first_seen.clear()
         self._co2_window.clear()
         self._missing_counters.clear()
         self._missing_first_seen.clear()
@@ -667,6 +701,7 @@ class RulesEngine:
 
         updated_vitals = CrewVitals(**vitals_dict)
 
+        sleep = self._evaluate_sleep(crew, frame)
         sep_missing = self._evaluate_crew_decisions(crew, updated_vitals, frame, pio2_mmhg, sep)
 
         all_active_crew_alerts = [
@@ -702,10 +737,91 @@ class RulesEngine:
         return crew.model_copy(
             update={
                 "vitals": updated_vitals,
+                "sleep": sleep,
                 "status": c_status,
                 "decision": c_decision,
             }
         )
+
+    def _evaluate_sleep(self, crew: CrewMember, frame: TelemetryFrame) -> SleepSummary | None:
+        """Short-sleep decision: a caution or critical alert after N consecutive short sleep periods.
+
+        A period counts once, when its counter first appears. Missing or poor sleep data never counts as
+        enough sleep: it neither clears nor raises anything. No sleep data at all removes the alert.
+        """
+        cid = crew.id
+        alert_id = f"{cid}:karar-uyku_eksikligi"
+        sleep = crew.sleep
+        if self.sleep_thresholds is None:
+            return sleep
+        if sleep is None:
+            self._sleep_last_period.pop(cid, None)
+            self._sleep_counts.pop(cid, None)
+            self._sleep_first_seen.pop(cid, None)
+            self._active_alerts.pop(alert_id, None)
+            return None
+
+        hours = sleep.hours
+        valid = hours.value is not None and hours.quality == Quality.ok.value
+        caution_below = self.sleep_thresholds[Severity.caution]
+        critical_below = self.sleep_thresholds[Severity.critical]
+        if not valid:
+            reading = hours.model_copy(update={"status": Status.unknown})
+            return sleep.model_copy(update={"hours": reading})
+        assert hours.value is not None
+
+        if hours.value < critical_below:
+            status = Status.critical
+        elif hours.value < caution_below:
+            status = Status.caution
+        else:
+            status = Status.nominal
+        updated = sleep.model_copy(update={"hours": hours.model_copy(update={"status": status})})
+
+        if sleep.period != self._sleep_last_period.get(cid):
+            self._sleep_last_period[cid] = sleep.period
+            counts = self._sleep_counts.setdefault(cid, {"caution": 0, "critical": 0})
+            counts["caution"] = counts["caution"] + 1 if hours.value < caution_below else 0
+            counts["critical"] = counts["critical"] + 1 if hours.value < critical_below else 0
+            if counts["caution"] == 1:
+                self._sleep_first_seen[cid] = hours.ts
+
+        counts = self._sleep_counts.get(cid, {"caution": 0, "critical": 0})
+        if counts["critical"] >= self.sleep_periods_required:
+            severity, threshold, count = Severity.critical, critical_below, counts["critical"]
+            action = "Arrange a recovery sleep period and hand over demanding tasks."
+        elif counts["caution"] >= self.sleep_periods_required:
+            severity, threshold, count = Severity.caution, caution_below, counts["caution"]
+            action = "Plan extra rest and avoid scheduling demanding tasks."
+        else:
+            self._active_alerts.pop(alert_id, None)
+            return updated
+
+        self._active_alerts[alert_id] = Alert(
+            id=alert_id,
+            crew_id=cid,
+            metric=Metric.sleep_hours,
+            severity=severity,
+            message=f"{crew.name}: Short sleep ({severity.value}). {action}",
+            rule_id="karar-uyku_eksikligi",
+            consecutive_count=count,
+            first_seen=self._sleep_first_seen.get(cid, hours.ts),
+            last_seen=frame.ts,
+            why=[
+                Evidence(
+                    metric=Metric.sleep_hours,
+                    value=hours.value,
+                    threshold=threshold,
+                    comparator=Comparator.lt,
+                    ts=hours.ts,
+                    note=(
+                        f"Last sleep period {hours.value:.1f} h (below {threshold:g} h), "
+                        f"{count} consecutive periods"
+                    ),
+                )
+            ],
+        )
+        return updated
 
     def _evaluate_vital_reading_status(
         self, metric: Metric, delta: float | None, activity: Activity
