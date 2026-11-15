@@ -1,3 +1,5 @@
+import { createDecisionBand } from "./decisions.js";
+
 const STREAM_URL = "/api/stream";
 const SCENARIO_URL = "/api/scenario";
 const HEALTH_URL = "/api/health";
@@ -199,6 +201,8 @@ function createCrew(index) {
   const decision = el("span", "badge decision", LABELS.decision.unknown);
   const activity = el("span", "activity", "Unknown");
   header.append(identity, decision, activity);
+  const deviation = el("p", "deviation", "Deviating, not yet confirmed");
+  deviation.hidden = true;
   const primary = el("div", "primary-readings");
   const secondary = el("div", "secondary-readings");
   const readings = new Map();
@@ -227,9 +231,9 @@ function createCrew(index) {
     why.setAttribute("aria-expanded", String(!evidence.hidden));
   });
   const stamp = el("time", "reading-time", "Reading: no data");
-  root.append(header, primary, secondary, trendArea, stamp, why, evidence);
+  root.append(header, deviation, primary, secondary, trendArea, stamp, why, evidence);
   tone(root, "unknown");
-  return { root, name, role, decision, activity, readings, trend, stamp, evidence, why, evidenceKey: null };
+  return { root, name, role, decision, activity, deviation, readings, trend, stamp, evidence, why, evidenceKey: null };
 }
 function svgNode(tag, attributes, text = "") {
   const node = document.createElementNS(SVG_NS, tag);
@@ -334,6 +338,9 @@ function updateCrew(stale) {
     view.role.textContent = member?.role ?? "Waiting for role";
     view.decision.textContent = stale ? "? NO DATA" : LABELS.decision[decision] ?? LABELS.decision.unknown;
     view.activity.textContent = `◌ ${LABELS.activity[stale ? "unknown" : member?.activity] ?? LABELS.activity.unknown}`;
+    const deviating = !stale && decision === "normal"
+      && Object.values(member?.vitals ?? {}).some(reading => reading?.status && reading.status !== "nominal");
+    view.deviation.hidden = !deviating;
     view.why.setAttribute("aria-label", `${crewText(member?.name) ?? `Crew ${index + 1}`}: Why?`);
     const stamped = !stale && member?.vitals?.heart_rate?.ts;
     view.stamp.textContent = stamped ? `Reading ${formatClock(stamped)} · SIMULATED` : "Reading: no data";
@@ -513,9 +520,22 @@ function render() {
   document.getElementById("mission_elapsed_s").textContent = missionTime(frame?.mission_elapsed_s);
   document.getElementById("mission_elapsed_s").classList.toggle("muted", stale);
   updateCrew(stale); updateCabin(stale); updateAlerts(stale); updateEarth(stale);
+  decisionBand.update(frame, stale);
   wasStale = stale;
   updateClock();
 }
+const decisionBand = createDecisionBand({
+  list: document.getElementById("decision-list"),
+  note: document.getElementById("decisions-note"),
+  helpers: {
+    crewText,
+    formatClock,
+    decisionTone: decision => DECISION_TONE[decision] ?? DECISION_TONE.unknown,
+    decisionLabel: decision => LABELS.decision[decision] ?? LABELS.decision.unknown,
+    statusLabel: severity => LABELS.status[severity] ?? LABELS.status.unknown,
+    setTone: tone,
+  },
+});
 function updateClock() {
   const stale = packetStale();
   if (stale !== wasStale) { render(); return; }
